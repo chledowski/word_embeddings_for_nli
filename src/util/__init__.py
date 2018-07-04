@@ -2,7 +2,8 @@
 Few utilities
 """
 
-import logging, h5py
+import logging
+import h5py
 from logging import handlers
 import datetime
 from collections import OrderedDict

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#python src/scripts/fetch_prepare/fetch_embeddings.py --embeddings wiki
+#python src/scripts/fetch_data/fetch_embeddings.py --embeddings wiki
 #python src/scripts/retrofitting/retrofitting.py --evaluate --save-text=wiki --second-embedding=wiki
 #python src/scripts/retrofitting/retrofitting.py --save-text=wiki_fq_12_q --evaluate --save-embedding --sum --q --retrofitting
 #python src/scripts/retrofitting/retrofitting.py --save-text=wiki_fq_2_q --evaluate --save-embedding --sum --q --retrofitting
