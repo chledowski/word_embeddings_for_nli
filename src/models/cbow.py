@@ -45,9 +45,9 @@ def cbow(config):
     embed, embedding_matrix, statistics = prep_embedding_matrix(config, vocab_size, data)
 
     AvgEmbeddings = Lambda(lambda x: K.mean(x, axis=1),
-                           output_shape=(config["embedding"]["dim"],),
+                           output_shape=(config["embedding_dim"],),
                            name="sum_emb")
-    translate = TimeDistributed(Dense(config["embedding"]["dim"], activation='relu', name="translate"),
+    translate = TimeDistributed(Dense(config["embedding_dim"], activation='relu', name="translate"),
                                 name="translate")
     import tensorflow as tf
     from keras.backend.tensorflow_backend import set_session
@@ -69,7 +69,7 @@ def cbow(config):
     joint = Dropout(config['dropout'], name="pre_mlp_drop")(joint)
 
     for i in range(config['n_layers']):
-        joint = Dense(2 * config["embedding"]["dim"], activation='relu',
+        joint = Dense(2 * config["embedding_dim"], activation='relu',
                       kernel_regularizer=l2(4e-6),
                       name="dense_" + str(i))(joint)
         joint = Dropout(config['dropout'], name="dropout_" + str(i))(joint)

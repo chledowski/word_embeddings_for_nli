@@ -47,8 +47,8 @@ def bilstm(config):
     premise = Input(shape=(None,), dtype='int32')
     hypothesis = Input(shape=(None,), dtype='int32')
 
-    bilstm_layer = Bidirectional(LSTM(units=config["embedding"]["dim"]), merge_mode='concat', weights=None)
-    # translate = TimeDistributed(Dense(config["embedding"]["dim"], activation='relu', name="translate"),
+    bilstm_layer = Bidirectional(LSTM(units=config["embedding_dim"]), merge_mode='concat', weights=None)
+    # translate = TimeDistributed(Dense(config["embedding_dim"], activation='relu', name="translate"),
     #                             name="translate")
 
     prem = bilstm_layer(embed(premise))
@@ -62,7 +62,7 @@ def bilstm(config):
     joint = Dropout(config['dropout'], name="pre_mlp_drop")(joint)
 
     for i in range(config['n_layers']):
-        joint = Dense(4 * config["embedding"]["dim"], activation='relu',
+        joint = Dense(4 * config["embedding_dim"], activation='relu',
                       kernel_regularizer=l2(4e-6),
                       name="dense_" + str(i))(joint)
         joint = Dropout(config['dropout'], name="dropout_" + str(i))(joint)

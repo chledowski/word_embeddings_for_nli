@@ -150,7 +150,7 @@ class AutomaticNamer(VegabPlugin):
     Adds prefix or decides on full name
     """
 
-    def __init__(self, as_prefix=True, namer=""):
+    def __init__(self, as_prefix=False, namer=""):
         self.as_prefix = as_prefix
 
         if isinstance(namer, types.FunctionType):
@@ -392,7 +392,7 @@ def main(config_registry, func, plugins=[], **training_func_kwargs):
             p.on_after_call(config, args.save_path)
 
     if not os.path.exists(args.save_path):
-        os.mkdir(args.save_path)
+        os.makedirs(args.save_path)
 
     for p in plugins:
         p.on_before_call(config, args.save_path)
