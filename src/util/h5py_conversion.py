@@ -213,12 +213,30 @@ def extract_tokens_from_binary_parse(parse):
     return parse.replace('(', ' ').replace(')', ' ').replace('-LRB-', '(').replace('-RRB-', ')').split()
 
 
+def remove_non_ascii_characters(parse):
+    return parse.encode('ascii', errors='ignore').decode()
+
+
 def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
     logging.info("Reading CSV file")
     d = pd.read_csv(snli_path, sep="\t", error_bad_lines=False)
 
     # Remove NaN
     d = d[d['sentence2_binary_parse'].apply(lambda x: isinstance(x, str))]
+
+    total_num_non_ascii_characters = 0
+    total_num_sentences_with_no_ascii = 0
+    for column in ['sentence1_binary_parse', 'sentence2_binary_parse']:
+        total_num_non_ascii_characters += sum([
+            len(s) - len(remove_non_ascii_characters((s))) for s in d[column]
+        ])
+        total_num_sentences_with_no_ascii += sum([
+            len(s) - len(remove_non_ascii_characters((s))) > 0 for s in d[column]
+        ])
+        d[column] = d[column].apply(remove_non_ascii_characters)
+
+    logging.info("Total num. of non-ASCII characters: %d" % total_num_non_ascii_characters)
+    logging.info("Total num. of sentences with non-ASCII: %d" % total_num_sentences_with_no_ascii)
 
     # Remove labels without consensus
     d = d.drop(d.query('gold_label == "-"').index)
@@ -233,6 +251,7 @@ def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
     # Get all words
     sentences = [extract_tokens_from_binary_parse(s) for s in d['sentence1_binary_parse']]
     sentences += [extract_tokens_from_binary_parse(s) for s in d['sentence2_binary_parse']]
+
     words = np.array([w.lower() if lowercase else w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s], dtype='S20')
     sentences = [] # For safety
     logging.info("Found {} words".format(len(words)))

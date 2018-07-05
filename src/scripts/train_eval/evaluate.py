@@ -18,12 +18,7 @@ from src.util.data import SNLIData
 
 
 def eval_model():
-
-    if os.path.exists('results/retrofitting_results.json'):
-        with open('results/retrofitting_results.json', 'r') as f:
-            results_dict = json.load(f)
-    else:
-        results_dict = {}
+    results_dict = {}
 
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
@@ -75,13 +70,13 @@ def eval_model():
     accuracies['breaking'] = test_breaking_metrics[1]
     losses['breaking'] = test_breaking_metrics[0]
 
-    results_dict[args.model_name]['accuracies'] = accuracies
-    results_dict[args.model_name]['losses'] = losses
+    results_dict['accuracies'] = accuracies
+    results_dict['losses'] = losses
 
     _, _, wv = load_embedding_from_h5(args.model_name)
-    results_dict[args.model_name]['backup'] = evaluate_wv(wv, simlex_only=False)
+    results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
 
-    with open('results/retrofitting_results.json', 'w') as f:
+    with open('results/%s/retrofitting_results.json' % args.model_name, 'w') as f:
         json.dump(results_dict, f)
 
 

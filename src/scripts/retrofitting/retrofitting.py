@@ -74,7 +74,7 @@ def faruqui(wv_original, lexicon, n_epochs, losses, losses_2):
                 wv_retro = {}
                 for key in word_to_id.keys():
                     wv_retro[key] = retro_emb_matrix[word_to_id[key]].numpy()
-                evaluate_wv(wv_retro, [])
+                # evaluate_wv(wv_retro, [])
                 print("changing losses from {} to {}.".format(losses, losses_2))
                 losses = losses_2
 
@@ -152,20 +152,10 @@ def faruqui(wv_original, lexicon, n_epochs, losses, losses_2):
 
 
 def retrofit():
-
-    if os.path.exists('results/retrofitting_results.json'):
-        with open('results/retrofitting_results.json', 'r') as fp:
-            results_dict = json.load(fp)
-            if args.verbose:
-                print(results_dict)
-    else:
-        results_dict = {}
-
     emb_words, emb_matrix_all, wv = load_embedding_from_h5(args.embedding)
 
     if args.verbose:
         print("evaluating on {} lexicon..".format(args.lexicon_name))
-    results_dict[args.save_text] = {'lexicon': args.lexicon_name}
 
     lexicon = read_lexicon(os.path.join('src/scripts/retrofitting/lexicons', args.lexicon_name + '.txt'))
 
@@ -206,30 +196,16 @@ def retrofit():
             for key in q_word_to_id.keys():
                 wv_2[key] = wv_2_emb_matrix[q_word_to_id[key]]
 
-            if args.evaluate == "yes":
-                _ = evaluate_wv(wv_2)
-
         for key in wv_2.keys():
 
             wv_2[key] = wv[key] + wv_2[key]
 
-        if args.evaluate:
-            eval = evaluate_wv(wv_2)
-            results_dict[args.save_text]['evaluation'] = eval
 
         if args.save_embedding:
             export_dict_to_h5(wv_2, os.path.join(DATA_DIR, "embeddings", args.save_text + ".h5"))
     else:
-
-        if args.evaluate:
-            eval = evaluate_wv(wv_2)
-            results_dict[args.save_text]['evaluation'] = eval
-
         if args.save_embedding:
             export_dict_to_h5(wv_2, os.path.join(DATA_DIR, "embeddings", args.save_text + ".h5"))
-
-    with open('results/retrofitting_results.json', 'w') as fp:
-        json.dump(results_dict, fp)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -251,7 +227,6 @@ if __name__ == "__main__":
     parser.add_argument("--train-var", default='all', type=str)
     parser.add_argument("--second-embedding", default='', type=str)
 
-    parser.add_argument("--evaluate", action='store_true')
     parser.add_argument("--normalize-wv2", action='store_true')
     parser.add_argument("--pca", action='store_true')
     parser.add_argument("--save-embedding", action='store_true')

@@ -1,28 +1,34 @@
 import json
 import pandas as pd
+import pathlib
 
 def to_csv():
-    with open('results/retrofitting_results.json', 'r') as f:
-        results_dict = json.load(f)
+    result_dict = {}
+    for json_filename in pathlib.Path('results').glob('**/*retrofitting_results.json'):
+        model_name = os.path.basename(os.path.dirname(json_filename))
 
-    d = {}
-    for key in results_dict.keys():
-        d[key] = {}
-        d[key]['lexicon'] = results_dict[key]['lexicon']
-        if 'evaluation' in results_dict[key].keys():
-            for key2 in results_dict[key]['evaluation'].keys():
-                d[key][key2] = results_dict[key]['evaluation'][key2]
-        if 'esim_acc' in results_dict[key].keys():
-            for key2 in results_dict[key]['esim_acc'].keys():
-                d[key]["esim_a_" + key2] = results_dict[key]['esim_acc'][key2]
-        if 'esim_loss' in results_dict[key].keys():
-            for key2 in results_dict[key]['esim_loss'].keys():
-                d[key]["esim_l_" + key2] = results_dict[key]['esim_loss'][key2]
-        if 'backup' in results_dict[key].keys():
-            for key2 in results_dict[key]['backup'].keys():
-                d[key]['bckp_' + key2] = results_dict[key]['backup'][key2]
+        model_dict = {}
+        result_dict[model_name] = model_dict
 
-    df = pd.DataFrame(d)
+        with open(json_filename, 'r') as f:
+            json_dict = json.load(f)
+
+        for key in json_dict.keys():
+            model_dict[key] = {}
+            if 'evaluation' in json_dict[key].keys():
+                for key2 in json_dict[key]['evaluation'].keys():
+                    model_dict[key][key2] = json_dict[key]['evaluation'][key2]
+            if 'esim_acc' in json_dict[key].keys():
+                for key2 in json_dict[key]['esim_acc'].keys():
+                    model_dict[key]["esim_a_" + key2] = json_dict[key]['esim_acc'][key2]
+            if 'esim_loss' in json_dict[key].keys():
+                for key2 in json_dict[key]['esim_loss'].keys():
+                    resumodel_dictlt_dict[key]["esim_l_" + key2] = json_dict[key]['esim_loss'][key2]
+            if 'backup' in json_dict[key].keys():
+                for key2 in json_dict[key]['backup'].keys():
+                    model_dict[key]['bckp_' + key2] = json_dict[key]['backup'][key2
+
+    df = pd.DataFrame(result_dict)
     df = df.round(3)
     print(df)
     pd.DataFrame.to_csv(df, "results/retrofitting_results.csv")

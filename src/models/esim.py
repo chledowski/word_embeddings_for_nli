@@ -52,9 +52,9 @@ def esim(config):
     premise = Input(shape=(None,), dtype='int32')
     hypothesis = Input(shape=(None,), dtype='int32')
 
-    bilstm_encoder = Bidirectional(LSTM(units=config["embedding"]["dim"], return_sequences=True))
+    bilstm_encoder = Bidirectional(LSTM(units=config["embedding_dim"], return_sequences=True))
 
-    translate = TimeDistributed(Dense(config["embedding"]["dim"],
+    translate = TimeDistributed(Dense(config["embedding_dim"],
                                       kernel_regularizer=l2(1e-5),
                                       bias_regularizer=l2(1e-5),
                                       activation='relu'),
