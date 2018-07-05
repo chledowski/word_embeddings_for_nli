@@ -1,4 +1,4 @@
-#word_embeddings_for_nli
+# Word_embeddings_for_nli
 
 Before doing anything, set your DATA_DIR.
 
@@ -7,7 +7,12 @@ In order to download and preproccess SNLI dataset, run `bash src/scripts/fetch_d
 
 To download pretrained word embeddings run `python src/scripts/fetch_data/fetch_embeddings.py`. You can choose to download only Glove by using argument `--embedding glove` or only Glove trained on wikipedia by using `--embedding wiki`.
 
-To train a model (currently supported are: cbow, bilstm, esim) run (for cbow with glove wiki): `python src/scripts/train_eval/train_cbow.py root results/yourdir --embedding_name=wiki`
+### Retrofitting
+For retrofitting, run `python src/scripts/retrofitting/retrofitting.py`. Remember to set appropriate arguments!
+
+### Training NLI model
+
+To train a model (currently supported are: cbow, bilstm, esim) run: `python src/scripts/train_eval/train_cbow.py root results/yourdir --embedding_name=wiki`(for cbow with glove wiki)
 
 
 

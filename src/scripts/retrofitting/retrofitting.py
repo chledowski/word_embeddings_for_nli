@@ -1,7 +1,5 @@
 import argparse
-import h5py
 import json
-import pandas as pd
 import random
 from scipy.stats import ortho_group
 from tqdm import tqdm
@@ -11,7 +9,6 @@ from torch.autograd import Variable
 from torch.nn import CosineSimilarity
 
 from web.analogy import *
-from src import DATA_DIR
 from src.util import *
 
 cos = CosineSimilarity(dim=1, eps=1e-6)

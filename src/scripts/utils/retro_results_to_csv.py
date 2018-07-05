@@ -8,7 +8,7 @@ def to_csv():
     d = {}
     for key in results_dict.keys():
         d[key] = {}
-        # d[key]['lexicon'] = results_dict[key]['lexicon']
+        d[key]['lexicon'] = results_dict[key]['lexicon']
         if 'evaluation' in results_dict[key].keys():
             for key2 in results_dict[key]['evaluation'].keys():
                 d[key][key2] = results_dict[key]['evaluation'][key2]
@@ -18,6 +18,9 @@ def to_csv():
         if 'losses' in results_dict[key].keys():
             for key2 in results_dict[key]['losses'].keys():
                 d[key][key2] = results_dict[key]['losses'][key2]
+        if 'backup' in results_dict[key].keys():
+            for key2 in results_dict[key]['backup'].keys():
+                d[key]['bckp_' + key2] = results_dict[key]['backup'][key2]
 
     df = pd.DataFrame(d)
     df = df.round(3)
