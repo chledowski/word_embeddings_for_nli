@@ -366,4 +366,4 @@ if __name__ == '__main__':
     s = ordered_dicts_to_set([hyponymy, hypernymy, antonymy, synonymy])
     pairs_to_txt(s, 'src/scripts/retrofitting/lexicons/kim.txt')
     s = ordered_dicts_to_set([hyponymy, hypernymy, antonymy, synonymy, co_hyponyms])
-    pairs_to_txt(s, 'src/scripts/retrofitting/lexicons/kim+.txt')
+    pairs_to_txt(s, 'src/scripts/retrofitting/lexicons/cokim.txt')

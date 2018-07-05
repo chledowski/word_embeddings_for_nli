@@ -72,8 +72,8 @@ def eval_model():
     losses['test'] = test_metrics[1]
     test_breaking_metrics = model.evaluate_generator(stream_test_breaking, 8193 / config["batch_size"])
     print('Breaking loss / breaking accuracy = {:.4f} / {:.4f}'.format(test_breaking_metrics[0], test_breaking_metrics[1]))
-    accuracies['breaking'] = test_breaking_metrics[0]
-    losses['breaking'] = test_breaking_metrics[1]
+    accuracies['breaking'] = test_breaking_metrics[1]
+    losses['breaking'] = test_breaking_metrics[0]
 
     results_dict[args.model_name]['accuracies'] = accuracies
     results_dict[args.model_name]['losses'] = losses
