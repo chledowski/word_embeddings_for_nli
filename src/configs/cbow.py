@@ -8,7 +8,7 @@ from src.util.vegab import ConfigRegistry
 baseline_configs = ConfigRegistry()
 
 baseline_configs.set_root_config({
-    "dataset": {"name": "snli", "n_labels": 3},
+    "dataset": {"name": "mnli", "n_labels": 3},
     "model": 'cbow',
     "n_layers": 3,
     "batch_size": 512,
@@ -24,7 +24,7 @@ baseline_configs.set_root_config({
     "D": 0,
     "whitening": False,
     "centering": False,
-    "normalize": True,
+    "normalize": False,
     "embedding_dim": 300,
     "embedding_name": "cos",
     "train_on_fraction": 1

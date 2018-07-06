@@ -1,30 +1,20 @@
 #!/usr/bin/env bash
 
-MODULO=3
+set -e
+
+GREEN='\033[1;32m'
+NC='\033[0m' # No Color
+
+MODULO=6
 RUN_MODULO=$1
-echo "Running experiments modulo $MODULO == $RUN_MODULO"
-
-export CUDA_VISIBLE_DEVICES=$RUN_MODULO
-
-# set -x
+printf "${GREEN}Running experiments modulo $MODULO == $RUN_MODULO${NC}\n"
+printf "${GREEN}CUDA: $CUDA_VISIBLE_DEVICES${NC}\n"
 
 # python src/scripts/fetch_data/fetch_embeddings.py --embeddings wiki
 
+DATASET="snli"
 declare -a NAMES=(
     "wiki"
-    "wiki_fq_12_q"
-    "wiki_fq_2_q"
-    "wiki_fq_12"
-    "wiki_fq_2"
-    "fq_12"
-    "fq_2"
-
-    "kim_wiki_fq_12_q"
-    "kim_wiki_fq_2_q"
-    "kim_wiki_fq_12"
-    "kim_wiki_fq_2"
-    "kim_fq_12"
-    "kim_fq_2"
 
     "cokim_wiki_fq_12_q"
     "cokim_wiki_fq_2_q"
@@ -32,39 +22,57 @@ declare -a NAMES=(
     "cokim_wiki_fq_2"
     "cokim_fq_12"
     "cokim_fq_2"
+
+    "wiki_fq_12_q"
+    "wiki_fq_2_q"
+    "wiki_fq_12"
+    "wiki_fq_2"
+    "fq_12"
+    "fq_2"
+
+#    "kim_wiki_fq_12_q"
+#    "kim_wiki_fq_2_q"
+#    "kim_wiki_fq_12"
+#    "kim_wiki_fq_2"
+#    "kim_fq_12"
+#    "kim_fq_2"
 )
 
 declare -a RETRO_ARGS=(
-    "--evaluate --second-embedding=wiki" # wiki
+    " --save-embedding --second-embedding=wiki" # wiki
 
-    "--evaluate --save-embedding --sum --q --retrofitting" # wiki_fq_12_q
-    "--evaluate --save-embedding --sum --q --retrofitting --losses 2 --losses-2 2" # wiki_fq_2_q
-    "--evaluate --save-embedding --sum --retrofitting" # wiki_fq_12
-    "--evaluate --save-embedding --sum --retrofitting --losses 2 --losses-2 2" # wiki_fq_2
-    "--evaluate --save-embedding --retrofitting" # fq_12
-    "--evaluate --save-embedding --retrofitting --losses 2 --losses-2 2" # fq_2
+    " --save-embedding --sum --q --retrofitting --lexicon-name=cokim" # cokim_wiki_fq_12_q
+    " --save-embedding --sum --q --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_wiki_fq_2_q
+    " --save-embedding --sum --retrofitting --lexicon-name=cokim" # cokim_wiki_fq_12
+    " --save-embedding --sum --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_wiki_fq_2
+    " --save-embedding --retrofitting --lexicon-name=cokim" # cokim_fq_12
+    " --save-embedding --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_fq_2
 
-    "--evaluate --save-embedding --sum --q --retrofitting --lexicon-name=kim" # kim_wiki_fq_12_q
-    "--evaluate --save-embedding --sum --q --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_wiki_fq_2_q
-    "--evaluate --save-embedding --sum --retrofitting --lexicon-name=kim" # kim_wiki_fq_12
-    "--evaluate --save-embedding --sum --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_wiki_fq_2
-    "--evaluate --save-embedding --retrofitting --lexicon-name=kim" # kim_fq_12
-    "--evaluate --save-embedding --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_fq_2
+    " --save-embedding --sum --q --retrofitting" # wiki_fq_12_q
+    " --save-embedding --sum --q --retrofitting --losses 2 --losses-2 2" # wiki_fq_2_q
+    " --save-embedding --sum --retrofitting" # wiki_fq_12
+    " --save-embedding --sum --retrofitting --losses 2 --losses-2 2" # wiki_fq_2
+    " --save-embedding --retrofitting" # fq_12
+    " --save-embedding --retrofitting --losses 2 --losses-2 2" # fq_2
 
-    "--evaluate --save-embedding --sum --q --retrofitting --lexicon-name=cokim" # cokim_wiki_fq_12_q
-    "--evaluate --save-embedding --sum --q --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_wiki_fq_2_q
-    "--evaluate --save-embedding --sum --retrofitting --lexicon-name=cokim" # cokim_wiki_fq_12
-    "--evaluate --save-embedding --sum --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_wiki_fq_2
-    "--evaluate --save-embedding --retrofitting --lexicon-name=cokim" # cokim_fq_12
-    "--evaluate --save-embedding --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_fq_2
+#    " --save-embedding --sum --q --retrofitting --lexicon-name=kim" # kim_wiki_fq_12_q
+#    " --save-embedding --sum --q --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_wiki_fq_2_q
+#    " --save-embedding --sum --retrofitting --lexicon-name=kim" # kim_wiki_fq_12
+#    " --save-embedding --sum --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_wiki_fq_2
+#    " --save-embedding --retrofitting --lexicon-name=kim" # kim_fq_12
+#    " --save-embedding --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_fq_2
+
+
 )
 
 for (( i=0; i<${#NAMES[@]}; i++ ));
 do
     if [[ $(($i % $MODULO)) == $(($RUN_MODULO)) ]]; then
-        NAME=${NAMES[$i]}
+        NAME="${DATASET}_${NAMES[$i]}"
         RESULTS_DIR="results/$NAME"
 
+        printf "${GREEN}Running $NAME...${NC}\n"
+        printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         python src/scripts/retrofitting/retrofitting.py ${RETRO_ARGS[$i]} --save-text=$NAME
         mkdir -p $RESULTS_DIR
         python src/scripts/train_eval/train_cbow.py root $RESULTS_DIR --embedding_name=$NAME
