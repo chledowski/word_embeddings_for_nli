@@ -1,16 +1,19 @@
 import json
+import os
 import pandas as pd
 import pathlib
 
 def to_csv():
     result_dict = {}
-    for json_filename in pathlib.Path('results').glob('**/*retrofitting_results.json'):
-        model_name = os.path.basename(os.path.dirname(json_filename))
+    for json_path_posix in pathlib.Path('results').glob('**/*retrofitting_results.json'):
+        json_path = str(json_path_posix)
+        model_name = os.path.basename(os.path.dirname(json_path))
+        print(model_name)
 
         model_dict = {}
         result_dict[model_name] = model_dict
 
-        with open(json_filename, 'r') as f:
+        with open(json_path, 'r') as f:
             json_dict = json.load(f)
 
         for key in json_dict.keys():
@@ -26,11 +29,10 @@ def to_csv():
                     resumodel_dictlt_dict[key]["esim_l_" + key2] = json_dict[key]['esim_loss'][key2]
             if 'backup' in json_dict[key].keys():
                 for key2 in json_dict[key]['backup'].keys():
-                    model_dict[key]['bckp_' + key2] = json_dict[key]['backup'][key2
+                    model_dict[key]['bckp_' + key2] = json_dict[key]['backup'][key2]
 
     df = pd.DataFrame(result_dict)
     df = df.round(3)
-    print(df)
     pd.DataFrame.to_csv(df, "results/retrofitting_results.csv")
 
 def rm_emb_from_dict(emb_name):

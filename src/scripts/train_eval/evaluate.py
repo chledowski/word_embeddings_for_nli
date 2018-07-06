@@ -55,20 +55,20 @@ def eval_model():
     losses = {}
     train_metrics = model.evaluate_generator(stream_train, 549364 / config["batch_size"])
     print('Train loss / train accuracy = {:.4f} / {:4f}'.format(train_metrics[0], train_metrics[1]))
-    accuracies['train'] = train_metrics[0]
-    losses['train'] = train_metrics[1]
+    losses['train'] = train_metrics[0]
+    accuracies['train'] = train_metrics[1]
     dev_metrics = model.evaluate_generator(stream_dev, 9842 / config["batch_size"])
     print('Dev loss / dev accuracy = {:.4f} / {:4f}'.format(dev_metrics[0], dev_metrics[1]))
-    accuracies['dev'] = dev_metrics[0]
-    losses['dev'] = dev_metrics[1]
+    losses['dev'] = dev_metrics[0]
+    accuracies['dev'] = dev_metrics[1]
     test_metrics = model.evaluate_generator(stream_test, 9824 / config["batch_size"])
     print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(test_metrics[0], test_metrics[1]))
-    accuracies['test'] = test_metrics[0]
-    losses['test'] = test_metrics[1]
+    losses['test'] = test_metrics[0]
+    accuracies['test'] = test_metrics[1]
     test_breaking_metrics = model.evaluate_generator(stream_test_breaking, 8193 / config["batch_size"])
     print('Breaking loss / breaking accuracy = {:.4f} / {:.4f}'.format(test_breaking_metrics[0], test_breaking_metrics[1]))
-    accuracies['breaking'] = test_breaking_metrics[1]
     losses['breaking'] = test_breaking_metrics[0]
+    accuracies['breaking'] = test_breaking_metrics[1]
 
     results_dict['accuracies'] = accuracies
     results_dict['losses'] = losses
