@@ -20,19 +20,9 @@ from src.util.prepare_embedding import prep_embedding_matrix
 logger = logging.getLogger(__name__)
 
 
-def bilstm(config):
-
-    logger.info("Loading data and vocabulary...")
-
-    if config["dataset"]["name"] == "snli":
-        data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"]["name"] == "mnli":
-        data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
-    else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"]["name"])
-
+def bilstm(config, data):
     vocabulary = {}
-    with open(os.path.join(DATA_DIR, config["dataset"]["name"], 'vocab.txt')) as f:
+    with open(os.path.join(DATA_DIR, config["dataset"], 'vocab.txt')) as f:
 
         for line in f:
             (key, val) = line.split()
@@ -70,7 +60,7 @@ def bilstm(config):
         if config["batch_normalization"] == "True":
             joint = BatchNormalization(name="bn_" + str(i))(joint)
 
-    pred = Dense(config["dataset"]["n_labels"], activation='softmax', name="last_softmax")(joint)
+    pred = Dense(config["n_labels"], activation='softmax', name="last_softmax")(joint)
 
     model = Model(inputs=[premise, hypothesis], outputs=pred)
     print((model.summary()))

@@ -23,18 +23,9 @@ from src.util.prepare_embedding import prep_embedding_matrix
 logger = logging.getLogger(__name__)
 
 
-def esim(config):
-
-    logger.info("Loading data and vocabulary...")
-
-    if config["dataset"]["name"] == "snli":
-        data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"]["name"] == "mnli":
-        data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
-    else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"]["name"])
+def esim(config, data):
     vocabulary = {}
-    with open(os.path.join(DATA_DIR, config["dataset"]["name"], 'vocab.txt')) as f:
+    with open(os.path.join(DATA_DIR, config["dataset"], 'vocab.txt')) as f:
 
         for line in f:
             (key, val) = line.split()
@@ -109,14 +100,14 @@ def esim(config):
     Final = Dense(300,
                   kernel_regularizer=l2(1e-5),
                   bias_regularizer=l2(1e-5),
-                  name='dense300_' + config["dataset"]["name"])(Final)
+                  name='dense300_' + config["dataset"])(Final)
     if config["batch_normalization"]:
         Final = BatchNormalization()(Final)
     Final = Activation(config["activation"])(Final)
     Final = Dropout(config["dropout"] / 2)(Final)
     Final = Dense(3,
                   activation='softmax',
-                  name='judge300_' + config["dataset"]["name"])(Final)
+                  name='judge300_' + config["dataset"])(Final)
     model = Model(inputs=[premise, hypothesis], outputs=Final)
 
     print((model.summary()))

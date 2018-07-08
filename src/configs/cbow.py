@@ -8,7 +8,8 @@ from src.util.vegab import ConfigRegistry
 baseline_configs = ConfigRegistry()
 
 baseline_configs.set_root_config({
-    "dataset": {"name": "mnli", "n_labels": 3},
+    "dataset": "snli",
+    "n_labels": 3,
     "model": 'cbow',
     "n_layers": 3,
     "batch_size": 512,

@@ -23,12 +23,12 @@ def eval_model():
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
 
-    if config["dataset"]["name"] == "snli":
+    if config["dataset"] == "snli":
         data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"]["name"] == "mnli":
+    elif config["dataset"] == "mnli":
         data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
     else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"]["name"])
+        raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
     breaking_data = SNLIData(os.path.join(DATA_DIR, "snli"), "breaking")
 
@@ -43,7 +43,7 @@ def eval_model():
     stream_test_breaking = modified_stream(test_breaking)()
 
     # Load model
-    model, embedding_matrix, statistics = build_model(config)
+    model, embedding_matrix, statistics = build_model(config, data)
 
     model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
                       loss='categorical_crossentropy', metrics=['accuracy'])
@@ -82,7 +82,7 @@ def eval_model():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", default='wiki', type=str)
+    parser.add_argument("--model-name", type=str)
 
     args = parser.parse_args()
     eval_model()

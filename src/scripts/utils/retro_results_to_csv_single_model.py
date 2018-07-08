@@ -6,7 +6,7 @@ import pathlib
 
 def main():
     result_dict = {}
-    for json_path_posix in pathlib.Path('results').glob('**/*/retrofitting_results.json'):
+    for json_path_posix in pathlib.Path('results').glob('**/%s*/retrofitting_results.json' % args.prefix):
         json_path = str(json_path_posix)
         embedding_name = os.path.basename(os.path.dirname(json_path))
         print(embedding_name)
@@ -28,6 +28,7 @@ def main():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", default='cbow', type=str)
+    parser.add_argument("--prefix", default='', type=str)
     args = parser.parse_args()
 
     main()

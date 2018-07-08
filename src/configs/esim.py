@@ -8,8 +8,9 @@ from src.util.vegab import ConfigRegistry
 baseline_configs = ConfigRegistry()
 
 baseline_configs.set_root_config({
+    "dataset": "snli",
+    "n_labels": 3,
     "activation": 'tanh',
-    "dataset": {"name": "snli", "n_labels": 3},
     "model": 'esim',
     "n_layers": 3,
     "batch_normalization": False,

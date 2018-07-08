@@ -5,7 +5,7 @@ set -e
 GREEN='\033[1;32m'
 NC='\033[0m' # No Color
 
-MODULO=6
+MODULO=12
 RUN_MODULO=$1
 printf "${GREEN}Running experiments modulo $MODULO == $RUN_MODULO${NC}\n"
 printf "${GREEN}CUDA: $CUDA_VISIBLE_DEVICES${NC}\n"

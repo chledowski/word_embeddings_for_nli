@@ -31,12 +31,12 @@ def train_model(config, save_path):
     # Load data
     logger.info("Loading data for training...")
 
-    if config["dataset"]["name"] == "snli":
+    if config["dataset"] == "snli":
         data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"]["name"] == "mnli":
+    elif config["dataset"] == "mnli":
         data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
     else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"]["name"])
+        raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
     train = data.get_stream("train", batch_size=config["batch_size"])
     dev = data.get_stream("dev", batch_size=config["batch_size"])
@@ -56,7 +56,7 @@ def train_model(config, save_path):
     stream_test = modified_stream(test)()
 
     # Load model
-    model, embedding_matrix, statistics = build_model(config)
+    model, embedding_matrix, statistics = build_model(config, data)
 
     spectral_norm = list(calculate_spectral_norm(embedding_matrix))
     stats = [['spectral norm: '], spectral_norm,
