@@ -14,7 +14,7 @@ baseline_configs.set_root_config({
     "model": 'esim',
     "n_layers": 3,
     "batch_normalization": False,
-    "batch_size": 512,
+    "batch_size": 128,
     "early_stopping": True,
     "n_epochs": 40,
     "dropout": 0.1,
