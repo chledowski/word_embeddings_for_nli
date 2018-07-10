@@ -6,7 +6,7 @@ from pprint import pprint as pp
 from main import train
 from src import DATA_DIR
 from src.configs.kim import baseline_configs
-from src.scripts.fetch_data.embedding_file_change_format import h5_to_txt
+from src.scripts.preprocess_data.embedding_file_change_format import h5_to_txt
 
 def make_dirs(dirs):
     for d in dirs:
