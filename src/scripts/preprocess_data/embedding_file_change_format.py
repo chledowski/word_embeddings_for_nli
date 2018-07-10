@@ -42,7 +42,12 @@ def h5_to_txt(h5_name, txt_name, prefix="en_"):
     emb_matrix_all = emb_file[list(emb_file.keys())[0]][:]
     # emb_matrix_all = normalize_embeddings(emb_matrix_all)
 
-    with open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'w') as text_file:
+    if txt_name == 'wv_pre_lear':
+        txt_path = 'src/scripts/retrofitting/lear/word_vectors/wv_pre_lear.txt'
+    else:
+        txt_path = os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt")
+
+    with open(txt_path, 'w') as text_file:
         for i in tqdm(range(len(emb_words))):
             word = emb_words[i]
             str_embedding = ' '.join(list(map(str, emb_matrix_all[i])))
@@ -51,7 +56,11 @@ def h5_to_txt(h5_name, txt_name, prefix="en_"):
 
 def txt_to_h5(h5_name, txt_name):
     word_dictionary = {}
-    f = codecs.open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'r')
+
+    if txt_name == 'wv_after_lear':
+        f = codecs.open('src/scripts/retrofitting/lear/word_vectors/wv_after_lear.txt', 'r')
+    else:
+        f = codecs.open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'r')
 
     for line in f:
         try:
@@ -68,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument("--h5", default='LEAR_ONLY.h5', type=str)
     parser.add_argument("--txt", default='wv_final', type=str)
     parser.add_argument("--prefix", default='en_', type=str)
-    parser.add_argument("--convert_to", default="h5", type=str, help='choose from txt and h5')
+    parser.add_argument("--convert-to", default="h5", type=str, help='choose from txt and h5')
     args = parser.parse_args()
     if args.convert_to == 'txt':
         h5_to_txt(args.h5, args.txt, args.prefix)

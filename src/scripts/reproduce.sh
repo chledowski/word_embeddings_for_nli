@@ -72,7 +72,7 @@ declare -a RETRO_ARGS=(
 #    " --save-embedding --retrofitting --lexicon-name=kim --losses 2 --losses-2 2" # kim_fq_2
 )
 
-# python src/scripts/fetch_data/fetch_embeddings.py --embeddings wiki
+# python src/scripts/preprocess_data/fetch_embeddings.py --embeddings wiki
 
 for (( i=0; i<${#NAMES[@]}; i++ ));
 do

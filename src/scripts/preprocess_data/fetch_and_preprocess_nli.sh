@@ -18,6 +18,7 @@ rm -rf breaking_nli_dataset
 rm breaking_nli_dataset.zip
 
 python src/util/pack_to_hdf5.py $DATA_DIR/raw/test_breaking_nli.jsonl $DATA_DIR/snli/test_breaking_nli.h5 --type=snli --breaking_nli_dataset
+python src/util/convert_breaking_to_txt.py $DATA_DIR/snli/test_breaking_nli.h5
 
 ############################## SNLI
 
