@@ -5,10 +5,17 @@ set -e
 GREEN='\033[1;32m'
 NC='\033[0m' # No Color
 
-MODEL=$1
-DATASET=$2
+MODEL=$1 # model name {esim, cbow, blstm}
+DATASET=$2 # dataset name {SNLI, MNLI}
 RUN_MODULO=$3
-MODULO=$4
+MODULO=$4 # how many runs at once
+
+
+# For example, if you want to run on two devices, execute:
+# src/scripts/reproduce.sh cbow snli 0 2
+# src/scripts/reproduce.sh cbow snli 1 2
+# in two terminals with different CUDA device exported.
+
 
 printf "${GREEN}Dataset = ${DATASET}${NC}\n"
 printf "${GREEN}Model = ${MODEL}${NC}\n"
@@ -41,7 +48,7 @@ declare -a NAMES=(
 )
 
 declare -a RETRO_ARGS=(
-    " --save-embedding --second-embedding=wiki" # wiki
+    " --second-embedding=wiki" # wiki
 
     " --save-embedding --sum --q --retrofitting --lexicon-name=cokim" # cokim_wiki_fq_12_q
     " --save-embedding --sum --q --retrofitting --lexicon-name=cokim --losses 2 --losses-2 2" # cokim_wiki_fq_2_q
