@@ -2,36 +2,31 @@
 Summary a source file using a summarization model.
 '''
 import argparse
-import theano
-import numpy
+import json
 import pickle as pkl
 import os
-from data_iterator import TextIterator
 
-from main import (build_model, pred_probs, prepare_data, pred_acc, load_params, init_params, init_tparams)
+from src.models.kim.scripts.kim.data_iterator import TextIterator
+
+from src import DATA_DIR
+from src.configs.kim import baseline_configs
+from src.util import evaluate_wv, load_embedding_from_h5
+from src.models.kim.scripts.kim.main import (
+    build_model, pred_probs, prepare_data, pred_acc, load_params, init_params, init_tparams)
 
 def main():
-    model_name = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
-    model = '../../models/{}.npz'.format(model_name)
-    valid_datasets   = ['../../data/kim_data/premise_snli_1.0_dev.txt',
-                        '../../data/kim_data/hypothesis_snli_1.0_dev.txt',
-                        '../../data/kim_data/premise_snli_1.0_dev_lemma.txt',
-                        '../../data/kim_data/hypothesis_snli_1.0_dev_lemma.txt',
-                        '../../data/kim_data/label_snli_1.0_dev.txt']
-    test_datasets    = ['../../data/kim_data/premise_snli_1.0_test.txt',
-                        '../../data/kim_data/hypothesis_snli_1.0_test.txt',
-                        '../../data/kim_data/premise_snli_1.0_test_lemma.txt',
-                        '../../data/kim_data/hypothesis_snli_1.0_test_lemma.txt',
-                        '../../data/kim_data/label_snli_1.0_test.txt']
-    dictionary       = ['../../data/kim_data/vocab_cased.pkl',
-                        '../../data/kim_data/vocab_cased_lemma.pkl']
+    model_path = os.path.join(DATA_DIR, 'results', args.model_name, 'model.npz')
+    config = baseline_configs.get_root_config()
+
+    results_dict = {}
+
     # load model model_options
-    with open('%s.pkl' % model, 'rb') as f:
+    with open('%s.pkl' % model_path, 'rb') as f:
         options = pkl.load(f)
 
     print(options)
     # load dictionary and invert
-    with open(dictionary[0], 'rb') as f:
+    with open(config["dictionary"][0], 'rb') as f:
         word_dict = pkl.load(f)
 
     print('Loading knowledge base ...')
@@ -42,22 +37,34 @@ def main():
     n_words = options['n_words']
     valid_batch_size = options['valid_batch_size']
 
-    valid = TextIterator(valid_datasets[0], valid_datasets[1], valid_datasets[2], valid_datasets[3], valid_datasets[4],
-                         dictionary[0], dictionary[1],
+    print('Preparing datasets ...')
+
+    datasets_names = ["train", "valid", "test", "breaking"]
+    config_names = ["datasets", "valid_datasets", "test_datasets", "breaking_datasets"]
+    datasets = []
+
+    for config_name in config_names:
+        datasets.append(
+            TextIterator(config[config_name][0],
+                         config[config_name][1],
+                         config[config_name][2],
+                         config[config_name][3],
+                         config[config_name][4],
+                         config["dictionary"][0], config["dictionary"][1],
                          n_words=n_words,
                          batch_size=valid_batch_size,
                          shuffle=False)
-    test = TextIterator(test_datasets[0], test_datasets[1], test_datasets[2], test_datasets[3], test_datasets[4],
-                         dictionary[0], dictionary[1],
-                         n_words=n_words,
-                         batch_size=valid_batch_size,
-                         shuffle=False)
+        )
+
+
+
+    print('Loading model...')
 
     # allocate model parameters
     params = init_params(options, word_dict)
 
     # load model parameters and set theano shared variables
-    params = load_params(model, params)
+    params = load_params(model_path, params)
     tparams = init_tparams(params)
 
     trng, use_noise, \
@@ -68,29 +75,42 @@ def main():
         f_probs = \
         build_model(tparams, options)
 
+    results_dict['accuracies'] = {}
+
     use_noise.set_value(0.)
-    valid_acc = pred_acc(f_pred, prepare_data, options, valid, kb_dict)
-    test_acc = pred_acc(f_pred, prepare_data, options, test, kb_dict)
 
-    print('valid accuracy', valid_acc)
-    print('test accuracy', test_acc)
+    print('Computing accuracy...')
 
-    predict_labels_valid = pred_label(f_pred, prepare_data, options, valid, kb_dict)
-    predict_labels_test = pred_label(f_pred, prepare_data, options, test, kb_dict)
+    for dataset_name, dataset in zip(datasets_names, datasets):
+        acc = pred_acc(f_pred, prepare_data, options, dataset, kb_dict)
+        print('%s accuracy' % dataset_name, acc)
+        results_dict['accuracies'][dataset_name] = acc
 
-    with open('predict_gold_samples_valid.txt', 'w') as fw:
-        with open(valid_datasets[0], 'r') as f1:
-            with open(valid_datasets[1], 'r') as f2:
-                with open(valid_datasets[-1], 'r') as f3:
-                    for a, b, c, d in zip(predict_labels_valid, f3, f1, f2):
-                        fw.write(str(a) + '\t' + b.rstrip() + '\t' + c.rstrip() + '\t' + d.rstrip() + '\n')
+    #
+    # predict_labels_valid = pred_label(f_pred, prepare_data, options, valid, kb_dict)
+    # predict_labels_test = pred_label(f_pred, prepare_data, options, test, kb_dict)
+    #
+    # with open('predict_gold_samples_valid.txt', 'w') as fw:
+    #     with open(config["valid_datasets"][0], 'r') as f1:
+    #         with open(config["valid_datasets"][1], 'r') as f2:
+    #             with open(config["valid_datasets"][-1], 'r') as f3:
+    #                 for a, b, c, d in zip(predict_labels_valid, f3, f1, f2):
+    #                     fw.write(str(a) + '\t' + b.rstrip() + '\t' + c.rstrip() + '\t' + d.rstrip() + '\n')
+    #
+    # with open('predict_gold_samples_test.txt', 'w') as fw:
+    #     with open(config["test_datasets"][0], 'r') as f1:
+    #         with open(config["test_datasets"][1], 'r') as f2:
+    #             with open(config["test_datasets"][-1], 'r') as f3:
+    #                 for a, b, c, d in zip(predict_labels_test, f3, f1, f2):
+    #                     fw.write(str(a) + '\t' + b.rstrip() + '\t' + c.rstrip() + '\t' + d.rstrip() + '\n')
 
-    with open('predict_gold_samples_test.txt', 'w') as fw:
-        with open(test_datasets[0], 'r') as f1:
-            with open(test_datasets[1], 'r') as f2:
-                with open(test_datasets[-1], 'r') as f3:
-                    for a, b, c, d in zip(predict_labels_test, f3, f1, f2):
-                        fw.write(str(a) + '\t' + b.rstrip() + '\t' + c.rstrip() + '\t' + d.rstrip() + '\n')
+    print("Evaluating embedding...")
+
+    _, _, wv = load_embedding_from_h5(args.embedding)
+    results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
+
+    with open('results/%s/retrofitting_results.json' % args.model_name, 'w') as f:
+        json.dump(results_dict, f)
 
     print('Done')
 
@@ -105,5 +125,7 @@ def pred_label(f_pred, prepare_data, options, iterator, kb_dict):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--model-name", required=True, type=str)
+    parser.add_argument("--embedding", required=True, type=str)
     args = parser.parse_args()
     main()

@@ -61,10 +61,11 @@ def download_wordnet(dirpath):
     url = 'http://wordnetcode.princeton.edu/3.0/WNprolog-3.0.tar.gz'
     ungzip(download(url, dirpath))
 
-def download_corenlp(dirpath):
+def download_corenlp(dirpath, force=True):
     if os.path.exists(dirpath):
-        print('Found Stanford CoreNLP - skip')
-        return
+        if not force:
+            print('Found Stanford CoreNLP - skip')
+            return
     else:
         os.makedirs(dirpath)
     url = 'http://nlp.stanford.edu/software/stanford-corenlp-full-2016-10-31.zip'
@@ -77,6 +78,6 @@ if __name__ == '__main__':
     corenlp_dir = os.path.join(DATA_DIR, 'corenlp')
     # download_snli(snli_dir)
     # download_wordvecs(wordvec_dir)
-    download_wordnet(wordnet_dir)
+    # download_wordnet(wordnet_dir)
     download_corenlp(corenlp_dir)
 

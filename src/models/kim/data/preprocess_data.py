@@ -271,9 +271,12 @@ def build_sequence(filepath, dst_dir):
 
 
 def CoreNLP(file_path):
-    if not os.path.exists('tokenize_and_lemmatize.class'):
+    tokenize_and_lemmatize_path = '%s/tokenize_and_lemmatize' % os.path.dirname(os.path.abspath(__file__))
+
+    if not os.path.exists('%s.class' % tokenize_and_lemmatize_path):
         print('Compile ...')
-        cmd = 'javac -cp "%s/corenlp/stanford-corenlp-full-2016-10-31/*" tokenize_and_lemmatize.java' % DATA_DIR
+        cmd = 'javac -cp "%s/corenlp/stanford-corenlp-full-2016-10-31/*" %s.java' % (
+            DATA_DIR, tokenize_and_lemmatize_path)
         print(cmd)
         os.system(cmd)
     print('Run ...')
@@ -283,7 +286,8 @@ def CoreNLP(file_path):
     out_path_token = os.path.join(base_dir, out_name_token)
     out_name_lemma = base_name + '_lemma.txt'
     out_path_lemma = os.path.join(base_dir, out_name_lemma)
-    cmd = 'java -cp ".:{}/corenlp/stanford-corenlp-full-2016-10-31/*" tokenize_and_lemmatize {} {} {}'.format(DATA_DIR, file_path, out_path_token, out_path_lemma )
+    cmd = 'java -cp ".:{}/corenlp/stanford-corenlp-full-2016-10-31/*:{}" tokenize_and_lemmatize {} {} {}'.format(
+        DATA_DIR, os.path.dirname(os.path.abspath(__file__)), file_path, out_path_token, out_path_lemma)
     print(cmd)
     os.system(cmd)
 
@@ -292,6 +296,8 @@ def make_dirs(dirs):
         if not os.path.exists(d):
             os.makedirs(d)
 
+
+
 if __name__ == '__main__':
     print(('=' * 80))
     print('Preprocessing WordNet prolog and SNLI dataset')
@@ -299,6 +305,7 @@ if __name__ == '__main__':
     dst_dir = os.path.join(DATA_DIR, 'kim_data')
     snli_dir = os.path.join(DATA_DIR, 'raw/snli_1.0')
     wordnet_dir = os.path.join(DATA_DIR, 'wordnet/prolog')
+    breaking_dir = os.path.join(DATA_DIR, 'snli/')
     make_dirs([dst_dir])
 
     print('1. build dictionary of WordNet\n')
@@ -344,10 +351,11 @@ if __name__ == '__main__':
         for k, v in list(w_w_features.items()):
             f.write(k + ' ' + ' '.join(map(str,v.tolist())) + '\n')
 
-    print('4. obtain train/dev/test dataset\n')
+    print('4. obtain train/dev/test/breaking dataset\n')
     build_sequence(os.path.join(snli_dir, 'snli_1.0_dev.txt'), dst_dir)
     build_sequence(os.path.join(snli_dir, 'snli_1.0_test.txt'), dst_dir)
     build_sequence(os.path.join(snli_dir, 'snli_1.0_train.txt'), dst_dir)
+    build_sequence(os.path.join(breaking_dir, 'test_breaking_nli.txt'), dst_dir)
 
     print('5. obtain lemma format for train/dev/test dataset\n')
     CoreNLP(os.path.join(dst_dir, 'premise_snli_1.0_train.txt'))
@@ -356,6 +364,8 @@ if __name__ == '__main__':
     CoreNLP(os.path.join(dst_dir, 'hypothesis_snli_1.0_dev.txt'))
     CoreNLP(os.path.join(dst_dir, 'premise_snli_1.0_test.txt'))
     CoreNLP(os.path.join(dst_dir, 'hypothesis_snli_1.0_test.txt'))
+    CoreNLP(os.path.join(dst_dir, 'premise_test_breaking_nli.txt'))
+    CoreNLP(os.path.join(dst_dir, 'hypothesis_test_breaking_nli.txt'))
 
     print('6. build dictionary for word sequence and lemma sequence from training set\n')
     build_dictionary([os.path.join(dst_dir, 'premise_snli_1.0_train_token.txt'),
