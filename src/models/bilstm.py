@@ -1,5 +1,5 @@
 #!/usr/bin/env pythonpl
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-q
 """
 Simple model definitions
 """
@@ -7,7 +7,7 @@ Simple model definitions
 import logging
 import os
 
-from keras.layers import merge, Dense, Input, Dropout, TimeDistributed, Bidirectional
+from keras.layers import Concatenate, Dense, Input, Dropout, TimeDistributed, Bidirectional
 from keras.layers.normalization import BatchNormalization
 from keras.layers.recurrent import LSTM
 from keras.models import Model
@@ -48,7 +48,7 @@ def bilstm(config, data):
         prem = BatchNormalization()(prem)
         hypo = BatchNormalization()(hypo)
 
-    joint = merge([prem, hypo], mode='concat', name="pre_mlp_concat")
+    joint = Concatenate()([prem, hypo])
     joint = Dropout(config['dropout'], name="pre_mlp_drop")(joint)
 
     for i in range(config['n_layers']):
@@ -64,4 +64,5 @@ def bilstm(config, data):
 
     model = Model(inputs=[premise, hypothesis], outputs=pred)
     print((model.summary()))
+
     return model, embedding_matrix, statistics

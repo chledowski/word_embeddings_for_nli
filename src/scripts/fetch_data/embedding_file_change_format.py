@@ -36,7 +36,7 @@ def export_dict_to_h5(wv, path):
                         output=path)
 
 
-def h5_to_txt(h5_name, txt_name):
+def h5_to_txt(h5_name, txt_name, prefix="en_"):
     emb_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', h5_name + ".h5"), 'r')
     emb_words = emb_file['words_flatten'][0].split('\n')
     emb_matrix_all = emb_file[list(emb_file.keys())[0]][:]
@@ -44,10 +44,9 @@ def h5_to_txt(h5_name, txt_name):
 
     with open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'w') as text_file:
         for i in tqdm(range(len(emb_words))):
-            text_file.write("en_" + emb_words[i] + " ")
-            for j in range(299):
-                text_file.write(str(emb_matrix_all[i][j]) + " ")
-            text_file.write(str(emb_matrix_all[i][299]) + "\n")
+            word = emb_words[i]
+            str_embedding = ' '.join(list(map(str, emb_matrix_all[i])))
+            text_file.write("%s%s %s\n" % (prefix, word, str_embedding))
 
 
 def txt_to_h5(h5_name, txt_name):
@@ -64,14 +63,14 @@ def txt_to_h5(h5_name, txt_name):
             print(line)
     export_dict_to_h5(word_dictionary, os.path.join(DATA_DIR, "embeddings", h5_name + ".h5"))
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--h5", default='LEAR_ONLY.h5', type=str)
     parser.add_argument("--txt", default='wv_final', type=str)
+    parser.add_argument("--prefix", default='en_', type=str)
     parser.add_argument("--convert_to", default="h5", type=str, help='choose from txt and h5')
     args = parser.parse_args()
     if args.convert_to == 'txt':
-        h5_to_txt(args.h5, args.txt)
+        h5_to_txt(args.h5, args.txt, args.prefix)
     elif args.convert_to == 'h5':
         txt_to_h5(args.h5, args.txt)
