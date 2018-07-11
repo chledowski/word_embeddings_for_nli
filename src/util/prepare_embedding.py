@@ -49,6 +49,6 @@ def prep_embedding_matrix(config, vocab_size, data):
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
     embed = Embedding(vocab_size, config["embedding_dim"],
-                      weights=[embedding_matrix], mask_zero=True, trainable=False)
+                      weights=[embedding_matrix], mask_zero=True, trainable=config["train_embeddings"])
 
     return embed, embedding_matrix, statistics

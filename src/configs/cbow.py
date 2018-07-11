@@ -28,5 +28,6 @@ baseline_configs.set_root_config({
     "normalize": False,
     "embedding_dim": 300,
     "embedding_name": "cos",
+    "train_embeddings": True,
     "train_on_fraction": 1
 })

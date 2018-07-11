@@ -156,7 +156,7 @@ def load_embedding(fname, format="word2vec_bin", normalize=True,
     return w
 
 
-def fetch_glove(dim=300, corpus="wiki", normalize=False, lower=False, clean_words=True):
+def fetch_glove(dim=300, corpus="gwiki6", normalize=False, lower=False, clean_words=True):
     """
     Fetches GloVe embeddings.
 
@@ -170,9 +170,9 @@ def fetch_glove(dim=300, corpus="wiki", normalize=False, lower=False, clean_word
         * common-crawl-840B: 300
         * twitter: 25, 50, 100, 200
 
-    corpus: string, default: "wiki"
+    corpus: string, default: "gwiki6"
       Corpus that GloVe vector were trained on.
-      Available corpuses: "wiki", "common-crawl-42B", "common-crawl-840B", "twitter-27B"
+      Available corpuses: "gwiki6", "gcc42", "gcc840", "twitter-27B"
 
     normalize: bool, default: True
       If true will normalize all vector to unit length
@@ -199,23 +199,23 @@ def fetch_glove(dim=300, corpus="wiki", normalize=False, lower=False, clean_word
     Loading GloVe format can take a while
     """
     download_file = {
-        "wiki": "http://nlp.stanford.edu/data/glove.6B.zip",
-        "common-crawl-42B": "http://nlp.stanford.edu/data/glove.42B.300d.zip",
-        "common-crawl-840B": "http://nlp.stanford.edu/data/glove.840B.300d.zip",
+        "gwiki6": "http://nlp.stanford.edu/data/glove.6B.zip",
+        "gcc42": "http://nlp.stanford.edu/data/glove.42B.300d.zip",
+        "gcc840": "http://nlp.stanford.edu/data/glove.840B.300d.zip",
         "twitter-27B": "http://nlp.stanford.edu/data/glove.twitter.27B.zip"
     }
 
     embedding_file = {
-        "wiki": {
+        "gwiki6": {
             50: "glove.6B/glove.6B.50d.txt",
             100: "glove.6B/glove.6B.100d.txt",
             200: "glove.6B/glove.6B.200d.txt",
             300: "glove.6B/glove.6B.300d.txt"
         },
-        "common-crawl-42B": {
+        "gcc42": {
             300: "glove.42B.300d/glove.42B.300d.txt"
         },
-        "common-crawl-840B": {
+        "gcc840": {
             300: "glove.840B.300d/glove.840B.300d.txt"
         },
         "twitter-27B": {
@@ -227,9 +227,9 @@ def fetch_glove(dim=300, corpus="wiki", normalize=False, lower=False, clean_word
     }
 
     vocab_size = {
-        "wiki": 400000,
-        "common-crawl-42B": 1917494,
-        "common-crawl-840B": 2196017,
+        "gwiki6": 400000,
+        "gcc42": 1917494,
+        "gcc840": 2196017,
         "twitter-27B": 1193514
     }
 
@@ -267,7 +267,7 @@ def kwargs_to_name(**obj):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Fetching pretrained embeddings.')
-    parser.add_argument('--embeddings', nargs='+', default=['wiki', 'glove', 'all'], type=str, help='lr schedule')
+    parser.add_argument('--embeddings', nargs='+', default=['gwiki6', 'glove', 'all'], type=str, help='lr schedule')
     args = parser.parse_args()
 
     if not os.path.exists(os.path.join(DATA_DIR, 'embeddings')):
@@ -275,26 +275,26 @@ if __name__ == "__main__":
 
     if 'all' in args.embeddings:
 
-        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5")):
+        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
             print("Fetching GloVe 6B")
-            E = fetch_glove(corpus="wiki")
+            E = fetch_glove(corpus="gwiki6")
             print("Saving embeddings")
             export_embedding_h5(E.vocabulary.words, E.vectors,
-                                output=os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5"))
+                                output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
 
-        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "common-crawl-42B" + ".h5")):
+        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
             print("Fetching GloVe 42B")
-            E = fetch_glove(corpus="common-crawl-42B")
+            E = fetch_glove(corpus="gcc42")
             print("Saving embeddings")
             export_embedding_h5(E.vocabulary.words, E.vectors,
-                                output=os.path.join(DATA_DIR, "embeddings", "common-crawl-42B" + ".h5"))
+                                output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
 
-        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "common-crawl-840B" + ".h5")):
+        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
             print("Fetching GloVe 840B")
-            E = fetch_glove(corpus="common-crawl-840B")
+            E = fetch_glove(corpus="gcc840")
             print("Saving embeddings")
             export_embedding_h5(E.vocabulary.words, E.vectors,
-                                output=os.path.join(DATA_DIR, "embeddings", "common-crawl-840B" + ".h5"))
+                                output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
 
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "conceptnet" + ".h5")):
             print("Fetching ConceptNet")
@@ -330,32 +330,32 @@ if __name__ == "__main__":
 
         if 'glove' in args.embeddings:
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5")):
+            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
                 print("Fetching GloVe 6B")
-                E = fetch_glove(corpus="wiki")
+                E = fetch_glove(corpus="gwiki6")
                 print("Saving embeddings")
                 export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5"))
+                                    output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "common-crawl-42B" + ".h5")):
+            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
                 print("Fetching GloVe 42B")
-                E = fetch_glove(corpus="common-crawl-42B")
+                E = fetch_glove(corpus="gcc42")
                 print("Saving embeddings")
                 export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "common-crawl-42B" + ".h5"))
+                                    output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "common-crawl-840B" + ".h5")):
+            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
                 print("Fetching GloVe 840B")
-                E = fetch_glove(corpus="common-crawl-840B")
+                E = fetch_glove(corpus="gcc840")
                 print("Saving embeddings")
                 export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "common-crawl-840B" + ".h5"))
+                                    output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
 
-        elif 'wiki' in args.embeddings:
+        elif 'gwiki6' in args.embeddings:
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5")):
+            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
                 print("Fetching GloVe 6B")
-                E = fetch_glove(corpus="wiki")
+                E = fetch_glove(corpus="gwiki6")
                 print("Saving embeddings")
                 export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "wiki" + ".h5"))
+                                    output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))

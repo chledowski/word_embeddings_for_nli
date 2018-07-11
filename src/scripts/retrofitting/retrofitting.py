@@ -204,6 +204,7 @@ def retrofit():
         if args.save_embedding:
             export_dict_to_h5(wv_2, os.path.join(DATA_DIR, "embeddings", args.save_text + ".h5"))
     else:
+
         if args.save_embedding:
             export_dict_to_h5(wv_2, os.path.join(DATA_DIR, "embeddings", args.save_text + ".h5"))
 

@@ -56,5 +56,6 @@ baseline_configs.set_root_config({
     "dim_kb": 5,
     "kb_inference": True,
     "kb_composition": False,
+    "train_embeddings": True,
     "attention_lambda": 0
 })

@@ -22,6 +22,7 @@ baseline_configs.set_root_config({
     "learning_rate": 10000,
     "lr_schedule": "[[1000, 0.001]]",
     "lr_schedule_type": "list_of_lists",
+    "max_length": 100,
     "intersection_of_embedding_dicts": False,
     "D": 0,
     "whitening": False,
@@ -29,5 +30,6 @@ baseline_configs.set_root_config({
     "normalize": False,
     "embedding_dim": 300,
     "embedding_name": "cos",
+    "train_embeddings": True,
     "train_on_fraction": 1
 })

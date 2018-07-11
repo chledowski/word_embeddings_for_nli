@@ -11,7 +11,6 @@ import os
 
 import pandas as pd
 from keras.utils import np_utils
-from keras import optimizers
 
 from src import DATA_DIR
 from src.configs.esim import baseline_configs
@@ -57,19 +56,7 @@ def train_model(config, save_path):
     stream_dev = modified_stream(dev)()
     stream_test = modified_stream(test)()
 
-    model, _, _ = build_model(config, data)
-
-    if config["optimizer"] == 'rmsprop':
-        model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
-
-    elif config["optimizer"] == 'sgd':
-        model.compile(optimizer=optimizers.SGD(lr=config["learning_rate"], momentum=0.9),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
-
-    elif config["optimizer"] == 'adam':
-        model.compile(optimizer=optimizers.Adam(lr=config["learning_rate"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+    model = build_model(config, data)
 
     # Call training loop
     baseline_training_loop(model=model, train=stream_train, test=stream_test, dev=stream_dev,
