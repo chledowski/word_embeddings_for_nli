@@ -125,4 +125,4 @@ def esim(config, data):
 
     print((model.summary()))
 
-    return model, embedding_matrix, statistics
+    return model

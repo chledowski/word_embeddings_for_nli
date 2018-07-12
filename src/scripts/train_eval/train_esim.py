@@ -11,6 +11,7 @@ import os
 
 import pandas as pd
 from keras.utils import np_utils
+from keras.preprocessing.sequence import pad_sequences
 
 from src import DATA_DIR
 from src.configs.esim import baseline_configs
@@ -49,7 +50,9 @@ def train_model(config, save_path):
                 it = stream.get_epoch_iterator()
                 for x1, _, x2, _, y in it:
                     # print(x1)
-                    yield [x1, x2], np_utils.to_categorical(y, 3)
+                    yield [pad_sequences(x1, maxlen=config['max_length'],
+                             padding='post', truncating='post'), pad_sequences(x2, maxlen=config['max_length'],
+                             padding='post', truncating='post')], np_utils.to_categorical(y, 3)
         return _stream
 
     stream_train = modified_stream(train)()
