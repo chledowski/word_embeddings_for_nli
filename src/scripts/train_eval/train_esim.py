@@ -50,8 +50,8 @@ def train_model(config, save_path):
                 it = stream.get_epoch_iterator()
                 for x1, _, x2, _, y in it:
                     # print(x1)
-                    yield [pad_sequences(x1, maxlen=config['max_length'],
-                             padding='post', truncating='post'), pad_sequences(x2, maxlen=config['max_length'],
+                    yield [pad_sequences(x1, maxlen=config['sentence_max_length'],
+                             padding='post', truncating='post'), pad_sequences(x2, maxlen=config['sentence_max_length'],
                              padding='post', truncating='post')], np_utils.to_categorical(y, 3)
         return _stream
 

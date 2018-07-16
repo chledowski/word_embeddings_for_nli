@@ -12,15 +12,41 @@ from src.util import remove_mean_and_d_components, normalize_embeddings
 
 from keras.layers.embeddings import Embedding
 
+# some utilities
+def ortho_weight(ndim):
+    """
+    Random orthogonal weights
+    Used by norm_weights(below), in which case, we
+    are ensuring that the rows are orthogonal
+    (i.e W = U \Sigma V, U has the same
+    # of rows, V has the same # of cols)
+    """
+    W = np.random.randn(ndim, ndim)
+    u, s, v = np.linalg.svd(W)
+    return u.astype('float32')
+
+
+def norm_weight(nin, nout=None, scale=0.01, ortho=True):
+    """
+    Random weights drawn from a Gaussian
+    """
+    if nout is None:
+        nout = nin
+    if nout == nin and ortho:
+        W = ortho_weight(nin)
+    else:
+        W = scale * np.random.randn(nin, nout)
+    return W.astype('float32')
 
 def prep_embedding_matrix(config, vocab_size, data):
 
     # if not config["intersection_of_embedding_dicts"]:
     if config["embedding_name"] == "random_uniform":
-        embedding_matrix = np.random.uniform(-0.1, 0.1, (vocab_size, config["embedding_dim"]))
-        statistics = [0, vocab_size]
+        # embedding_matrix = np.random.uniform(-0.1, 0.1, (vocab_size, config["embedding_dim"]))
+        embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
     else:
-        embedding_matrix = []
+        embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
+        # embedding_matrix = []
         embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', config["embedding_name"] + ".h5"), 'r')
         embedding_words = embedding_file['words_flatten'][0].split('\n')
         embedding_words = [word.encode() for word in embedding_words]
@@ -30,25 +56,26 @@ def prep_embedding_matrix(config, vocab_size, data):
         bad = 0
         for i in range(vocab_size):
             word_lower = data.vocab.id_to_word(i)
+            if i < 20:
+                print(word_lower)
 
             if word_lower in embedding_word_to_id:
+                if i < 20:
+                    print("in: ", word_lower)
                 # print("good: " + word_lower)
                 good+=1
-                embedding_matrix.append(embedding_matrix_all[embedding_word_to_id[word_lower]])
+                embedding_matrix[i] = embedding_matrix_all[embedding_word_to_id[word_lower]]
             else:
                 # if word_lower.lower() in embedding_word_to_id:
                     # print ("bad: " + word_lower)
                 bad +=1
-                embedding_matrix.append(np.random.uniform(-0.1, 0.1, size=(embedding_matrix_all.shape[1],)))
+                # embedding_matrix.append(norm_weight(embedding_matrix_all.shape[1],))
         print("Found {} words in the dictionary. Missing {} words.".format(good, bad))
-        statistics = [good, bad]
-        embedding_matrix = np.array(embedding_matrix)
+        # embedding_matrix = np.array(embedding_matrix)
         if config["D"] != 0:
             embedding_matrix = remove_mean_and_d_components(embedding_matrix, config["D"], partial_whitening=config["whitening"])
     embedding_matrix[0, :] = 0
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
-    embed = Embedding(vocab_size, config["embedding_dim"],
-                      weights=[embedding_matrix], mask_zero=True, trainable=config["train_embeddings"])
 
-    return embed, embedding_matrix, statistics
+    return embedding_matrix
