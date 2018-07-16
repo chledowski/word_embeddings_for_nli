@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 # import cPickle as pickle
 import pickle
-from keras.callbacks import EarlyStopping, ModelCheckpoint, LambdaCallback, Callback
+from keras.callbacks import EarlyStopping, ModelCheckpoint, LambdaCallback, Callback, ReduceLROnPlateau
 from keras.models import load_model
 import keras
 import keras.backend as K
@@ -97,7 +97,9 @@ def create_lr_schedule(config, model, save_path):
     logging.info("Learning rate schedule type")
     logging.info(learning_rate_schedule_type)
 
-    if learning_rate_schedule_type == "list_of_lists":
+    if learning_rate_schedule_type == "reduce_on_plateau":
+        return ReduceLROnPlateau(patience=5, verbose=1)
+    elif learning_rate_schedule_type == "list_of_lists":
         def lr_schedule(epoch, logs):
             for e, v in learning_rate_schedule:
                 if epoch < e:
@@ -156,7 +158,8 @@ def baseline_training_loop(model, train, test, dev,
     callbacks.append(LambdaCallback(on_epoch_end=time_callback))
 
     #lr schedule
-    callbacks.append(create_lr_schedule(config, model, save_path))
+    if config["lr_schedule_type"] != "none":
+        callbacks.append(create_lr_schedule(config, model, save_path))
 
     def eval_on_test(epoch, logs):
         B = model.evaluate_generator(test, 9824/batch_size)
