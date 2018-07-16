@@ -27,6 +27,7 @@ baseline_configs.set_root_config({
     "whitening": False,
     "centering": False,
     "normalize": False,
+    "norm_weight": False,
     "embedding_dim": 300,
     "embedding_name": "cos",
     "train_embeddings": True,

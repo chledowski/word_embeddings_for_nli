@@ -38,15 +38,15 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
         W = scale * np.random.randn(nin, nout)
     return W.astype('float32')
 
+
 def prep_embedding_matrix(config, vocab_size, data):
 
-    # if not config["intersection_of_embedding_dicts"]:
     if config["embedding_name"] == "random_uniform":
-        # embedding_matrix = np.random.uniform(-0.1, 0.1, (vocab_size, config["embedding_dim"]))
-        embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
+        if config["norm_weight"]:
+            embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
+        else:
+            embedding_matrix = np.random.uniform(-0.1, 0.1, (vocab_size, config["embedding_dim"]))
     else:
-        embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
-        # embedding_matrix = []
         embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', config["embedding_name"] + ".h5"), 'r')
         embedding_words = embedding_file['words_flatten'][0].split('\n')
         embedding_words = [word.encode() for word in embedding_words]
@@ -54,24 +54,30 @@ def prep_embedding_matrix(config, vocab_size, data):
         embedding_matrix_all = embedding_file[list(embedding_file.keys())[0]][:]
         good = 0
         bad = 0
-        for i in range(vocab_size):
-            word_lower = data.vocab.id_to_word(i)
-            if i < 20:
-                print(word_lower)
 
-            if word_lower in embedding_word_to_id:
-                if i < 20:
-                    print("in: ", word_lower)
-                # print("good: " + word_lower)
-                good+=1
-                embedding_matrix[i] = embedding_matrix_all[embedding_word_to_id[word_lower]]
-            else:
-                # if word_lower.lower() in embedding_word_to_id:
-                    # print ("bad: " + word_lower)
-                bad +=1
-                # embedding_matrix.append(norm_weight(embedding_matrix_all.shape[1],))
+        if config["norm_weight"]:
+            embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
+            for i in range(vocab_size):
+                word_lower = data.vocab.id_to_word(i)
+                if word_lower in embedding_word_to_id:
+                    good+=1
+                    embedding_matrix[i] = embedding_matrix_all[embedding_word_to_id[word_lower]]
+                else:
+                    bad +=1
+        else:
+            embedding_matrix = []
+            for i in range(vocab_size):
+                word_lower = data.vocab.id_to_word(i)
+                if word_lower in embedding_word_to_id:
+                    good += 1
+                    embedding_matrix.append(embedding_matrix_all[embedding_word_to_id[word_lower]])
+                else:
+                    bad += 1
+                    embedding_matrix.append(np.random.uniform(-0.1, 0.1, (embedding_matrix_all.shape[1],)))
+            embedding_matrix = np.array(embedding_matrix)
+
         print("Found {} words in the dictionary. Missing {} words.".format(good, bad))
-        # embedding_matrix = np.array(embedding_matrix)
+
         if config["D"] != 0:
             embedding_matrix = remove_mean_and_d_components(embedding_matrix, config["D"], partial_whitening=config["whitening"])
     embedding_matrix[0, :] = 0
