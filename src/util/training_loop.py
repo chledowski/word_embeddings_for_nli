@@ -92,10 +92,6 @@ def create_lr_schedule(config, model, save_path):
     learning_rate_schedule = eval(config['lr_schedule'])
     batch_size = config["batch_size"]
     n_epochs = config["n_epochs"]
-    logging.info("Learning rate schedule")
-    logging.info(learning_rate_schedule)
-    logging.info("Learning rate schedule type")
-    logging.info(learning_rate_schedule_type)
 
     if learning_rate_schedule_type == "reduce_on_plateau":
         return ReduceLROnPlateau(patience=5, verbose=1)
@@ -162,7 +158,7 @@ def baseline_training_loop(model, train, test, dev,
         callbacks.append(create_lr_schedule(config, model, save_path))
 
     def eval_on_test(epoch, logs):
-        B = model.evaluate_generator(test, 9824/batch_size)
+        B = model.evaluate_generator(test, 9824/config['val_batch_size'])
         logs['test_loss'] = B[0]
         logs['test_acc'] = B[1]
         # print(("Test loss, test accuracy: {}, {}".format(B[0], B[1])))
@@ -212,5 +208,6 @@ def baseline_training_loop(model, train, test, dev,
                             steps_per_epoch=549364 * config["train_on_fraction"] / batch_size,
                             epochs=n_epochs, verbose=1,
                             validation_data=dev,
-                            validation_steps=9842 / batch_size,
+                            use_multiprocessing=True,
+                            validation_steps=9842 / config['val_batch_size'],
                             callbacks=callbacks)

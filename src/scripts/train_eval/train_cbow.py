@@ -10,6 +10,7 @@ import os
 
 import pandas as pd
 from keras.utils import np_utils
+from keras.preprocessing.sequence import pad_sequences
 
 from src import DATA_DIR
 from src.configs.cbow import baseline_configs
@@ -19,7 +20,6 @@ from src.util.data import SNLIData
 from src.util.training_loop import baseline_training_loop
 from src.util.vegab import main, MetaSaver, AutomaticNamer
 import matplotlib
-from keras import optimizers
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
@@ -48,7 +48,9 @@ def train_model(config, save_path):
             while True:
                 it = stream.get_epoch_iterator()
                 for x1, _, x2, _, y in it:
-                    yield [x1, x2], np_utils.to_categorical(y, 3)
+                    yield [pad_sequences(x1, maxlen=config['sentence_max_length'],
+                             padding='post', truncating='post'), pad_sequences(x2, maxlen=config['sentence_max_length'],
+                             padding='post', truncating='post')], np_utils.to_categorical(y, 3)
         return _stream
 
     stream_train = modified_stream(train)()
@@ -56,17 +58,7 @@ def train_model(config, save_path):
     stream_test = modified_stream(test)()
 
     # Load model
-    model, embedding_matrix, statistics = build_model(config, data)
-
-    spectral_norm = list(calculate_spectral_norm(embedding_matrix))
-    stats = [['spectral norm: '], spectral_norm,
-             ["Vectors from emb in vocab/ out of vocab"], statistics]
-    my_df = pd.DataFrame(stats)
-    my_df.to_csv(os.path.join(save_path, 'statistics.xlsx'), index=False, header=False)
-
-    if config["optimizer"] == 'rmsprop':
-        model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+    model = build_model(config, data)
 
     # Call training loop
     baseline_training_loop(model=model, train=stream_train, test=stream_test, dev=stream_dev,

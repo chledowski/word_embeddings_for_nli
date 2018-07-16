@@ -40,8 +40,8 @@ def train_model(config, save_path):
         raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
     train = data.get_stream("train", batch_size=config["batch_size"])
-    dev = data.get_stream("dev", batch_size=config["batch_size"])
-    test = data.get_stream("test", batch_size=config["batch_size"])
+    dev = data.get_stream("dev", batch_size=config["val_batch_size"])
+    test = data.get_stream("test", batch_size=config["val_batch_size"])
     # need different stream format
 
     def modified_stream(stream):
@@ -70,9 +70,9 @@ def train_model(config, save_path):
     # Restore the best model found during validation
     model.load_weights(os.path.join(save_path, "best_model.h5"))
 
-    dev_metrics = model.evaluate_generator(stream_dev, 9842 / config["batch_size"])
+    dev_metrics = model.evaluate_generator(stream_dev, 9842 / config["val_batch_size"])
     logger.info('Dev loss / dev accuracy = {:.4f} / {:4f}'.format(dev_metrics[0], dev_metrics[1]))
-    test_metrics = model.evaluate_generator(stream_test, 9824 / config["batch_size"])
+    test_metrics = model.evaluate_generator(stream_test, 9824 / config["val_batch_size"])
     logger.info('Test loss / test accuracy = {:.4f} / {:.4f}'.format(test_metrics[0], test_metrics[1]))
 
 

@@ -13,11 +13,12 @@ baseline_configs.set_root_config({
     "model": 'cbow',
     "n_layers": 3,
     "batch_size": 32,
+    'val_batch_size': 32,
     "early_stopping": True,
     "n_epochs": 40,
-    "batch_normalization": True,
+    "batch_normalization": False,
     "dropout": 0.1,
-    "max_length": 100,
+    "sentence_max_length": 100,
     "optimizer": 'rmsprop',
     "learning_rate": 10000,
     "lr_schedule": "[[1000, 0.001]]",
@@ -30,6 +31,6 @@ baseline_configs.set_root_config({
     "norm_weight": False,
     "embedding_dim": 300,
     "embedding_name": "cos",
-    "train_embeddings": True,
+    "train_embeddings": False,
     "train_on_fraction": 1
 })

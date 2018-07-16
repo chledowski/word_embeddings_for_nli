@@ -10,9 +10,7 @@ import os
 from src import DATA_DIR
 from src.util import remove_mean_and_d_components, normalize_embeddings
 
-from keras.layers.embeddings import Embedding
 
-# some utilities
 def ortho_weight(ndim):
     """
     Random orthogonal weights
