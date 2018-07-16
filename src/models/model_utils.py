@@ -7,6 +7,7 @@ https://github.com/coetaur0/ESIM
 import keras.backend as K
 from keras.models import Sequential
 from keras.layers import *
+from keras.activations import softmax
 
 
 class EmbeddingLayer(object):
@@ -44,16 +45,47 @@ class EncodingLayer(object):
 
     def __init__(self, hidden_units, max_length=100, dropout=0.5,
                  activation='tanh', sequences=True):
-        self.layer = Bidirectional(LSTM(hidden_units, activation=activation,
-                                        return_sequences=sequences,
-                                        dropout=dropout,
-                                        recurrent_dropout=dropout),
+        self.layer = Bidirectional(CuDNNLSTM(hidden_units, return_sequences=sequences),
                                    merge_mode='concat')
+        #self.layer = Bidirectional(LSTM(hidden_units, return_sequences=sequences),
+        #                           merge_mode='concat')
+        self.dropout = dropout
 
     def __call__(self, input):
-        return self.layer(input)
+        return Dropout(self.dropout)(self.layer(input))
+
+class LocalInferenceLayer(object):
+    """
+    Layer to compute local inference between two encoded sentences a and b.
+    """
+
+    def __call__(self, inputs, dropout):
+        F_p = inputs[0]
+        F_h = inputs[1]
+
+        Eph = Dot(axes=(2, 2))([F_h, F_p])  # [batch_size, Hsize, Psize]
+        Eh = Lambda(lambda x: softmax(x))(Eph)  # [batch_size, Hsize, Psize]
+        Ep = Permute((2, 1))(Eph)  # [batch_size, Psize, Hsize)
+        Ep = Lambda(lambda x: softmax(x))(Ep)  # [batch_size, Psize, Hsize]
+
+        # #  Normalize score matrix, bilstm_encoder premesis and get alignment
+        PremAlign = Dot((2, 1))([Ep, F_h])  # [-1, Psize, dim]
+        HypoAlign = Dot((2, 1))([Eh, F_p])  # [-1, Hsize, dim]
+        mm_1 = Multiply()([F_p, PremAlign])
+        mm_2 = Multiply()([F_h, HypoAlign])
+        sb_1 = Subtract()([F_p, PremAlign])
+        sb_2 = Subtract()([F_h, HypoAlign])
+
+        PremAlign = Concatenate()([F_p, PremAlign, sb_1, mm_1])  # [batch_size, Psize, 2*unit]
+        HypoAlign = Concatenate()([F_h, HypoAlign, sb_2, mm_2])  # [batch_size, Hsize, 2*unit]
 
 
+        PremAlign = Dropout(dropout)(PremAlign)
+        HypoAlign = Dropout(dropout)(HypoAlign)
+
+        return PremAlign, HypoAlign
+
+'''
 class LocalInferenceLayer(object):
     """
     Layer to compute local inference between two encoded sentences a and b.
@@ -130,7 +162,7 @@ class LocalInferenceLayer(object):
         sentence_shape = inputs[1]
         return (attention_shape[0], attention_shape[1], sentence_shape[2])
 
-
+'''
 class InferenceCompositionLayer(object):
     """
     Layer to compose the local inference information.
@@ -145,11 +177,11 @@ class InferenceCompositionLayer(object):
         self.sequences = sequences
 
     def __call__(self, input):
-        composition = Bidirectional(LSTM(self.hidden_units,
-                                         activation=self.activation,
-                                         return_sequences=self.sequences,
-                                         recurrent_dropout=self.dropout,
-                                         dropout=self.dropout))(input)
+        composition = Dropout(self.dropout)(Bidirectional(CuDNNLSTM(self.hidden_units,
+                                                                     return_sequences=self.sequences))(input))
+        #composition = Dropout(self.dropout)(Bidirectional(LSTM(self.hidden_units,
+        #                                                            return_sequences=self.sequences))(input))
+
         reduction = TimeDistributed(Dense(self.hidden_units,
                                           kernel_initializer='he_normal',
                                           activation='relu'))(composition)

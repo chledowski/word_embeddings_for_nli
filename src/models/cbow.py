@@ -8,7 +8,7 @@ import logging
 import os
 
 import keras.backend as K
-from keras.layers import merge, Dense, Input, Dropout, TimeDistributed, Lambda
+from keras.layers import concatenate, Dense, Input, Dropout, TimeDistributed, Lambda
 from keras.layers.normalization import BatchNormalization
 from keras.models import Model
 from keras.regularizers import l2
@@ -55,7 +55,7 @@ def cbow(config, data):
         prem = BatchNormalization()(prem)
         hypo = BatchNormalization()(hypo)
 
-    joint = merge([prem, hypo], mode='concat', name="pre_mlp_concat")
+    joint = concatenate([prem, hypo])
     joint = Dropout(config['dropout'], name="pre_mlp_drop")(joint)
 
     for i in range(config['n_layers']):
