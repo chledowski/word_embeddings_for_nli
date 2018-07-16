@@ -38,6 +38,7 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
         W = scale * np.random.randn(nin, nout)
     return W.astype('float32')
 
+
 def prep_embedding_matrix(config, vocab_size, data):
 
     if config["embedding_name"] == "random_uniform":
@@ -53,6 +54,7 @@ def prep_embedding_matrix(config, vocab_size, data):
         embedding_matrix_all = embedding_file[list(embedding_file.keys())[0]][:]
         good = 0
         bad = 0
+
         if config["norm_weight"]:
             embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
             for i in range(vocab_size):
@@ -75,6 +77,7 @@ def prep_embedding_matrix(config, vocab_size, data):
             embedding_matrix = np.array(embedding_matrix)
 
         print("Found {} words in the dictionary. Missing {} words.".format(good, bad))
+
         if config["D"] != 0:
             embedding_matrix = remove_mean_and_d_components(embedding_matrix, config["D"], partial_whitening=config["whitening"])
     embedding_matrix[0, :] = 0
