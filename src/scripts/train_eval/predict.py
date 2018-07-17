@@ -21,6 +21,8 @@ from src.util.data import SNLIData
 def predict():
     results_dict = {}
 
+    # TODO(tomwesolowski): Make it work again after config reorganization.
+
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
 
@@ -32,7 +34,7 @@ def predict():
         raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
     breaking_data = SNLIData(os.path.join(DATA_DIR, "snli"), "breaking")
-    test_breaking = breaking_data.get_stream("test", batch_size=config["batch_size"])
+    test_breaking = breaking_data.get_stream("breaking", batch_size=config["batch_size"])
     stream_test_breaking = modified_stream(test_breaking)()
 
     # Load model

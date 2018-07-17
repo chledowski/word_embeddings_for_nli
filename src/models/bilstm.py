@@ -63,6 +63,13 @@ def bilstm(config, data):
     pred = Dense(config["n_labels"], activation='softmax', name="last_softmax")(joint)
 
     model = Model(inputs=[premise, hypothesis], outputs=pred)
+
+    if config["optimizer"] == 'rmsprop':
+        model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
+                      loss='categorical_crossentropy', metrics=['accuracy'])
+    else:
+        raise ValueError("Unknown optimizer: %s" % config["optimizer"])
+
     print((model.summary()))
 
     return model, embedding_matrix, statistics
