@@ -366,7 +366,9 @@ def main(config_registry, func, plugins=[], **training_func_kwargs):
         pass
     else:
         raise NotImplementedError("Not understood config registry")
-    add_config_arguments(config_registry.get_root_config(), parser)
+
+    known_args, _ = parser.parse_known_args()
+    add_config_arguments(config_registry[known_args.config], parser)
     args = parser.parse_args()
 
     # Plugin order matters sometimes (just like callbacks order in Blocks or Keras)

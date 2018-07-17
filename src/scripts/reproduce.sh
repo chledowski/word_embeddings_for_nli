@@ -86,7 +86,7 @@ do
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         python src/scripts/retrofitting/retrofitting.py ${RETRO_ARGS[$i]} --save-text=$NAME --embedding=$EMBEDDING
         mkdir -p $RESULTS_DIR
-        python src/scripts/train_eval/train_$MODEL.py root $RESULTS_DIR --embedding_name=$NAME --dataset=$DATASET
-        python src/scripts/train_eval/evaluate.py --model-name=$NAME
+        python src/scripts/train_eval/train.py $MODEL $RESULTS_DIR --embedding_name=$NAME --dataset=$DATASET
+        python src/scripts/train_eval/evaluate.py --model-name=$NAME --embedding-name=$NAME
     fi
 done

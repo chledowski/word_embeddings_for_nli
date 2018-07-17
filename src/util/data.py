@@ -133,9 +133,7 @@ class Data(object):
                         'dev': 'dev.h5',
                         'test': 'dev_mismatched.h5'}
         elif self._layout == 'breaking':
-            part_map = {'train': 'train.h5',
-                        'dev': 'dev.h5',
-                        'test': 'test_breaking_nli.h5'}
+            part_map = {'breaking': 'test_breaking_nli.h5'}
         else:
             raise NotImplementedError('Not implemented layout ' + self._layout)
         return os.path.join(self._path, part_map[part])
@@ -344,6 +342,9 @@ class SNLIData(Data):
             self._vocab = Vocabulary(
                 os.path.join(self._path, "vocab.txt"))
         return self._vocab
+
+    def num_examples(self, part):
+        return self.get_dataset(part).num_examples
 
     def get_stream(self, part, batch_size, seed=None, raw_text=False):
         d = self.get_dataset(part)

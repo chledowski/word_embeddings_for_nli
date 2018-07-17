@@ -73,9 +73,9 @@ class LambdaCallbackPickable(LambdaCallback):
 
 class WarmUp:
 
-    def __init__(self, K, start_lr, peak_lr, end_lr, batch_size, n_epochs):
-        self.steps_till_peak = K * (549364 // batch_size)
-        self.steps_till_end = (n_epochs - K) * (549364 // batch_size)
+    def __init__(self, K, start_lr, peak_lr, end_lr, dataset_size, batch_size, n_epochs):
+        self.steps_till_peak = K * (dataset_size // batch_size)
+        self.steps_till_end = (n_epochs - K) * (dataset_size // batch_size)
         self.start_lr = start_lr
         self.peak_lr = peak_lr
         self.end_lr = end_lr
@@ -87,10 +87,10 @@ class WarmUp:
             return self.peak_lr + (self.end_lr - self.peak_lr) * ((batch_number-self.steps_till_peak)/self.steps_till_end)
 
 
-def create_lr_schedule(config, model, save_path):
+def create_lr_schedule(config, model, dataset_size, batch_size, save_path):
     learning_rate_schedule_type = config.get("lr_schedule_type", "list_of_lists")
     learning_rate_schedule = eval(config['lr_schedule'])
-    batch_size = config["batch_size"]
+    batch_size = config["batch_sizes"]["train"]
     n_epochs = config["n_epochs"]
 
     if learning_rate_schedule_type == "reduce_on_plateau":
@@ -109,7 +109,9 @@ def create_lr_schedule(config, model, save_path):
         cls = LambdaCallbackPickable()
         cls.set_callback_state({"batch_id": np.array([0])})
         warmup = WarmUp(learning_rate_schedule[0], learning_rate_schedule[1], learning_rate_schedule[2],
-                        learning_rate_schedule[3], batch_size, n_epochs)
+                        learning_rate_schedule[3],
+                        dataset_size,
+                        batch_size, n_epochs)
 
         def lr_schedule(batch, logs):
             batch_id = cls.callback_state['batch_id']
@@ -127,8 +129,15 @@ def create_lr_schedule(config, model, save_path):
 
 
 # train, test, dev are generators
-def baseline_training_loop(model, train, test, dev,
-                           early_stopping, n_epochs, batch_size, save_path, config):
+def baseline_training_loop(model, data_and_streams,
+                           early_stopping, n_epochs,
+                           save_path, config):
+
+    train_num_examples = data_and_streams["data"].num_examples("train")
+    train_batch_size = config["batch_sizes"]["train"]
+
+    dev_num_examples = data_and_streams["data"].num_examples("dev")
+    dev_batch_size = config["batch_sizes"]["dev"]
 
     if os.path.exists(os.path.join(save_path, "loop_state.pkl")):
         logger.info("Reloading loop state")
@@ -139,8 +148,6 @@ def baseline_training_loop(model, train, test, dev,
 
     if os.path.exists(os.path.join(save_path, "model.h5")):
         model.load_weights(os.path.join(save_path, "model.h5"))
-
-    # samples_per_epoch = 1000
 
     callbacks = [ModelCheckpoint(filepath=os.path.join(save_path, "best_model.h5"),
                                  save_best_only=True,
@@ -155,12 +162,15 @@ def baseline_training_loop(model, train, test, dev,
 
     #lr schedule
     if config["lr_schedule_type"] != "none":
-        callbacks.append(create_lr_schedule(config, model, save_path))
+        callbacks.append(create_lr_schedule(
+            config, model, train_num_examples, train_batch_size, save_path))
 
     def eval_on_test(epoch, logs):
-        B = model.evaluate_generator(test, 9824/config['val_batch_size'])
-        logs['test_loss'] = B[0]
-        logs['test_acc'] = B[1]
+        test_num_examples = data_and_streams["data"].num_examples("test")
+        test_batch_size = config["batch_sizes"]["test"]
+        logs['test_loss'], logs['test_acc'] = model.evaluate_generator(
+                generator=data_and_streams["test"],
+                steps=test_num_examples//test_batch_size)
         # print(("Test loss, test accuracy: {}, {}".format(B[0], B[1])))
     callbacks.append(LambdaCallback(on_epoch_end=eval_on_test))
 
@@ -203,11 +213,11 @@ def baseline_training_loop(model, train, test, dev,
     callbacks.append(LambdaCallback(on_epoch_end=save_loop_state))
 
     logger.info('Training...')
-    _ = model.fit_generator(train,
+    _ = model.fit_generator(data_and_streams["train"],
                             initial_epoch=loop_state['last_epoch_done_id'] + 1,
-                            steps_per_epoch=549364 * config["train_on_fraction"] / batch_size,
+                            steps_per_epoch=train_num_examples * config["train_on_fraction"] // train_batch_size,
                             epochs=n_epochs, verbose=1,
-                            validation_data=dev,
+                            validation_data=data_and_streams["dev"],
                             use_multiprocessing=True,
-                            validation_steps=9842 / config['val_batch_size'],
+                            validation_steps=dev_num_examples // dev_batch_size,
                             callbacks=callbacks)

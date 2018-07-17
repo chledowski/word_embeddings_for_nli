@@ -9,13 +9,9 @@ import argparse
 import json
 import os
 
-from keras import optimizers
-
-from src import DATA_DIR
 from src.models import build_model
 from src.util import modified_stream, evaluate_wv, load_embedding_from_h5
-from src.util.data import SNLIData
-
+from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
 def eval_model():
     results_dict = {}
@@ -23,58 +19,29 @@ def eval_model():
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
 
-    if config["dataset"] == "snli":
-        data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"] == "mnli":
-        data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
-    else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"])
+    # To evaluate on more streams, add them here
+    # config["batch_size"][stream] = ...
 
-    breaking_data = SNLIData(os.path.join(DATA_DIR, "snli"), "breaking")
-
-    train = data.get_stream("train", batch_size=config["batch_size"])
-    dev = data.get_stream("dev", batch_size=config["batch_size"])
-    test = data.get_stream("test", batch_size=config["batch_size"])
-    test_breaking = breaking_data.get_stream("test", batch_size=config["batch_size"])
-
-    stream_train = modified_stream(train)()
-    stream_dev = modified_stream(dev)()
-    stream_test = modified_stream(test)()
-    stream_test_breaking = modified_stream(test_breaking)()
-
-    # Load model
-    model, embedding_matrix, statistics = build_model(config, data)
-
-    model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+    data_and_streams = build_data_and_streams(config, additional_streams=["breaking"])
+    model = build_model(config, data_and_streams["data"])
 
     # Restore the best model found during validation
     model.load_weights(os.path.join('results', args.model_name, "best_model.h5"))
 
-    accuracies = {}
-    losses = {}
-    train_metrics = model.evaluate_generator(stream_train, 549364 / config["batch_size"])
-    print('Train loss / train accuracy = {:.4f} / {:4f}'.format(train_metrics[0], train_metrics[1]))
-    losses['train'] = train_metrics[0]
-    accuracies['train'] = train_metrics[1]
-    dev_metrics = model.evaluate_generator(stream_dev, 9842 / config["batch_size"])
-    print('Dev loss / dev accuracy = {:.4f} / {:4f}'.format(dev_metrics[0], dev_metrics[1]))
-    losses['dev'] = dev_metrics[0]
-    accuracies['dev'] = dev_metrics[1]
-    test_metrics = model.evaluate_generator(stream_test, 9824 / config["batch_size"])
-    print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(test_metrics[0], test_metrics[1]))
-    losses['test'] = test_metrics[0]
-    accuracies['test'] = test_metrics[1]
-    test_breaking_metrics = model.evaluate_generator(stream_test_breaking, 8193 / config["batch_size"])
-    print('Breaking loss / breaking accuracy = {:.4f} / {:.4f}'.format(test_breaking_metrics[0], test_breaking_metrics[1]))
-    losses['breaking'] = test_breaking_metrics[0]
-    accuracies['breaking'] = test_breaking_metrics[1]
+    metrics = compute_metrics(config, model, data_and_streams,
+                              eval_streams=["train", "dev", "test", "breaking"])
 
-    results_dict['accuracies'] = accuracies
-    results_dict['losses'] = losses
+    results_dict['accuracies'] = {}
+    results_dict['losses'] = {}
+    for stream_name, stream_metrics in metrics.items():
+        loss, accuracy = stream_metrics
+        print('{} loss / accuracy = {:.4f} / {:4f}'.format(stream_name, loss, accuracy))
+        results_dict['accuracies'] = loss
+        results_dict['losses'] = accuracy
 
-    _, _, wv = load_embedding_from_h5(args.model_name)
-    results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
+    if args.embedding_name is not None:
+        _, _, wv = load_embedding_from_h5(args.embedding_name)
+        results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
 
     with open('results/%s/retrofitting_results.json' % args.model_name, 'w') as f:
         json.dump(results_dict, f)
@@ -83,6 +50,7 @@ def eval_model():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", type=str)
+    parser.add_argument("--embedding-name", type=str)
 
     args = parser.parse_args()
     eval_model()
