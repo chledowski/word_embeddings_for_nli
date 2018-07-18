@@ -27,13 +27,13 @@ def predict():
         config = json.load(f)
 
     if config["dataset"] == "snli":
-        data = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
+        data = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli")
     elif config["dataset"] == "mnli":
-        data = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
+        data = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "mnli"), "mnli")
     else:
         raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
-    breaking_data = SNLIData(os.path.join(DATA_DIR, "snli"), "breaking")
+    breaking_data = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "breaking")
     test_breaking = breaking_data.get_stream("breaking", batch_size=config["batch_size"])
     stream_test_breaking = modified_stream(test_breaking)()
 

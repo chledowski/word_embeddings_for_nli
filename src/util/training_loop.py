@@ -212,10 +212,13 @@ def baseline_training_loop(model, data_and_streams,
         pickle.dump(loop_state, open(os.path.join(save_path, "loop_state.pkl"), "wb"))
     callbacks.append(LambdaCallback(on_epoch_end=save_loop_state))
 
+    steps_per_epoch = train_num_examples // train_batch_size
+    logger.info('Total steps per epoch: %d' % steps_per_epoch)
+
     logger.info('Training...')
     _ = model.fit_generator(data_and_streams["train"],
                             initial_epoch=loop_state['last_epoch_done_id'] + 1,
-                            steps_per_epoch=train_num_examples * config["train_on_fraction"] // train_batch_size,
+                            steps_per_epoch=train_num_examples // train_batch_size,
                             epochs=n_epochs, verbose=1,
                             validation_data=data_and_streams["dev"],
                             use_multiprocessing=True,

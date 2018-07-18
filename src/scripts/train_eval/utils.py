@@ -9,15 +9,15 @@ from src.util.data import SNLIData
 def build_data_and_streams(config, additional_streams=[], default_batch_size=1):
     data_and_streams = {}
     if config["dataset"] == "snli":
-        data_and_streams["data"] = SNLIData(os.path.join(DATA_DIR, "snli"), "snli")
+        data_and_streams["data"] = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli")
     elif config["dataset"] == "mnli":
-        data_and_streams["data"] = SNLIData(os.path.join(DATA_DIR, "mnli"), "mnli")
+        data_and_streams["data"] = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "mnli"), "mnli")
     else:
         raise NotImplementedError('Dataset not supported: ' + config["dataset"])
 
     # Loading additional streams
     stream_loaders = {
-        "breaking": lambda: SNLIData(os.path.join(DATA_DIR, "snli"), "breaking")
+        "breaking": lambda: SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "breaking")
     }
     for stream in additional_streams:
         data_and_streams["%s_data" % stream] = stream_loaders[stream]()

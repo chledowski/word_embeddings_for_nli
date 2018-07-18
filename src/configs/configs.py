@@ -30,7 +30,7 @@ baseline_configs['bilstm'] = {
     "embedding_dim": 300,
     "embedding_name": "cos",
     "train_embeddings": True,
-    "train_on_fraction": 1
+    "train_on_fraction": 1.0
 }
 
 baseline_configs['cbow'] = {
@@ -61,7 +61,7 @@ baseline_configs['cbow'] = {
     "embedding_dim": 300,
     "embedding_name": "cos",
     "train_embeddings": False,
-    "train_on_fraction": 1,
+    "train_on_fraction": 1.0,
 
 }
 

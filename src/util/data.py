@@ -329,9 +329,10 @@ class FixedMapping(Transformer):
 
 
 class SNLIData(Data):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, fraction_train, *args, **kwargs):
         super(SNLIData, self).__init__(*args, **kwargs)
         self._retrieval = None
+        self.fraction_train = fraction_train
 
     def set_retrieval(self, retrieval):
         self._retrieval = retrieval
@@ -344,12 +345,14 @@ class SNLIData(Data):
         return self._vocab
 
     def num_examples(self, part):
-        return self.get_dataset(part).num_examples
+        return int(self.get_dataset(part).num_examples * (
+            self.fraction_train if part == 'train' else 1.0
+        ))
 
     def get_stream(self, part, batch_size, seed=None, raw_text=False):
         d = self.get_dataset(part)
-        print(("Dataset with {} examples".format(d.num_examples)))
-        it = ShuffledExampleScheme(d.num_examples, rng=numpy.random.RandomState(seed))
+        print(("Dataset with {} examples".format(self.num_examples(part))))
+        it = ShuffledExampleScheme(self.num_examples(part), rng=numpy.random.RandomState(seed))
         stream = DataStream(d, iteration_scheme=it)
         stream = Batch(stream, iteration_scheme=ConstantScheme(batch_size))
 
