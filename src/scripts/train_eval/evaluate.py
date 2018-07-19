@@ -36,8 +36,8 @@ def eval_model():
     for stream_name, stream_metrics in metrics.items():
         loss, accuracy = stream_metrics
         print('{} loss / accuracy = {:.4f} / {:4f}'.format(stream_name, loss, accuracy))
-        results_dict['accuracies'] = loss
-        results_dict['losses'] = accuracy
+        results_dict['accuracies'][stream_name] = accuracy
+        results_dict['losses'][stream_name] = loss
 
     if args.embedding_name is not None:
         _, _, wv = load_embedding_from_h5(args.embedding_name)
