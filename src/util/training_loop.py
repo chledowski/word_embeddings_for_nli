@@ -165,15 +165,6 @@ def baseline_training_loop(model, data_and_streams,
         callbacks.append(create_lr_schedule(
             config, model, train_num_examples, train_batch_size, save_path))
 
-    def eval_on_test(epoch, logs):
-        test_num_examples = data_and_streams["data"].num_examples("test")
-        test_batch_size = config["batch_sizes"]["test"]
-        logs['test_loss'], logs['test_acc'] = model.evaluate_generator(
-                generator=data_and_streams["test"],
-                steps=test_num_examples//test_batch_size)
-        # print(("Test loss, test accuracy: {}, {}".format(B[0], B[1])))
-    callbacks.append(LambdaCallback(on_epoch_end=eval_on_test))
-
     def print_logs(epoch, logs):
         print()
         for k, v in list(logs.items()):
@@ -181,7 +172,7 @@ def baseline_training_loop(model, data_and_streams,
     callbacks.append(LambdaCallback(on_epoch_end=print_logs))
 
     if early_stopping == True:
-        callbacks.append(EarlyStopping(monitor='val_acc', patience=8))
+        callbacks.append(EarlyStopping(monitor='val_acc', patience=7))
 
     def save_history(epoch, logs):
         history_path = os.path.join(save_path, "history.csv")
@@ -216,9 +207,13 @@ def baseline_training_loop(model, data_and_streams,
     logger.info('Total steps per epoch: %d' % steps_per_epoch)
 
     logger.info('Training...')
+
+    steps_per_epoch = train_num_examples // train_batch_size
+    logger.info('Total steps per epoch: %d' % steps_per_epoch)
+
     _ = model.fit_generator(data_and_streams["train"],
                             initial_epoch=loop_state['last_epoch_done_id'] + 1,
-                            steps_per_epoch=train_num_examples // train_batch_size,
+                            steps_per_epoch=steps_per_epoch,
                             epochs=n_epochs, verbose=1,
                             validation_data=data_and_streams["dev"],
                             use_multiprocessing=True,

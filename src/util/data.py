@@ -23,7 +23,7 @@ import fuel
 import h5py
 import numpy
 from fuel.datasets import H5PYDataset
-from fuel.schemes import IterationScheme, ConstantScheme, ShuffledExampleScheme
+from fuel.schemes import IterationScheme, ConstantScheme, ShuffledExampleScheme, IndexScheme
 from fuel.streams import DataStream
 from fuel.transformers import (
     Mapping, Batch, Padding, AgnosticSourcewiseTransformer,
@@ -349,10 +349,18 @@ class SNLIData(Data):
             self.fraction_train if part == 'train' else 1.0
         ))
 
+    def total_num_examples(self, part):
+        return self.get_dataset(part).num_examples
+
     def get_stream(self, part, batch_size, seed=None, raw_text=False):
         d = self.get_dataset(part)
         print(("Dataset with {} examples".format(self.num_examples(part))))
-        it = ShuffledExampleScheme(self.num_examples(part), rng=numpy.random.RandomState(seed))
+        it = ShuffledExampleScheme(
+            examples=numpy.random.choice(
+                    a=self.total_num_examples(part),
+                    size=self.num_examples(part),
+                    replace=True),
+            rng=numpy.random.RandomState(seed))
         stream = DataStream(d, iteration_scheme=it)
         stream = Batch(stream, iteration_scheme=ConstantScheme(batch_size))
 

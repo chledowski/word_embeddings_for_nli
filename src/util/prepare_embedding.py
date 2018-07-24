@@ -38,7 +38,6 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
 
 
 def prep_embedding_matrix(config, vocab_size, data):
-
     if config["embedding_name"] == "random_uniform":
         if config["norm_weight"]:
             embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])

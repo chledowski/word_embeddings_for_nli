@@ -337,7 +337,8 @@ def pairs_to_txt(s, filename):
             #             line += l_2[1] + " "
             #     f.write(line + "\n")
 
-if __name__ == '__main__':
+
+def get_all_features():
     download_wordnet(os.path.join(DATA_DIR, 'wordnet'))
 
     wordnet_dir = os.path.join(DATA_DIR, 'wordnet/prolog')
@@ -363,6 +364,11 @@ if __name__ == '__main__':
 
     synonymy = read_synonymy(id_word)
     print('synonymy:', len(synonymy))
+
+    return hyponymy, hypernymy, antonymy, synonymy, co_hyponyms
+
+if __name__ == '__main__':
+    hyponymy, hypernymy, antonymy, synonymy, co_hyponyms = get_all_features()
     s = ordered_dicts_to_set([hyponymy, hypernymy, antonymy, synonymy])
     pairs_to_txt(s, 'src/scripts/retrofitting/lexicons/kim.txt')
     s = ordered_dicts_to_set([hyponymy, hypernymy, antonymy, synonymy, co_hyponyms])

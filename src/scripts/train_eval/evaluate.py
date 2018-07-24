@@ -29,7 +29,7 @@ def eval_model():
     model.load_weights(os.path.join('results', args.model_name, "best_model.h5"))
 
     metrics = compute_metrics(config, model, data_and_streams,
-                              eval_streams=["train", "dev", "test", "breaking"])
+                              eval_streams=["dev", "test", "breaking"])
 
     results_dict['accuracies'] = {}
     results_dict['losses'] = {}
