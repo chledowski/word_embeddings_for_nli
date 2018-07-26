@@ -341,7 +341,7 @@ class SNLIData(Data):
     def vocab(self):
         if not self._vocab:
             self._vocab = Vocabulary(
-                os.path.join(self._path, "vocab.txt"))
+                os.path.join(self._path, "vocab_all.txt"))
         return self._vocab
 
     def num_examples(self, part):

@@ -27,19 +27,12 @@ from src.models.utils import ScaledRandomNormal
 logger = logging.getLogger(__name__)
 
 def esim(config, data):
-    vocabulary = {}
-    with open(os.path.join(DATA_DIR, config["dataset"], 'vocab.txt')) as f:
-        for line in f:
-            (key, val) = line.split()
-            vocabulary[key] = int(val)
-
-    vocab_size = len(vocabulary)
-    logger.info('Vocab size = {}'.format(vocab_size))
-
+    logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
-    embedding_matrix = prep_embedding_matrix(config, vocab_size, data)
 
-    embed = Embedding(vocab_size, config["embedding_dim"],
+    embedding_matrix = prep_embedding_matrix(config, data)
+
+    embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],

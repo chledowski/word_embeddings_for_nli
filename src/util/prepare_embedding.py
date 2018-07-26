@@ -37,12 +37,12 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
     return W.astype('float32')
 
 
-def prep_embedding_matrix(config, vocab_size, data):
+def prep_embedding_matrix(config, data):
     if config["embedding_name"] == "random_uniform":
         if config["norm_weight"]:
-            embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
+            embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
         else:
-            embedding_matrix = np.random.uniform(-0.1, 0.1, (vocab_size, config["embedding_dim"]))
+            embedding_matrix = np.random.uniform(-0.1, 0.1, (data.vocab.size(), config["embedding_dim"]))
     else:
         embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', config["embedding_name"] + ".h5"), 'r')
         embedding_words = embedding_file['words_flatten'][0].split('\n')
@@ -53,8 +53,8 @@ def prep_embedding_matrix(config, vocab_size, data):
         bad = 0
 
         if config["norm_weight"]:
-            embedding_matrix = norm_weight(vocab_size, config["embedding_dim"])
-            for i in range(vocab_size):
+            embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
+            for i in range(data.vocab.size()):
                 word_lower = data.vocab.id_to_word(i)
                 if word_lower in embedding_word_to_id:
                     good+=1
@@ -63,7 +63,7 @@ def prep_embedding_matrix(config, vocab_size, data):
                     bad +=1
         else:
             embedding_matrix = []
-            for i in range(vocab_size):
+            for i in range(data.vocab.size()):
                 word_lower = data.vocab.id_to_word(i)
                 if word_lower in embedding_word_to_id:
                     good += 1
