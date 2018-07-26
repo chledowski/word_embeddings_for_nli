@@ -10,7 +10,7 @@ import os
 import keras.backend as K
 from keras import optimizers
 from keras.activations import softmax
-from keras.layers import Subtract, Dense, Input, Dropout, TimeDistributed, Lambda, Bidirectional, \
+from keras.layers import Subtract, Dense, Dropout, Input, TimeDistributed, Lambda, Bidirectional, \
     Dot, Permute, Multiply, Concatenate, Activation, CuDNNLSTM
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
@@ -52,6 +52,9 @@ def esim(config, data):
     hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='float32')
     KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
+
+    premise = Dropout(config["dropout"])(premise)
+    hypothesis = Dropout(config["dropout"])(hypothesis)
 
     embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]

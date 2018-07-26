@@ -15,11 +15,20 @@ from src.util.vegab import main, MetaSaver, AutomaticNamer
 from src.util.training_loop import baseline_training_loop
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
+from numpy.random import seed
+from tensorflow import set_random_seed
+
+
+
 matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
 
 
 def train_model(config, save_path):
+
+    seed(1)
+    set_random_seed(1)
+
     data_and_streams = build_data_and_streams(config)
     model = build_model(config, data_and_streams["data"])
 

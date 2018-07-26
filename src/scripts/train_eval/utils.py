@@ -8,6 +8,8 @@ from src import DATA_DIR
 from src.util.data import SNLIData
 from src.util.vocab import Vocabulary
 
+import tensorflow as tf
+
 
 def build_data_and_streams(config, additional_streams=[], default_batch_size=1, seed=42):
     data_and_streams = {}
@@ -122,3 +124,4 @@ def compute_metrics(config, model, data_and_streams, eval_streams, default_batch
             steps=num_examples / config["batch_sizes"].get(stream_name, default_batch_size)
         )
     return metrics
+
