@@ -8,6 +8,8 @@ from src import DATA_DIR
 from src.util.data import SNLIData
 from src.util.vocab import Vocabulary
 
+import tensorflow as tf
+
 
 def build_data_and_streams(config, additional_streams=[], default_batch_size=1, seed=42):
     data_and_streams = {}

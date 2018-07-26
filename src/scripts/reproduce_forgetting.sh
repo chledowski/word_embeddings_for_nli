@@ -77,12 +77,12 @@ do
         printf "${GREEN}Running $NAME...${NC}\n"
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         mkdir -p $RESULTS_DIR
-        python src/scripts/train_eval/train.py esim ${RESULTS_DIR} \
-            --embedding_name=${EMBEDDINGS[$i]} \
-            --dataset=snli \
-            --train_on_fraction=${FRAC} \
-            --useitrick=${USEITRICK[$i]} \
-            --lambda=${LAMBDA[$i]}
-#        python src/scripts/train_eval/evaluate.py --model-name=${NAME}
+#        python src/scripts/train_eval/train.py esim ${RESULTS_DIR} \
+#            --embedding_name=${EMBEDDINGS[$i]} \
+#            --dataset=snli \
+#            --train_on_fraction=${FRAC} \
+#            --useitrick=${USEITRICK[$i]} \
+#            --lambda=${LAMBDA[$i]}
+        python src/scripts/train_eval/evaluate.py --model-name=${NAME}
     fi
 done
