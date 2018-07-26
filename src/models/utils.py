@@ -5,10 +5,12 @@ https://github.com/coetaur0/ESIM
 """
 
 import keras.backend as K
-from keras.models import Sequential
-from keras.layers import *
-from keras.activations import softmax
 
+from keras.activations import softmax
+from keras.initializers import RandomNormal
+from keras.layers import *
+from keras.layers import Dropout
+from keras.models import Sequential
 
 class EmbeddingLayer(object):
     """
@@ -225,3 +227,12 @@ class MLPLayer(object):
 
     def __call__(self, input):
         return self.model(input)
+
+
+class ScaledRandomNormal(RandomNormal):
+    def __init__(self, mean=0., stddev=0.05, scale=1.0, seed=None):
+        super(ScaledRandomNormal, self).__init__(mean=mean, stddev=stddev, seed=seed)
+        self.scale = scale
+
+    def __call__(self, shape, dtype=None):
+        return self.scale * super(ScaledRandomNormal, self).__call__(shape, dtype=dtype)

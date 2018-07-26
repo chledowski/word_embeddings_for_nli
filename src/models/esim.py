@@ -10,7 +10,7 @@ import os
 import keras.backend as K
 from keras import optimizers
 from keras.activations import softmax
-from keras.layers import Subtract, Dense, Dropout, Input, TimeDistributed, Lambda, Bidirectional, \
+from keras.layers import Add, Subtract, Dense, Dropout, Input, TimeDistributed, Lambda, Bidirectional, \
     Dot, Permute, Multiply, Concatenate, Activation, CuDNNLSTM
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
@@ -19,12 +19,12 @@ from keras.layers.normalization import BatchNormalization
 from keras.initializers import Orthogonal
 from keras.regularizers import l2
 
+
 from src import DATA_DIR
-from src.util.data import SNLIData
 from src.util.prepare_embedding import prep_embedding_matrix
+from src.models.utils import ScaledRandomNormal
 
 logger = logging.getLogger(__name__)
-
 
 def esim(config, data):
     vocabulary = {}
@@ -53,39 +53,50 @@ def esim(config, data):
     KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
 
-    premise = Dropout(config["dropout"])(premise)
-    hypothesis = Dropout(config["dropout"])(hypothesis)
+    attention_lambda = config['attention_lambda']
+    KBatt = Lambda(lambda x: attention_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
 
     embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
+    # FIX(tomwesolowski): Add dropout
+    embed_p = Dropout(config["dropout"])(embed_p)
+    embed_h = Dropout(config["dropout"])(embed_h)
+
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
         LSTM(units=config["embedding_dim"],
-             kernel_initializer='orthogonal',
-             use_bias=False,
-             return_sequences=True))
+             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+             kernel_initializer=Orthogonal(seed=config["seed"]),
+             recurrent_initializer=Orthogonal(seed=config["seed"]),
+             return_sequences=True)
+    )
 
-    embed_p = Dropout(config["dropout"])(bilstm_encoder(embed_p))
-    embed_h = Dropout(config["dropout"])(bilstm_encoder(embed_h))
+    # FIX(tomwesolowski): Remove dropout
+    embed_p = bilstm_encoder(embed_p)
+    embed_h = bilstm_encoder(embed_h)
 
     # [-1, Psize, 1]
     premise_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask_input)
     # [-1, Hsize, 1]
     hypothesis_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(hypothesis_mask_input)
 
-    embed_p = Lambda(lambda x: x[0]*x[1])([embed_p, premise_mask])
-    embed_h = Lambda(lambda x: x[0]*x[1])([embed_h, hypothesis_mask])
+    embed_p = Multiply()([embed_p, premise_mask])
+    embed_h = Multiply()([embed_h, hypothesis_mask])
 
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
-    Ehp = Dot(axes=(2, 2))([F_h, F_p])  # [batch_size, Hsize, Psize]
-    Eh_soft = Lambda(lambda x: softmax(x))(Ehp)  # [batch_size, Hsize, Psize]
-    Eph = Permute((2, 1))(Ehp)  # [batch_size, Psize, Hsize]
+    Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
+    # FIX(tomwesolowski): Add attention lambda to words in relation.
+    if config['useitrick']:
+        Eph = Add()([Eph, KBatt])
     Ep_soft = Lambda(lambda x: softmax(x))(Eph)  # [batch_size, Psize, Hsize]
 
-    Ep_soft = Multiply()([Ep_soft, premise_mask])
-    Eh_soft = Multiply()([Eh_soft, hypothesis_mask])
+    Ehp = Permute((2, 1))(Eph)  # [batch_size, Hsize, Psize]
+    Eh_soft = Lambda(lambda x: softmax(x))(Ehp)  # [batch_size, Hsize, Psize]
+
+    # Ep_soft = Multiply()([Ep_soft, premise_mask])
+    # Eh_soft = Multiply()([Eh_soft, hypothesis_mask])
 
     # def l2_pairwise_distance(AB):
     #     A, B = AB
@@ -105,7 +116,7 @@ def esim(config, data):
     sb_2 = Subtract()([embed_h, HypoAlign])
 
     if config['useitrick']:
-        knowledge_lambda = config['lambda']
+        knowledge_lambda = config['i_lambda']
         i_1 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Ep_soft, KBph])  # [-1, Psize, Hsize, 5]
         i_2 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Eh_soft, KBhp])  # [-1, Hsize, Psize, 5]
         i_1 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(i_1)  # [-1, Psize, 5]
@@ -116,34 +127,35 @@ def esim(config, data):
         PremAlign = Concatenate()([embed_p, PremAlign, sb_1, mm_1])  # [batch_size, Psize, 2*unit]
         HypoAlign = Concatenate()([embed_h, HypoAlign, sb_2, mm_2])  # [batch_size, Hsize, 2*unit]
 
-    PremAlign = Dropout(config["dropout"])(PremAlign)
-    HypoAlign = Dropout(config["dropout"])(HypoAlign)
-
-    translate = TimeDistributed(Dense(config["embedding_dim"],
-                                      kernel_regularizer=l2(1e-5),
-                                      bias_regularizer=l2(1e-5),
-                                      activation='relu'),
-                                name='translate')
+    translate = TimeDistributed(
+        Dense(config["embedding_dim"],
+              # FIX(tomwesolowski): Remove regularizers
+              # FIX(tomwesolowski): Add initializer
+              kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+              activation='relu'),
+        name='translate')
 
     PremAlign = translate(PremAlign) # [-1, Psize, emb_size]
     HypoAlign = translate(HypoAlign) # [-1, Hsize, emb_size]
+
+    PremAlign = Dropout(config["dropout"])(PremAlign)
+    HypoAlign = Dropout(config["dropout"])(HypoAlign)
 
     if config['useitrick']:
         PremAlign = Concatenate()([PremAlign, i_1])
         HypoAlign = Concatenate()([HypoAlign, i_2])
 
-    # PremAlign = Multiply()([PremAlign, premise_mask])
-    # HypoAlign = Multiply()([HypoAlign, hypothesis_mask])
-
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
             LSTM(units=300,
-                 return_sequences=True,
-                 use_bias=False,
-                 kernel_initializer='orthogonal'),
+                 # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+                 kernel_initializer=Orthogonal(seed=config["seed"]),
+                 recurrent_initializer=Orthogonal(seed=config["seed"]),
+                 return_sequences=True),
             name='finaldecoder')  # [-1,2*units]
-    final_p = Dropout(config["dropout"])(bilstm_decoder(PremAlign))
-    final_h = Dropout(config["dropout"])(bilstm_decoder(HypoAlign))
+
+    final_p = bilstm_decoder(PremAlign)
+    final_h = bilstm_decoder(HypoAlign)
 
     final_p = Multiply()([final_p, premise_mask])
     final_h = Multiply()([final_h, hypothesis_mask])
@@ -157,20 +169,24 @@ def esim(config, data):
     Final = Concatenate()([avg_p, max_p, avg_h, max_h])
     Final = Dropout(config["dropout"])(Final)
     Final = Dense(300,
-                  kernel_regularizer=l2(1e-5),
-                  bias_regularizer=l2(1e-5),
+                  # FIX(tomwesolowski): Remove regularizers
+                  # FIX(tomwesolowski): Add initializer
+                  kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+                  # FIX(tomwesolowski): Add tanh activation
+                  activation='tanh',
                   name='dense300_' + config["dataset"])(Final)
-    if config["batch_normalization"]:
-        Final = BatchNormalization()(Final)
-    Final = Activation(config["activation"])(Final)
-    Final = Dropout(config["dropout"] / 2)(Final)
+    Final = Dropout(config["dropout"])(Final)
     Final = Dense(3,
+                  # FIX(tomwesolowski): Add initializer
+                  kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
                   activation='softmax',
                   name='judge300_' + config["dataset"])(Final)
-    # model = Model(inputs=[premise, hypothesis], outputs=Final)
-    model = Model(inputs=[premise, premise_mask_input,
-                          hypothesis, hypothesis_mask_input,
-                          KBph, KBhp], outputs=Final)
+
+    model_input = [premise, premise_mask_input, hypothesis, hypothesis_mask_input]
+    if config['useitrick']:
+        model_input += [KBph, KBhp]
+
+    model = Model(inputs=model_input, outputs=Final)
 
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"],

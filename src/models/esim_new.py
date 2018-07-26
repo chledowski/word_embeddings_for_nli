@@ -18,7 +18,7 @@ from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 
 from src import DATA_DIR
-from src.models.model_utils import *
+from src.models.utils import *
 from src.util.prepare_embedding import prep_embedding_matrix
 
 logger = logging.getLogger(__name__)

@@ -17,7 +17,7 @@ from keras.models import Model
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 
-from src.models.model_utils import *
+from src.models.utils import *
 from src import DATA_DIR
 from src.util.data import SNLIData
 from src.util.prepare_embedding import prep_embedding_matrix
