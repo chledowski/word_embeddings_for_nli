@@ -141,12 +141,14 @@ def baseline_training_loop(model, data_and_streams,
 
     loop_state = {'last_epoch_done_id': -1}
 
+    # TODO(kchledowski): use best_model.h5
     if os.path.exists(os.path.join(save_path, "model.h5")):
         model.load_weights(os.path.join(save_path, "model.h5"))
 
     callbacks = [ModelCheckpoint(filepath=os.path.join(save_path, "best_model.h5"),
+                                 monitor='val_acc',
                                  save_best_only=True,
-                                 save_weights_only=True)]
+                                 save_weights_only=False)]
 
     def time_callback(epoch, logs):
         t = getattr(time_callback, "t")

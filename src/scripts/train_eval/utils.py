@@ -135,8 +135,11 @@ def compute_metrics(config, model, data_and_streams, eval_streams, default_batch
         stream = data_and_streams[stream_name]
         data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
         num_examples = data.num_examples(stream_name)
+        print(num_examples)
+        print(num_examples / config["batch_sizes"].get(stream_name, default_batch_size))
         metrics[stream_name] = model.evaluate_generator(
             generator=stream,
-            steps=num_examples / config["batch_sizes"].get(stream_name, default_batch_size)
+            steps=num_examples / config["batch_sizes"].get(stream_name, default_batch_size),
+            verbose=1
         )
     return metrics

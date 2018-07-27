@@ -5,7 +5,7 @@ Trains a simple baseline on SNLI
 Run like: python src/scripts/train_esim.py cc840 results/test_run
 """
 
-
+import os
 import logging
 import matplotlib
 
@@ -37,6 +37,9 @@ def train_model(config, save_path):
                            early_stopping=config["early_stopping"],
                            n_epochs=config["n_epochs"],
                            config=config)
+
+    if os.path.exists(os.path.join(save_path, "best_model.h5")):
+        model.load_weights(os.path.join(save_path, "best_model.h5"))
 
     metrics = compute_metrics(config, model, data_and_streams, eval_streams=["dev", "test"])
 

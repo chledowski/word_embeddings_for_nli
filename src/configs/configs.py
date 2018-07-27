@@ -68,7 +68,7 @@ baseline_configs['cbow'] = {
 baseline_configs['esim'] = {
     'D': 0,
     'attention_lambda': 0.0,
-    'batch_sizes': {'dev': 128, 'test': 2, 'train': 32},
+    'batch_sizes': {'dev': 133, 'test': 307, 'train': 32},
     'centering': False,
     'clip_gradient_norm': 10.0,
     'dataset': 'snli',
@@ -80,7 +80,7 @@ baseline_configs['esim'] = {
     'intersection_of_embedding_dicts': False,
     'learning_rate': 0.0004,
     'lr_schedule': '[[1000, 0.0004]]',
-    'lr_schedule_type': 'reduce_on_plateau',
+    'lr_schedule_type': 'none',
     'model': 'esim',
     'n_epochs': 60,
     'n_labels': 3,
