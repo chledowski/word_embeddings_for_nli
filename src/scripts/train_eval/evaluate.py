@@ -13,23 +13,29 @@ from src.models import build_model
 from src.util import modified_stream, evaluate_wv, load_embedding_from_h5
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
+from numpy.random import seed
+from tensorflow import set_random_seed
+
 def eval_model():
     results_dict = {}
 
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
 
+    seed(config["seed"])
+    set_random_seed(config["seed"])
+
     # To evaluate on more streams, add them here
     # config["batch_size"][stream] = ...
 
-    data_and_streams = build_data_and_streams(config, additional_streams=["breaking"])
+    data_and_streams = build_data_and_streams(config)
     model = build_model(config, data_and_streams["data"])
 
     # Restore the best model found during validation
     model.load_weights(os.path.join('results', args.model_name, "best_model.h5"))
 
     metrics = compute_metrics(config, model, data_and_streams,
-                              eval_streams=["dev", "test", "breaking"])
+                              eval_streams=["dev", "test"])
 
     results_dict['accuracies'] = {}
     results_dict['losses'] = {}

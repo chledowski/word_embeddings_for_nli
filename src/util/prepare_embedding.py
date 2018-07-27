@@ -82,3 +82,21 @@ def prep_embedding_matrix(config, data):
         embedding_matrix = normalize_embeddings(embedding_matrix)
 
     return embedding_matrix
+
+
+def prep_embedding_matrix_like_kim(config, vocab):
+    embedding_matrix = norm_weight(len(vocab), config['embedding_dim'])
+    # read embedding from GloVe
+    debug = True
+    if os.path.join(DATA_DIR, config['embedding_kim']):
+        with open(os.path.join(DATA_DIR, config['embedding_kim']), 'r') as f:
+            for line in f:
+                tmp = line.split()
+                word = ' '.join(tmp[0:-config['embedding_dim']])
+                vector = tmp[-config['embedding_dim']:]
+                if debug:
+                    print(word)
+                    debug = False
+                if word in vocab and vocab[word] < config['n_words']:
+                    embedding_matrix[vocab[word], :] = vector
+    return embedding_matrix

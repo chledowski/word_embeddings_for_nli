@@ -330,26 +330,26 @@ if __name__ == "__main__":
 
         if 'glove' in args.embeddings:
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
-                print("Fetching GloVe 6B")
-                E = fetch_glove(corpus="gwiki6")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
+            # if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
+            #     print("Fetching GloVe 6B")
+            #     E = fetch_glove(corpus="gwiki6")
+            #     print("Saving embeddings")
+            #     export_embedding_h5(E.vocabulary.words, E.vectors,
+            #                         output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
+            #
+            # if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
+            #     print("Fetching GloVe 42B")
+            #     E = fetch_glove(corpus="gcc42")
+            #     print("Saving embeddings")
+            #     export_embedding_h5(E.vocabulary.words, E.vectors,
+            #                         output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
 
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
-                print("Fetching GloVe 42B")
-                E = fetch_glove(corpus="gcc42")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
-
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
-                print("Fetching GloVe 840B")
-                E = fetch_glove(corpus="gcc840")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
+            # if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
+            print("Fetching GloVe 840B")
+            E = fetch_glove(corpus="gcc840")
+                # print("Saving embeddings")
+                # export_embedding_h5(E.vocabulary.words, E.vectors,
+                #                     output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
 
         elif 'gwiki6' in args.embeddings:
 

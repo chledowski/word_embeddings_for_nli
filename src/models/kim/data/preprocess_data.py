@@ -9,6 +9,7 @@ from collections import OrderedDict
 from src import DATA_DIR
 sys.setrecursionlimit(1000)
 
+
 def build_dictionary_wordnet(filepaths, dst_path=None, lowercase=False, remove_phrase=True):
     word_id_num = OrderedDict()
     id_word = OrderedDict()

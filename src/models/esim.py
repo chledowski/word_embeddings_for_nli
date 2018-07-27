@@ -21,22 +21,19 @@ from keras.regularizers import l2
 
 
 from src import DATA_DIR
-from src.util.prepare_embedding import prep_embedding_matrix
+from src.util.prepare_embedding import prep_embedding_matrix_like_kim
 from src.models.utils import ScaledRandomNormal
 
 logger = logging.getLogger(__name__)
 
 def esim(config, data):
-    logger.info('Vocab size = {}'.format(data.vocab.size()))
-    logger.info('Using {} embedding'.format(config["embedding_name"]))
+    embedding_matrix = prep_embedding_matrix_like_kim(config, data.vocab)
 
-    embedding_matrix = prep_embedding_matrix(config, data)
-
-    embed = Embedding(data.vocab.size(), config["embedding_dim"],
+    embed = Embedding(len(data.vocab), config["embedding_dim"],
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],
-                      mask_zero=True)
+                      mask_zero=False)
 
     # 1, Embedding the input and project the embeddings
     premise = Input(shape=(config["sentence_max_length"],), dtype='int32')
@@ -58,11 +55,11 @@ def esim(config, data):
 
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
-        LSTM(units=config["embedding_dim"],
-             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-             kernel_initializer=Orthogonal(seed=config["seed"]),
-             recurrent_initializer=Orthogonal(seed=config["seed"]),
-             return_sequences=True)
+        CuDNNLSTM(units=config["embedding_dim"],
+                 # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+                 kernel_initializer=Orthogonal(seed=config["seed"]),
+                 recurrent_initializer=Orthogonal(seed=config["seed"]),
+                 return_sequences=True)
     )
 
     # FIX(tomwesolowski): Remove dropout
@@ -140,12 +137,12 @@ def esim(config, data):
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
-            LSTM(units=300,
-                 # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-                 kernel_initializer=Orthogonal(seed=config["seed"]),
-                 recurrent_initializer=Orthogonal(seed=config["seed"]),
-                 return_sequences=True),
-            name='finaldecoder')  # [-1,2*units]
+        CuDNNLSTM(units=300,
+                  # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+                  kernel_initializer=Orthogonal(seed=config["seed"]),
+                  recurrent_initializer=Orthogonal(seed=config["seed"]),
+                  return_sequences=True),
+        name='finaldecoder')  # [-1,2*units]
 
     final_p = bilstm_decoder(PremAlign)
     final_h = bilstm_decoder(HypoAlign)
