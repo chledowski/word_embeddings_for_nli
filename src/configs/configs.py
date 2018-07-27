@@ -80,7 +80,7 @@ baseline_configs['esim'] = {
     'intersection_of_embedding_dicts': False,
     'learning_rate': 0.0004,
     'lr_schedule': '[[1000, 0.0004]]',
-    'lr_schedule_type': 'none',
+    'lr_schedule_type': 'reduce_on_plateau',
     'model': 'esim',
     'n_epochs': 60,
     'n_labels': 3,

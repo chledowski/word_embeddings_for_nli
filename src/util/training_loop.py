@@ -94,7 +94,7 @@ def create_lr_schedule(config, model, dataset_size, batch_size, save_path):
     n_epochs = config["n_epochs"]
 
     if learning_rate_schedule_type == "reduce_on_plateau":
-        return ReduceLROnPlateau(patience=5, verbose=1)
+        return ReduceLROnPlateau(monitor='val_acc', patience=1, factor=0.5, mode='max', verbose=1)
     elif learning_rate_schedule_type == "list_of_lists":
         def lr_schedule(epoch, logs):
             for e, v in learning_rate_schedule:
