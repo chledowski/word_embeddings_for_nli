@@ -147,7 +147,9 @@ class Data(object):
                 self._dataset_cache[part] = SQuADDataset(part_path, ('all',))
             elif self._layout == 'snli':
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
-                    ('all',), sources=('sentence1', 'sentence2', 'label',), load_in_memory=True)
+                    ('all',), sources=('sentence1', 'sentence1_lemmatized',
+                                       'sentence2', 'sentence2_lemmatized',
+                                       'label',), load_in_memory=True)
             elif self._layout == 'mnli':
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
                     ('all',), sources=('sentence1', 'sentence2', 'label',), load_in_memory=True)
@@ -237,10 +239,8 @@ def digitize(vocab, source_data):
 
 
 def surround_sentence(vocab, source_data):
-    sentence = source_data.tolist()
-    sentence.insert(0, vocab.bos)
-    sentence.append(vocab.eos)
-    return numpy.array(sentence)
+    sentences = [[vocab.bos] + words.tolist() + [vocab.eos] for words in source_data]
+    return numpy.array(sentences)
 
 class ExtractiveQAData(Data):
 
