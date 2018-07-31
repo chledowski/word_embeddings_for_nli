@@ -64,12 +64,14 @@ class Vocabulary(object):
     BOD = '<bod>'  # beginning-of-definition
     EOD = '<eod>'  # end-of-definition
     UNK = '<unk>'  # unknown token
+    PAD = '<pad>'  # padding token
     SPECIAL_TOKEN_MAP = {
         BOS: 'bos',
         EOS: 'eos',
         BOD: 'bod',
         EOD: 'eod',
-        UNK: 'unk'
+        UNK: 'unk',
+        PAD: 'pad',
     }
 
     def __init__(self, path_or_data):
@@ -97,6 +99,7 @@ class Vocabulary(object):
         self.bos = self.eos = -1
         self.bod = self.eod = -1
         self.unk = -1
+        self.pad = -1
 
         for idx, (word_name, freq) in enumerate(words_and_freqs):
             token_attr = self.SPECIAL_TOKEN_MAP.get(word_name)
@@ -173,7 +176,8 @@ class Vocabulary(object):
         if top_k:
             words_and_freqs = words_and_freqs[:top_k]
         words_and_freqs = (
-            [(Vocabulary.UNK, 0),
+            [(Vocabulary.PAD, 0),
+             (Vocabulary.UNK, 0),
              (Vocabulary.EOS, 0),
              (Vocabulary.BOD, 0),
              (Vocabulary.EOD, 0),

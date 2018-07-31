@@ -236,6 +236,12 @@ def digitize(vocab, source_data):
     return numpy.array([vocab.encode(words) for words in source_data])
 
 
+def surround_sentence(vocab, source_data):
+    sentence = source_data.tolist()
+    sentence.insert(0, vocab.bos)
+    sentence.append(vocab.eos)
+    return numpy.array(sentence)
+
 class ExtractiveQAData(Data):
 
     def __init__(self, retrieval=None, *args, **kwargs):
@@ -288,6 +294,7 @@ class ExtractiveQAData(Data):
         if not raw_text:
             stream = SourcewiseMapping(stream, functools.partial(digitize, self.vocab),
                                        which_sources=('contexts', 'questions'))
+
         stream = Padding(stream, mask_sources=('contexts', 'questions'), mask_dtype='float32')
         return stream
 
@@ -372,6 +379,8 @@ class SNLIData(Data):
 
         if not raw_text:
             stream = SourcewiseMapping(stream, functools.partial(digitize, self.vocab),
+                                       which_sources=('sentence1', 'sentence2'))
+            stream = SourcewiseMapping(stream, functools.partial(surround_sentence, self.vocab),
                                        which_sources=('sentence1', 'sentence2'))
 
         stream = Padding(stream, mask_sources=('sentence1', 'sentence2'))  # Increases amount of outputs by x2
