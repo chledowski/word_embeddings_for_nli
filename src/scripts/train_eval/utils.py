@@ -18,13 +18,15 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
     kb_x = np.zeros((batch_size, config['sentence_max_length'], config['sentence_max_length'], 5)).astype('float32')
     kb_y = np.zeros((batch_size, config['sentence_max_length'], config['sentence_max_length'], 5)).astype('float32')
 
-    total_misses = 0.0
-    total_hits = 0.0
+    total_misses = 0
+    total_hits = 0
+    pairs = []
 
     def fill_kb(batch_id, words1, words2, kb):
         hits, misses = 0, 0
         for i1, w1 in enumerate(words1):
             for i2, w2 in enumerate(words2):
+                pairs.append((w1, w2))
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
                     hits += 1
@@ -40,7 +42,10 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
         total_hits += h
         total_misses += m
 
-    print("Hits ratio: %.2f" % (total_hits / (total_hits + total_misses)))
+    sample_pair = np.random.choice(pairs)
+    sp1, sp2 = sample_pair
+    print("Hits: %d Misses: %d Size: %d" % (total_hits, total_misses, len(features)))
+    print("Sample pair: %s %s" % (sp1, sp2))
     return kb_x, kb_y, total_hits, total_misses
 
 

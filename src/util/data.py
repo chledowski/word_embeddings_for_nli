@@ -125,9 +125,9 @@ class Data(object):
             part_map = {'train': 'train.h5',
                         'dev': 'dev.h5'}
         elif self._layout == 'snli':
-            part_map = {'train': 'train.h5',
-                        'dev': 'dev.h5',
-                        'test': 'test.h5'}
+            part_map = {'train': 'train_lemma.h5',
+                        'dev': 'dev_lemma.h5',
+                        'test': 'test_lemma.h5'}
         elif self._layout == 'mnli':
             part_map = {'train': 'train.h5',
                         'dev': 'dev.h5',
