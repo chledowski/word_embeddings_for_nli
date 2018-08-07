@@ -16,6 +16,7 @@ from src.util.training_loop import baseline_training_loop
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
 from numpy.random import seed
+from numpy.random import RandomState
 from tensorflow import set_random_seed
 
 
@@ -26,8 +27,9 @@ logger = logging.getLogger(__name__)
 def train_model(config, save_path):
     seed(config["seed"])
     set_random_seed(config["seed"])
+    rng = RandomState(config["seed"])
 
-    data_and_streams = build_data_and_streams(config)
+    data_and_streams = build_data_and_streams(config, rng)
     model = build_model(config, data_and_streams["data"])
 
     # Call training loop

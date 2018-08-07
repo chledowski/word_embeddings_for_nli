@@ -335,7 +335,7 @@ def lstm_layer(tparams, state_below, options, prefix='lstm', mask=None, **kwargs
         c = tensor.tanh(_slice(preact, 3, dim))
 
         c = f * c_ + i * c
-        c = m_[:,None] * c + (1. - m_)[:,None] * c_ 
+        c = m_[:,None] * c + (1. - m_)[:,None] * c_
 
         h = o * tensor.tanh(c)
         h = m_[:,None] * h + (1. - m_)[:,None] * h_
@@ -364,7 +364,7 @@ def init_params(options, worddicts):
             for line in f:
                 tmp = line.split()
                 word = tmp[0]
-                vector = tmp[1:]
+                vector = tmp[-300:]
                 if word in worddicts and worddicts[word] < options['n_words']:
                     params['Wemb'][worddicts[word], :] = vector
 
@@ -498,7 +498,7 @@ def build_model(tparams, options):
     ctx2 = ctx2 * x2_mask[:,:,None]
 
     # weight_matrix: #sample x #step1 x #step2
-    weight_matrix = tensor.batched_dot(ctx1.dimshuffle(1,0,2), ctx2.dimshuffle(1,2,0)) 
+    weight_matrix = tensor.batched_dot(ctx1.dimshuffle(1,0,2), ctx2.dimshuffle(1,2,0))
     weight_kb = kb_att.dimshuffle(1, 0, 2)
     weight_matrix = weight_matrix + options['attention_lambda'] * weight_kb
 
@@ -541,7 +541,7 @@ def build_model(tparams, options):
     inpr1 = inp1[::-1]
     inpr2 = inp2[::-1]
 
-    # decoder 
+    # decoder
     proj3 = get_layer(options['decoder'])[1](tparams, inp1, options,
                                             prefix='decoder',
                                             mask=x1_mask)
@@ -567,8 +567,8 @@ def build_model(tparams, options):
     if options['kb_composition']:
         # ctx1_kb: #step1 x #sample x #dim_kb
         # ctx2_kb: #step2 x #sample x #dim_kb
-        gate1_kb = get_layer('ff')[1](tparams, ctx1_kb, options, prefix='gated_att', activ='relu') 
-        gate2_kb = get_layer('ff')[1](tparams, ctx2_kb, options, prefix='gated_att', activ='relu') 
+        gate1_kb = get_layer('ff')[1](tparams, ctx1_kb, options, prefix='gated_att', activ='relu')
+        gate2_kb = get_layer('ff')[1](tparams, ctx2_kb, options, prefix='gated_att', activ='relu')
         gate1_kb = gate1_kb.reshape([n_timesteps_x1, n_samples])
         gate2_kb = gate2_kb.reshape([n_timesteps_x2, n_samples])
         gate1_kb = tensor.exp(gate1_kb - gate1_kb.max(0, keepdims=True))
@@ -672,7 +672,7 @@ def adam(lr, tparams, grads, inp, cost, beta1=0.9, beta2=0.999, e=1e-8):
                                on_unused_input='ignore', profile=profile)
 
     return f_grad_shared, f_update
-    
+
 
 def adadelta(lr, tparams, grads, inp, cost, epsilon = 1e-6, rho = 0.95):
     zipped_grads = [theano.shared(p.get_value() * numpy.float32(0.),
@@ -763,9 +763,9 @@ def train(
           dim_word         = 100,  # word vector dimensionality
           dim              = 100,  # the number of GRU units
           encoder          = 'lstm', # encoder model
-          decoder          = 'lstm', # decoder model 
+          decoder          = 'lstm', # decoder model
           patience         = 10,  # early stopping patience
-          max_epochs       = 5000, 
+          max_epochs       = 5000,
           finish_after     = 10000000, # finish after this many updates
           decay_c          = 0.,  # L2 regularization penalty
           clip_c           = -1.,  # gradient clipping threshold
@@ -1007,7 +1007,7 @@ def train(
 
                 if valid_err > numpy.array(history_errs).min():
                     wait_counter += 1
-            
+
                 if wait_counter >= wait_N:
                     print('wait_counter max, need to half the lr')
                     bad_counter += 1

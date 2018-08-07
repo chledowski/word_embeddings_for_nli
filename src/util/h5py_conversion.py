@@ -220,7 +220,7 @@ def remove_non_ascii_characters(parse):
     return parse.encode('ascii', errors='ignore').decode()
 
 
-def lemmatize(file_path):
+def tokenize_and_lemmatize(file_path):
     tokenize_and_lemmatize_path = '%s/tokenize_and_lemmatize' % os.path.dirname(os.path.abspath(__file__))
 
     if not os.path.exists('%s.class' % tokenize_and_lemmatize_path):
@@ -232,61 +232,40 @@ def lemmatize(file_path):
     print('Run ...')
     base_dir = os.path.dirname(file_path)
     base_name = os.path.splitext(os.path.basename(file_path))[0]
+    out_name_token = base_name + '_token.txt'
+    out_path_token = os.path.join(base_dir, out_name_token)
     out_name_lemma = base_name + '_lemma.txt'
     out_path_lemma = os.path.join(base_dir, out_name_lemma)
-    cmd = 'java -cp ".:{}/corenlp/stanford-corenlp-full-2016-10-31/*:{}" tokenize_and_lemmatize {} {}'.format(
-        DATA_DIR, os.path.dirname(os.path.abspath(__file__)), file_path, out_path_lemma)
+    cmd = 'java -cp ".:{}/corenlp/stanford-corenlp-full-2016-10-31/*:{}" tokenize_and_lemmatize {} {} {}'.format(
+        DATA_DIR, os.path.dirname(os.path.abspath(__file__)), file_path, out_path_token, out_path_lemma)
     print(cmd)
     os.system(cmd)
-    return out_path_lemma
+    return out_path_token, out_path_lemma
 
 
 def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
     logging.info("Reading CSV file")
-    d = pd.read_csv(snli_path, sep="\t", error_bad_lines=False)
 
-    # Remove NaN
-    d = d[d['sentence2_binary_parse'].apply(lambda x: isinstance(x, str))]
+    dir_path = os.path.dirname(snli_path)
+    base_path = os.path.basename(snli_path)
 
-    total_num_non_ascii_characters = 0
-    total_num_sentences_with_no_ascii = 0
-    for column in ['sentence1_binary_parse', 'sentence2_binary_parse']:
-        total_num_non_ascii_characters += sum([
-            len(s) - len(remove_non_ascii_characters((s))) for s in d[column]
-        ])
-        total_num_sentences_with_no_ascii += sum([
-            len(s) - len(remove_non_ascii_characters((s))) > 0 for s in d[column]
-        ])
-        d[column] = d[column].apply(remove_non_ascii_characters)
+    data = dict()
 
-    logging.info("Total num. of non-ASCII characters: %d" % total_num_non_ascii_characters)
-    logging.info("Total num. of sentences with non-ASCII: %d" % total_num_sentences_with_no_ascii)
+    for ph, s12 in [('premise', 'sentence1'), ('hypothesis', 'sentence2')]:
+        token_path, lemma_path = tokenize_and_lemmatize(os.path.join(dir_path, '%s_%s' % (ph, base_path)))
+        with open(token_path) as f:
+            data['%s_tokenized' % s12] = [line.lower().split() if lowercase else line.split() for line in f]
+        with open(lemma_path) as f:
+            data['%s_lemmatized' % s12] = [line.split() for line in f]
 
-    # Remove labels without consensus
-    d = d.drop(d.query('gold_label == "-"').index)
+    with open(os.path.join(dir_path, 'label_%s' % base_path)) as f:
+        data['gold_label_int'] = [int(line.strip()) for line in f]
 
-    # Add fields
-    d['sentence1_tokenized'] = [[w.lower() if lowercase else w for w in extract_tokens_from_binary_parse(s)]
-        for s in tqdm.tqdm(d['sentence1_binary_parse'], total=len(d))]
-    d['sentence2_tokenized'] = [[w.lower() if lowercase else w for w in extract_tokens_from_binary_parse(s)]
-        for s in tqdm.tqdm(d['sentence2_binary_parse'], total=len(d))]
-    d['gold_label_int'] = [SNLI_LABEL2INT[x] for x in d['gold_label']]
-
-    for column in ['sentence1_tokenized', 'sentence2_tokenized']:
-        fp = tempfile.NamedTemporaryFile(mode='w', delete=False)
-        for s in d[column]:
-            fp.write(' '.join(s) + '\n')
-        fp.close()
-        lemma_path = lemmatize(fp.name)
-        with open(lemma_path) as lemma_fp:
-            lemma_column = '%s_lemmatized' % column.split('_')[0]
-            d[lemma_column] = [line.split() for line in lemma_fp]
-        os.remove(fp.name)
-        os.remove(lemma_path)
+    d = pd.DataFrame(data)
 
     # Get all words
-    sentences = [extract_tokens_from_binary_parse(s) for s in d['sentence1_binary_parse']]
-    sentences += [extract_tokens_from_binary_parse(s) for s in d['sentence2_binary_parse']]
+    sentences = [s for s in d['sentence1_tokenized']]
+    sentences += [s for s in d['sentence2_tokenized']]
 
     words = np.array([w.lower() if lowercase else w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s], dtype='S20')
     sentences = [] # For safety
@@ -366,7 +345,6 @@ def breaking_nli_to_h5py_dataset(snli_path, dst_path):
     words = np.array([w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s], dtype='S20')
     sentences = [] # For safety
     logging.info("Found {} words".format(len(words)))
-
 
     # Pack (I hate writing this h5py code)
     dtype = h5py.special_dtype(vlen='S20')

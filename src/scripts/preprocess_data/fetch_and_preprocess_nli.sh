@@ -25,10 +25,13 @@ python src/util/convert_breaking_to_txt.py $DATA_DIR/snli/test_breaking_nli.h5
 # Download SNLI
 python src/scripts/fetch_data/get_snli.py
 
+# Parse to nicer format
+python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/
+
 # Convert to h5 files
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/snli_1.0/snli_1.0_train.txt $DATA_DIR/snli/train.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/snli_1.0/snli_1.0_dev.txt $DATA_DIR/snli/dev.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/snli_1.0/snli_1.0_test.txt $DATA_DIR/snli/test.h5 --type=snli
+python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_train.txt $DATA_DIR/snli/train.h5 --type=snli
+python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_dev.txt $DATA_DIR/snli/dev.h5 --type=snli
+python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_test.txt $DATA_DIR/snli/test.h5 --type=snli
 
 # Build vocab for both train and all data
 python src/util/build_vocab.py $DATA_DIR/snli/train.h5 $DATA_DIR/snli/vocab.txt

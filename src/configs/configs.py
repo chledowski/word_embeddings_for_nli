@@ -1,3 +1,4 @@
+
 from src.util.vegab import ConfigRegistry
 
 baseline_configs = ConfigRegistry()
@@ -39,9 +40,14 @@ baseline_configs['cbow'] = {
     "model": 'cbow',
     "n_layers": 3,
     "batch_sizes": {
-        "train": 32,
-        "dev": 32,
-        "test": 32
+        "train": 91,
+        "dev": 133,
+        "test": 307
+    },
+    "shuffle": {
+        "train": True,
+        "dev": False,
+        "test": False
     },
     "early_stopping": True,
     "n_epochs": 40,
@@ -59,16 +65,22 @@ baseline_configs['cbow'] = {
     "normalize": False,
     "norm_weight": False,
     "embedding_dim": 300,
-    "embedding_name": "cos",
+    "embedding_name": "gcc840",
     "train_embeddings": False,
     "train_on_fraction": 1.0,
-
+    'seed': 1,
+    'useitrick': 0,
 }
 
 baseline_configs['esim'] = {
     'D': 0,
     'attention_lambda': 0.0,
     'batch_sizes': {'dev': 133, 'test': 307, 'train': 32},
+"shuffle": {
+        "train": True,
+        "dev": False,
+        "test": False
+    },
     'centering': False,
     'clip_gradient_norm': 10.0,
     'dataset': 'snli',

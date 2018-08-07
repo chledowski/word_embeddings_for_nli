@@ -36,7 +36,7 @@ def esim(config, data):
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],
-                      mask_zero=True)
+                      mask_zero=False)
 
     # 1, Embedding the input and project the embeddings
     premise = Input(shape=(config["sentence_max_length"],), dtype='int32')
@@ -58,7 +58,7 @@ def esim(config, data):
 
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
-        LSTM(units=config["embedding_dim"],
+        CuDNNLSTM(units=config["embedding_dim"],
              # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
              kernel_initializer=Orthogonal(seed=config["seed"]),
              recurrent_initializer=Orthogonal(seed=config["seed"]),
@@ -140,7 +140,7 @@ def esim(config, data):
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
-        LSTM(units=300,
+        CuDNNLSTM(units=300,
                  # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
                  kernel_initializer=Orthogonal(seed=config["seed"]),
                  recurrent_initializer=Orthogonal(seed=config["seed"]),

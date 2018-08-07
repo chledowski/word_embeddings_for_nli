@@ -17,17 +17,18 @@ TODO: Unit test SNLI data
 """
 
 import functools
+import math
 import os
 
 import fuel
 import h5py
 import numpy
 from fuel.datasets import H5PYDataset
-from fuel.schemes import IterationScheme, ConstantScheme, ShuffledExampleScheme, IndexScheme
+from fuel.schemes import IterationScheme, ConstantScheme, ShuffledExampleScheme, SequentialExampleScheme, IndexScheme
 from fuel.streams import DataStream
 from fuel.transformers import (
     Mapping, Batch, Padding, AgnosticSourcewiseTransformer,
-    FilterSources, Transformer)
+    FilterSources, Transformer, Unpack)
 
 from src.util.vocab import Vocabulary
 
@@ -125,9 +126,9 @@ class Data(object):
             part_map = {'train': 'train.h5',
                         'dev': 'dev.h5'}
         elif self._layout == 'snli':
-            part_map = {'train': 'train_lemma.h5',
-                        'dev': 'dev_lemma.h5',
-                        'test': 'test_lemma.h5'}
+            part_map = {'train': 'train.h5',
+                        'dev': 'dev.h5',
+                        'test': 'test.h5'}
         elif self._layout == 'mnli':
             part_map = {'train': 'train.h5',
                         'dev': 'dev.h5',
@@ -242,6 +243,42 @@ def surround_sentence(vocab, source_data):
     sentences = [[vocab.bos] + words.tolist() + [vocab.eos] for words in source_data]
     return numpy.array(sentences)
 
+
+def shuffle_like_kim(batch_size, rng, batch):
+    source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer = batch
+
+    # sort by target buffer
+    tlen = numpy.array([len(t) for t in target_buffer])
+    tidx = tlen.argsort(kind='mergesort')
+    # tidx = list(range(target_buffer.shape[0]))
+    # shuffle mini-batch
+    tindex = []
+    small_index = numpy.array(list(range(int(math.ceil(len(tidx) * 1. / batch_size)))))
+    rng.shuffle(small_index)
+    for i in small_index:
+        if (i + 1) * batch_size > len(tidx):
+            tindex.extend(tidx[i * batch_size:])
+        else:
+            tindex.extend(tidx[i * batch_size:(i + 1) * batch_size])
+
+    tidx = tindex
+
+    _sbuf = [source_buffer[i] for i in tidx]
+    _tbuf = [target_buffer[i] for i in tidx]
+    _slbuf = [source_lemma_buffer[i] for i in tidx]
+    _tlbuf = [target_lemma_buffer[i] for i in tidx]
+    _lbuf = [label_buffer[i] for i in tidx]
+
+    source_buffer = _sbuf
+    target_buffer = _tbuf
+    source_lemma_buffer = _slbuf
+    target_lemma_buffer = _tlbuf
+    label_buffer = _lbuf
+
+    return [source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer]
+
+
+
 class ExtractiveQAData(Data):
 
     def __init__(self, retrieval=None, *args, **kwargs):
@@ -348,7 +385,7 @@ class SNLIData(Data):
     def vocab(self):
         if not self._vocab:
             self._vocab = Vocabulary(
-                os.path.join(self._path, "vocab_all.txt"))
+                os.path.join(self._path, "vocab.txt"))
         return self._vocab
 
     def num_examples(self, part):
@@ -359,16 +396,22 @@ class SNLIData(Data):
     def total_num_examples(self, part):
         return self.get_dataset(part).num_examples
 
-    def get_stream(self, part, batch_size, seed=None, raw_text=False):
+    def get_stream(self, part, batch_size, shuffle, rng, raw_text=False):
         d = self.get_dataset(part)
         print(("Dataset with {} examples".format(self.num_examples(part))))
-        it = ShuffledExampleScheme(
-            examples=numpy.random.choice(
-                    a=self.total_num_examples(part),
-                    size=self.num_examples(part),
-                    replace=True),
-            rng=numpy.random.RandomState(seed))
+        # it = ShuffledExampleScheme(
+        #     examples=numpy.random.choice(
+        #             a=self.total_num_examples(part),
+        #             size=self.num_examples(part),
+        #             replace=True),
+        #     rng=rng)
+        it = SequentialExampleScheme(examples=self.total_num_examples(part))
         stream = DataStream(d, iteration_scheme=it)
+
+        if shuffle:
+            stream = Batch(stream, iteration_scheme=ConstantScheme(20 * batch_size))
+            stream = FixedMapping(stream, functools.partial(shuffle_like_kim, batch_size, rng))
+            stream = Unpack(stream)
         stream = Batch(stream, iteration_scheme=ConstantScheme(batch_size))
 
         if self._retrieval:

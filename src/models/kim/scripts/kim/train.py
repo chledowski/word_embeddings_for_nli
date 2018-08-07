@@ -15,20 +15,20 @@ def make_dirs(dirs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--embedding", type=str, required=True)
+    # parser.add_argument("--embedding", type=str, required=True)
     parser.add_argument("--model", type=str, required=True)
     args = parser.parse_args()
 
     config = baseline_configs.get_root_config()
 
-    embedding_path_txt = os.path.join(DATA_DIR, 'embeddings', '%s.txt' % args.embedding)
+    embedding_path_txt = os.path.join(DATA_DIR, 'raw/embeddings/glove.840B.300d/glove.840B.300d.txt')
 
-    # KIM needs embedding as text file.
-    if not os.path.exists(embedding_path_txt):
-        print("Converting embedding from H5 to TXT...")
-        h5_to_txt(h5_name=args.embedding,
-                  txt_name=args.embedding,
-                  prefix="")
+    # # KIM needs embedding as text file.
+    # if not os.path.exists(embedding_path_txt):
+    #     print("Converting embedding from H5 to TXT...")
+    #     h5_to_txt(h5_name=args.embedding,
+    #               txt_name=args.embedding,
+    #               prefix="")
 
     config['embedding'] = embedding_path_txt
     config['model'] = args.model

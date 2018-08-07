@@ -77,7 +77,7 @@ def load_pair_features(config):
     return features
 
 
-def build_data_and_streams(config, additional_streams=[], default_batch_size=1, seed=42):
+def build_data_and_streams(config, rng, additional_streams=[], default_batch_size=1):
     data_and_streams = {}
     if config["dataset"] == "snli":
         data_and_streams["data"] = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli")
@@ -96,40 +96,54 @@ def build_data_and_streams(config, additional_streams=[], default_batch_size=1, 
     for stream in additional_streams:
         data_and_streams["%s_data" % stream] = stream_loaders[stream]()
 
-    def modified_stream(s):
-        def _stream():
-            while True:
-                it = s.get_epoch_iterator()
-                for x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y in it:
-                    assert x1.shape == x1_mask.shape
-                    x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
-                                       padding='post', truncating='post')
-                    x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
-                                        padding='post', truncating='post')
+    class StreamWrapper:
+        def __init__(self):
+            self.force_reset = False
 
-                    x1_mask_padded = np.zeros(shape=(x1_mask.shape[0],
-                                                     config['sentence_max_length']))
-                    x2_mask_padded = np.zeros(shape=(x2_mask.shape[0],
-                                                     config['sentence_max_length']))
-                    x1_mask_padded[:x1_mask.shape[0], :x1_mask.shape[1]] = x1_mask
-                    x2_mask_padded[:x2_mask.shape[0], :x2_mask.shape[1]] = x2_mask
-                    assert x1.shape == x1_mask_padded.shape
+        def reset(self):
+            self.force_reset = True
 
-                    model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
+        def wrapped_stream(self, stream):
+            def _stream():
+                while True:
+                    it = stream.get_epoch_iterator()
+                    for x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y in it:
+                        if self.force_reset:
+                            self.force_reset = False
+                            break
 
-                    if config['useitrick']:
-                        kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
-                        model_input += [kb_x, kb_y]
+                        assert x1.shape == x1_mask.shape
+                        x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
+                                           padding='post', truncating='post')
+                        x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
+                                            padding='post', truncating='post')
 
-                    yield model_input, np_utils.to_categorical(y, 3)
+                        x1_mask_padded = np.zeros(shape=(x1_mask.shape[0],
+                                                         config['sentence_max_length']))
+                        x2_mask_padded = np.zeros(shape=(x2_mask.shape[0],
+                                                         config['sentence_max_length']))
+                        x1_mask_padded[:x1_mask.shape[0], :x1_mask.shape[1]] = x1_mask
+                        x2_mask_padded[:x2_mask.shape[0], :x2_mask.shape[1]] = x2_mask
+                        assert x1.shape == x1_mask_padded.shape
 
-        return _stream
+                        model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
+
+                        if config['useitrick']:
+                            kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
+                            model_input += [kb_x, kb_y]
+
+                        yield model_input, np_utils.to_categorical(y, 3)
+
+            return _stream
 
     for stream_name in list(config["batch_sizes"].keys()) + additional_streams:
         data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
         stream_batch_size = config["batch_sizes"].get(stream_name, default_batch_size)
-        stream = data.get_stream(stream_name, batch_size=stream_batch_size, seed=seed)
-        data_and_streams[stream_name] = modified_stream(stream)()
+        stream = data.get_stream(stream_name,
+                                 shuffle=config['shuffle'][stream_name],
+                                 rng=rng,
+                                 batch_size=stream_batch_size)
+        data_and_streams[stream_name] = StreamWrapper().wrapped_stream(stream)()
 
     return data_and_streams
 

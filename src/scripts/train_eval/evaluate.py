@@ -25,11 +25,12 @@ def eval_model():
 
     seed(config["seed"])
     set_random_seed(config["seed"])
+    rng = RandomState(config["seed"])
 
     # To evaluate on more streams, add them here
     # config["batch_size"][stream] = ...
 
-    data_and_streams = build_data_and_streams(config)
+    data_and_streams = build_data_and_streams(config, rng)
     model = build_model(config, data_and_streams["data"])
 
     # Restore the best model found during validation

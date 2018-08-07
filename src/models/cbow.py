@@ -26,20 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 def cbow(config, data):
-    vocabulary = {}
-    with open(os.path.join(DATA_DIR, config["dataset"], 'vocab.txt')) as f:
-
-        for line in f:
-            (key, val) = line.split()
-            vocabulary[key] = int(val)
-
-    vocab_size = len(vocabulary)
-    logger.info('Vocab size = {}'.format(vocab_size))
-
+    logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
-    embedding_matrix = prep_embedding_matrix(config, vocab_size, data)
 
-    embed = Embedding(vocab_size, config["embedding_dim"],
+    embedding_matrix = prep_embedding_matrix(config, data)
+
+    embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"])
@@ -55,7 +47,9 @@ def cbow(config, data):
     set_session(tf.Session(config=configg))
 
     premise = Input(shape=(config["sentence_max_length"],), dtype='int32')
+    premise_mask_input = Input(shape=(config["sentence_max_length"],), dtype='float32')
     hypothesis = Input(shape=(config["sentence_max_length"],), dtype='int32')
+    hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='float32')
 
     prem = AvgEmbeddings(translate(embed(premise)))
     hypo = AvgEmbeddings(translate(embed(hypothesis)))
@@ -65,20 +59,20 @@ def cbow(config, data):
         hypo = BatchNormalization()(hypo)
 
     joint = concatenate([prem, hypo])
-    joint = Dropout(config['dropout'], name="pre_mlp_drop")(joint)
+    joint = Dropout(config['dropout'], name="pre_mlp_drop", seed=config['seed'])(joint)
 
     for i in range(config['n_layers']):
         joint = Dense(2 * config["embedding_dim"], activation='relu',
                       kernel_regularizer=l2(4e-6),
                       name="dense_" + str(i))(joint)
-        joint = Dropout(config['dropout'], name="dropout_" + str(i))(joint)
+        joint = Dropout(config['dropout'], name="dropout_" + str(i), seed=config['seed'])(joint)
 
         if config["batch_normalization"] == "True":
             joint = BatchNormalization(name="bn_" + str(i))(joint)
 
     pred = Dense(config["n_labels"], activation='softmax', name="last_softmax")(joint)
 
-    model = Model(inputs=[premise, hypothesis], outputs=pred)
+    model = Model(inputs=[premise, premise_mask_input, hypothesis, hypothesis_mask_input], outputs=pred)
 
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"]),
