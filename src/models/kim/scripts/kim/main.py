@@ -241,12 +241,17 @@ def prepare_data(seqs_x, seqs_y, seqs_x_lemma, seqs_y_lemma, labels, options, kb
         y_mask[:lengths_y[idx], idx] = 1.
         l[idx] = ll
 
+        hits, misses = 0, 0
+
         for sid, s in enumerate(s_xl):
             for tid, t in enumerate(s_yl):
+                misses += 1
                 if s in kb_dict:
                     if t in kb_dict[s]:
                         kb_x[sid, idx, tid, :] = numpy.array(kb_dict[s][t]).astype('float32')
                         kb_att[sid, idx, tid] = 1.
+                        hits += 1
+                        misses -= 1
 
         for sid, s in enumerate(s_yl):
             for tid, t in enumerate(s_xl):
@@ -254,6 +259,8 @@ def prepare_data(seqs_x, seqs_y, seqs_x_lemma, seqs_y_lemma, labels, options, kb
                     if t in kb_dict[s]:
                         kb_y[sid, idx, tid, :] = numpy.array(kb_dict[s][t]).astype('float32')
 
+
+        print("Hits", hits, "misses", misses)
 
     return x, x_mask, kb_x, y, y_mask, kb_y, kb_att, l
 

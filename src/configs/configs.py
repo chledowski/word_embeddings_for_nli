@@ -39,9 +39,9 @@ baseline_configs['cbow'] = {
     "model": 'cbow',
     "n_layers": 3,
     "batch_sizes": {
-        "train": 32,
-        "dev": 32,
-        "test": 32
+        "train": 91,
+        "dev": 133,
+        "test": 307
     },
     "early_stopping": True,
     "n_epochs": 40,
@@ -59,10 +59,32 @@ baseline_configs['cbow'] = {
     "normalize": False,
     "norm_weight": False,
     "embedding_dim": 300,
-    "embedding_name": "cos",
+    "embedding_name": "gcc840",
     "train_embeddings": False,
     "train_on_fraction": 1.0,
-
+    'seed': 1,
+    'useitrick': 0,
+    # ---------------------------------
+    'embedding_kim': 'raw/embeddings/glove.840B.300d/glove.840B.300d.txt',
+    'datasets': ['premise_snli_1.0_train_token.txt',
+                        'hypothesis_snli_1.0_train_token.txt',
+                        'premise_snli_1.0_train_lemma.txt',
+                        'hypothesis_snli_1.0_train_lemma.txt',
+                        'label_snli_1.0_train.txt'],
+    'valid_datasets': ['premise_snli_1.0_dev_token.txt',
+                        'hypothesis_snli_1.0_dev_token.txt',
+                        'premise_snli_1.0_dev_lemma.txt',
+                        'hypothesis_snli_1.0_dev_lemma.txt',
+                        'label_snli_1.0_dev.txt'],
+    'test_datasets': ['premise_snli_1.0_test_token.txt',
+                        'hypothesis_snli_1.0_test_token.txt',
+                        'premise_snli_1.0_test_lemma.txt',
+                        'hypothesis_snli_1.0_test_lemma.txt',
+                        'label_snli_1.0_test.txt'],
+    'dictionary': ['vocab_cased.pkl',
+                        'vocab_cased_lemma.pkl'],
+    'n_words': 110497,
+    'n_words_lemma': 100360,
 }
 
 baseline_configs['esim'] = {

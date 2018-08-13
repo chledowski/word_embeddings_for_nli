@@ -11,7 +11,7 @@ from src.util.vocab import Vocabulary
 from src.models.kim.scripts.kim.data_iterator import TextIterator
 
 
-def prepare_kb(features, vocab, x1, x2):
+def prepare_kb(config, features, vocab, x1, x2):
     batch_size = x1.shape[0]
     # print("KB batch_size: %d" % batch_size)
     kb_x = np.zeros((batch_size, config['sentence_max_length'], config['sentence_max_length'], 5)).astype('float32')
@@ -31,9 +31,13 @@ def prepare_kb(features, vocab, x1, x2):
                     misses += 1
         return hits, misses
 
+    sample_x1_word = None
+    sample_x2_word = None
     for batch_id in range(batch_size):
-        x1_words = [vocab.word_to_id(s) for s in x1[batch_id]]
-        x2_words = [vocab.word_to_id(s) for s in x2[batch_id]]
+        x1_words = [vocab.id_to_word(s) for s in x1[batch_id]]
+        x2_words = [vocab.id_to_word(s) for s in x2[batch_id]]
+        sample_x1_word = np.random.choice(x1_words)
+        sample_x2_word = np.random.choice(x2_words)
         h, m = fill_kb(features, batch_id, x1_words, x2_words, kb_x)
         total_hits += h
         total_misses += m
@@ -41,7 +45,11 @@ def prepare_kb(features, vocab, x1, x2):
         total_hits += h
         total_misses += m
 
-    # print("Hits ratio: %.2f" % (total_hits / (total_hits + total_misses)))
+    print("Hits: %d Misses: %d ratio: %.2f | x1: %s x2: %s" % (
+            total_hits,
+            total_misses,
+            total_hits / (total_hits + total_misses),
+            sample_x1_word, sample_x2_word))
     return kb_x, kb_y
 
 
@@ -103,51 +111,70 @@ def prepare_data(seqs_x, seqs_y, seqs_x_lemma, seqs_y_lemma, labels, config, kb_
     # return x, x_mask, kb_x, y, y_mask, kb_y, kb_att, l
 
 
-def modified_stream_kim(config, iterator=None):
-    def _stream():
-        while True:
-            for x1, x2, x1_lemma, x2_lemma, y in iterator:
-                x1, x1_mask, x2, x2_mask, y = prepare_data(x1, x2, x1_lemma, x2_lemma, y, config=config)
-                model_input = [x1, x1_mask, x2, x2_mask]
-                yield model_input, np_utils.to_categorical(y, 3)
-    return _stream
+class StreamWrapperKim:
+    def __init__(self):
+        self.force_reset = False
+
+    def reset(self):
+        self.force_reset = True
+
+    def wrapped_stream(self, config, iterator):
+        def _stream():
+            while True:
+                for x1, x2, x1_lemma, x2_lemma, y in iterator:
+                    if self.force_reset:
+                        self.force_reset = False
+                        break
+                    x1, x1_mask, x2, x2_mask, y = prepare_data(x1, x2, x1_lemma, x2_lemma, y, config=config)
+                    model_input = [x1, x1_mask, x2, x2_mask]
+                    yield model_input, np_utils.to_categorical(y, 3)
+        return _stream
 
 
-def modified_stream(features, data, stream=None, iterator=None):
-    def _stream():
-        while True:
-            if iterator is not None:
-                it = iterator
-            else:
+class StreamWrapper:
+    def __init__(self):
+        self.force_reset = False
+
+    def reset(self):
+        self.force_reset = True
+
+    def modified_stream(self, config, features, data, stream=None):
+        def _stream():
+            while True:
                 it = stream.get_epoch_iterator()
-            for x1, x1_mask, x2, x2_mask, y in it:
-                assert x1.shape == x1_mask.shape
-                x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
-                                   padding='post', truncating='post')
-                x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
-                                   padding='post', truncating='post')
+                for x1, x1_mask, x2, x2_mask, y in it:
+                    if self.force_reset:
+                        self.force_reset = False
+                        break
+                    assert x1.shape == x1_mask.shape
+                    x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
+                                       padding='post', truncating='post')
+                    x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
+                                       padding='post', truncating='post')
+                    x1_mask_padded = pad_sequences(x1_mask,
+                                                   maxlen=config['sentence_max_length'],
+                                                   padding='post', truncating='post')
+                    x2_mask_padded = pad_sequences(x2_mask,
+                                                   maxlen=config['sentence_max_length'],
+                                                   padding='post', truncating='post')
+                    assert x1.shape == x1_mask_padded.shape
+                    assert x2.shape == x2_mask_padded.shape
 
-                x1_mask_padded = np.zeros(shape=(x1_mask.shape[0],
-                                                 config['sentence_max_length']))
-                x2_mask_padded = np.zeros(shape=(x2_mask.shape[0],
-                                                 config['sentence_max_length']))
-                x1_mask_padded[:x1_mask.shape[0], :x1_mask.shape[1]] = x1_mask
-                x2_mask_padded[:x2_mask.shape[0], :x2_mask.shape[1]] = x2_mask
-                assert x1.shape == x1_mask_padded.shape
+                    model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
 
-                model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
+                    if config['useitrick']:
+                        kb_x, kb_y = prepare_kb(config, features, data.vocab, x1, x2)
+                        model_input += [kb_x, kb_y]
 
-                if config['useitrick']:
-                    kb_x, kb_y = prepare_kb(features, data.vocab, x1, x2)
-                    model_input += [kb_x, kb_y]
+                    yield model_input, np_utils.to_categorical(y, 3)
 
-                yield model_input, np_utils.to_categorical(y, 3)
-
-    return _stream
+        return _stream
 
 
 def build_features(config):
     features_pkl_path = os.path.join(DATA_DIR, config['pair_features_pkl_path'])
+
+    # Creating pickled dict file from txt.
     if not os.path.exists(features_pkl_path):
         with open(os.path.join(DATA_DIR, config['pair_features_txt_path'])) as f:
             for line in f:
@@ -161,6 +188,7 @@ def build_features(config):
         with open(features_pkl_path, 'wb') as f:
             pkl.dump(features, f)
 
+    # Loading pickled dict.
     with open(features_pkl_path, 'rb') as f:
         features = pkl.load(f)
         print("Sample pair features:")
@@ -173,7 +201,7 @@ def build_features(config):
     return features
 
 
-def build_data_and_streams_like_kim(config, additional_streams=[], default_batch_size=1, seed=42):
+def build_data_and_streams_like_kim(config, rng, additional_streams=[], default_batch_size=1, seed=42):
     features = None
     if config['useitrick']:
         features = build_features(config)
@@ -191,7 +219,8 @@ def build_data_and_streams_like_kim(config, additional_streams=[], default_batch
                                               os.path.join(DATA_DIR, 'kim_data', config["dictionary"][1]),
                                               n_words=config["n_words"],
                                               n_words_lemma=config["n_words_lemma"],
-                                              batch_size=config["batch_sizes"]["train"])
+                                              batch_size=config["batch_sizes"]["train"],
+                                              rng=rng)
             self.iterators['dev'] = TextIterator(os.path.join(DATA_DIR, 'kim_data', config["valid_datasets"][0]),
                                               os.path.join(DATA_DIR, 'kim_data', config["valid_datasets"][1]),
                                               os.path.join(DATA_DIR, 'kim_data', config["valid_datasets"][2]),
@@ -202,7 +231,8 @@ def build_data_and_streams_like_kim(config, additional_streams=[], default_batch
                                               n_words=config["n_words"],
                                               n_words_lemma=config["n_words_lemma"],
                                               batch_size=config["batch_sizes"]["dev"],
-                                              shuffle=False)
+                                              shuffle=False,
+                                              rng=rng)
             self.iterators['test'] = TextIterator(os.path.join(DATA_DIR, 'kim_data', config["test_datasets"][0]),
                                              os.path.join(DATA_DIR, 'kim_data', config["test_datasets"][1]),
                                              os.path.join(DATA_DIR, 'kim_data', config["test_datasets"][2]),
@@ -213,7 +243,8 @@ def build_data_and_streams_like_kim(config, additional_streams=[], default_batch
                                              n_words=config["n_words"],
                                              n_words_lemma=config["n_words_lemma"],
                                              batch_size=config["batch_sizes"]["test"],
-                                             shuffle=False)
+                                             shuffle=False,
+                                             rng=rng)
 
         @property
         def vocab(self):
@@ -224,11 +255,10 @@ def build_data_and_streams_like_kim(config, additional_streams=[], default_batch
 
         def num_examples(self, part):
             return {
-                'train': 549360,
+                'train': 549367,
                 'dev': 9842,
                 'test': 9824
             }[part]
-
 
     data_and_streams = dict()
     data_and_streams["data"] = SNLIDataFromKIM()
@@ -236,7 +266,7 @@ def build_data_and_streams_like_kim(config, additional_streams=[], default_batch
     for stream_name in list(config["batch_sizes"].keys()) + additional_streams:
         data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
         iterator = data.iterators[stream_name]
-        data_and_streams[stream_name] = modified_stream_kim(config, iterator=iterator)()
+        data_and_streams[stream_name] = StreamWrapperKim().wrapped_stream(config, iterator)()
     return data_and_streams
 
 
@@ -264,7 +294,7 @@ def build_data_and_streams(config, additional_streams=[], default_batch_size=1, 
         data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
         stream_batch_size = config["batch_sizes"].get(stream_name, default_batch_size)
         stream = data.get_stream(stream_name, batch_size=stream_batch_size, seed=seed)
-        data_and_streams[stream_name] = modified_stream(features, data, stream=stream)()
+        data_and_streams[stream_name] = StreamWrapper().modified_stream(config, features, data, stream)()
 
     return data_and_streams
 

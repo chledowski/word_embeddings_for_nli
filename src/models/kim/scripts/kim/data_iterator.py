@@ -16,7 +16,8 @@ class TextIterator:
                  batch_size=128,
                  n_words=-1,
                  n_words_lemma=-1,
-                 shuffle=True):
+                 shuffle=True,
+                 rng=None):
         self.source = fopen(source, 'r')
         self.target = fopen(target, 'r')
         self.source_lemma = fopen(source_lemma, 'r')
@@ -31,7 +32,7 @@ class TextIterator:
         self.n_words_lemma = n_words_lemma
         self.shuffle = shuffle
         self.end_of_data = False
-
+        self.rng = rng
         self.source_buffer = []
         self.target_buffer = []
         self.source_lemma_buffer = []
@@ -95,8 +96,8 @@ class TextIterator:
                 tidx = tlen.argsort()
                 # shuffle mini-batch
                 tindex = []
-                small_index = list(range(int(math.ceil(len(tidx)*1./self.batch_size))))
-                random.shuffle(small_index)
+                small_index = numpy.array(list(range(int(math.ceil(len(tidx)*1./self.batch_size)))))
+                self.rng.shuffle(small_index)
                 for i in small_index:
                     if (i+1)*self.batch_size > len(tidx):
                         tindex.extend(tidx[i*self.batch_size:])

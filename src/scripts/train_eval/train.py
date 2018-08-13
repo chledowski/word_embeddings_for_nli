@@ -16,10 +16,9 @@ from src.util.vegab import main, MetaSaver, AutomaticNamer
 from src.util.training_loop import baseline_training_loop
 from src.scripts.train_eval.utils import build_data_and_streams_like_kim, compute_metrics
 
+from numpy.random import RandomState
 from numpy.random import seed
 from tensorflow import set_random_seed
-
-
 
 matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
@@ -27,8 +26,9 @@ logger = logging.getLogger(__name__)
 def train_model(config, save_path):
     seed(config["seed"])
     set_random_seed(config["seed"])
+    rng = RandomState(config["seed"])
 
-    data_and_streams = build_data_and_streams_like_kim(config)
+    data_and_streams = build_data_and_streams_like_kim(config, rng)
     model = build_model(config, data_and_streams["data"])
 
     # Call training loop

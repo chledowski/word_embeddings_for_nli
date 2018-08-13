@@ -38,6 +38,8 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
 
 
 def prep_embedding_matrix(config, data):
+    print("Running prep_embedding_matrix")
+
     if config["embedding_name"] == "random_uniform":
         if config["norm_weight"]:
             embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
@@ -81,10 +83,12 @@ def prep_embedding_matrix(config, data):
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
 
+    print("Emb matrix norm", np.linalg.norm(embedding_matrix))
     return embedding_matrix
 
 
 def prep_embedding_matrix_like_kim(config, vocab):
+    print("Running prep_embedding_matrix_like_kim")
     embedding_matrix = norm_weight(len(vocab), config['embedding_dim'])
     # read embedding from GloVe
     debug = True

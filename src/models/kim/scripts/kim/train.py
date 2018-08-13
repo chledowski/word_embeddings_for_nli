@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     config = baseline_configs.get_root_config()
 
-    embedding_path_txt = os.path.join(DATA_DIR, 'embeddings', '%s.txt' % args.embedding)
+    embedding_path_txt = os.path.join(DATA_DIR, '%s.txt' % args.embedding)
 
     # KIM needs embedding as text file.
     if not os.path.exists(embedding_path_txt):

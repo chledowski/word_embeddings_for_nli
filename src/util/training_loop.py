@@ -187,6 +187,13 @@ def baseline_training_loop(model, data_and_streams,
         pd.DataFrame(H).to_csv(os.path.join(save_path, "history.csv"), index=False)
     callbacks.append(LambdaCallback(on_epoch_end=save_history))
 
+    def reset_streams(epoch, logs):
+        for name, stream in data_and_streams.items():
+            if callable(stream):
+                stream.reset()
+
+    callbacks.append(LambdaCallback(on_epoch_begin=reset_streams))
+
     # Uncomment if you have tensorflow installed correctly
     # callbacks.append(DumpTensorflowSummaries(save_path=save_path))
     callbacks.append(ModelCheckpoint(monitor='val_acc',
