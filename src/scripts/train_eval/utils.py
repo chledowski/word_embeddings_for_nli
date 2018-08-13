@@ -26,7 +26,10 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
         hits, misses = 0, 0
         for i1, w1 in enumerate(words1):
             for i2, w2 in enumerate(words2):
-                pairs.append((w1, w2))
+                if type(w1) is bytes:
+                    w1 = w1.decode()
+                if type(w2) is bytes:
+                    w2 = w2.decode()
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
                     hits += 1
@@ -42,10 +45,9 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
         total_hits += h
         total_misses += m
 
-    sample_pair = np.random.choice(pairs)
-    sp1, sp2 = sample_pair
-    print("Hits: %d Misses: %d Size: %d" % (total_hits, total_misses, len(features)))
-    print("Sample pair: %s %s" % (sp1, sp2))
+    # sample_pair = np.random.choice(pairs)
+    # print("Hits: %d Misses: %d Size: %d" % (total_hits, total_misses, len(features)))
+    # print("Sample pair: %s" % sample_pair)
     return kb_x, kb_y, total_hits, total_misses
 
 
@@ -107,12 +109,17 @@ def build_data_and_streams(config, rng, additional_streams=[], default_batch_siz
             def _stream():
                 while True:
                     it = stream.get_epoch_iterator()
-                    for x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y in it:
+                    for batch in it:
                         if self.force_reset:
                             self.force_reset = False
                             break
+                        if len(batch) == 5:
+                            x1, x1_mask, x2, x2_mask, y = batch
+                        elif len(batch) == 7:
+                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
+                        else:
+                            raise ValueError("Expected 5 or 7 elements in batch. Got %d" % len(batch))
 
-                        assert x1.shape == x1_mask.shape
                         x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
                                            padding='post', truncating='post')
                         x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
@@ -140,7 +147,7 @@ def build_data_and_streams(config, rng, additional_streams=[], default_batch_siz
         data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
         stream_batch_size = config["batch_sizes"].get(stream_name, default_batch_size)
         stream = data.get_stream(stream_name,
-                                 shuffle=config['shuffle'][stream_name],
+                                 shuffle=config['shuffle'].get(stream_name, False),
                                  rng=rng,
                                  batch_size=stream_batch_size)
         data_and_streams[stream_name] = StreamWrapper().wrapped_stream(stream)()

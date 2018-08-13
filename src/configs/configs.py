@@ -75,8 +75,13 @@ baseline_configs['cbow'] = {
 baseline_configs['esim'] = {
     'D': 0,
     'attention_lambda': 0.0,
-    'batch_sizes': {'dev': 133, 'test': 307, 'train': 32},
-"shuffle": {
+    'batch_sizes': {
+        'dev': 133,
+        'test': 307,
+        'train': 32
+        "breaking": 3
+    },
+    "shuffle": {
         "train": True,
         "dev": False,
         "test": False

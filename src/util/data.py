@@ -244,6 +244,11 @@ def surround_sentence(vocab, source_data):
     return numpy.array(sentences)
 
 
+def surround_sentence_lemma(vocab, source_data):
+    sentences = [[Vocabulary.BOS] + words.tolist() + [Vocabulary.EOS] for words in source_data]
+    return numpy.array(sentences)
+
+
 def shuffle_like_kim(batch_size, rng, batch):
     source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer = batch
 
@@ -399,13 +404,12 @@ class SNLIData(Data):
     def get_stream(self, part, batch_size, shuffle, rng, raw_text=False):
         d = self.get_dataset(part)
         print(("Dataset with {} examples".format(self.num_examples(part))))
-        # it = ShuffledExampleScheme(
-        #     examples=numpy.random.choice(
-        #             a=self.total_num_examples(part),
-        #             size=self.num_examples(part),
-        #             replace=True),
-        #     rng=rng)
-        it = SequentialExampleScheme(examples=self.total_num_examples(part))
+        it = SequentialExampleScheme(
+            examples=rng.choice(
+                    a=self.total_num_examples(part),
+                    size=self.num_examples(part),
+                    replace=False))
+        # it = SequentialExampleScheme(examples=self.total_num_examples(part))
         stream = DataStream(d, iteration_scheme=it)
 
         if shuffle:
@@ -425,6 +429,8 @@ class SNLIData(Data):
                                        which_sources=('sentence1', 'sentence2'))
             stream = SourcewiseMapping(stream, functools.partial(surround_sentence, self.vocab),
                                        which_sources=('sentence1', 'sentence2'))
+            stream = SourcewiseMapping(stream, functools.partial(surround_sentence_lemma, self.vocab),
+                                       which_sources=('sentence1_lemmatized', 'sentence2_lemmatized'))
 
         stream = Padding(stream, mask_sources=('sentence1', 'sentence2'))  # Increases amount of outputs by x2
 
