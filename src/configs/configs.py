@@ -68,7 +68,7 @@ baseline_configs['cbow'] = {
     "embedding_name": "gcc840",
     "train_embeddings": False,
     "train_on_fraction": 1.0,
-    'seed': 1,
+    'seed': 2,
     'useitrick': 0,
 }
 
@@ -102,7 +102,7 @@ baseline_configs['esim'] = {
     'optimizer': 'adam',
     'pair_features_pkl_path': 'pair_features.pkl',
     'pair_features_txt_path': 'kim_data/pair_features.txt',
-    'seed': 1,
+    'seed': 2,
     'sentence_max_length': 90,
     'train_embeddings': False,
     'train_on_fraction': 1.0,
