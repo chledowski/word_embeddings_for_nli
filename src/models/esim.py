@@ -80,9 +80,11 @@ def esim(config, data):
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
     Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
-    # FIX(tomwesolowski): Add attention lambda to words in relation.
-    if config['useitrick']:
-        Eph = Add()([Eph, KBatt])
+
+    # # FIX(tomwesolowski): Add attention lambda to words in relation.
+    # if config['useitrick']:
+    #     Eph = Add()([Eph, KBatt])
+
     Ep_soft = Lambda(lambda x: softmax(x))(Eph)  # [batch_size, Psize, Hsize]
 
     Ehp = Permute((2, 1))(Eph)  # [batch_size, Hsize, Psize]

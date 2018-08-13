@@ -76,7 +76,7 @@ baseline_configs['esim'] = {
     'D': 0,
     'attention_lambda': 0.0,
     'batch_sizes': {'dev': 133, 'test': 307, 'train': 32},
-"shuffle": {
+    "shuffle": {
         "train": True,
         "dev": False,
         "test": False

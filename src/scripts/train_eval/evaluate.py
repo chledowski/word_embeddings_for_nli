@@ -14,6 +14,7 @@ from src.util import modified_stream, evaluate_wv, load_embedding_from_h5
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
 from numpy.random import seed
+from numpy.random import RandomState
 from tensorflow import set_random_seed
 
 
@@ -51,7 +52,9 @@ def eval_model():
         _, _, wv = load_embedding_from_h5(args.embedding_name)
         results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
 
-    with open('results/%s/retrofitting_results.json' % args.model_name, 'w') as f:
+    model_name = args.model_name.split('/')[0]
+
+    with open('results/%s/retrofitting_results.json' % model_name, 'w') as f:
         json.dump(results_dict, f)
 
 

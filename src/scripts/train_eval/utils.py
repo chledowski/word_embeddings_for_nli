@@ -26,7 +26,10 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
         hits, misses = 0, 0
         for i1, w1 in enumerate(words1):
             for i2, w2 in enumerate(words2):
-                pairs.append((w1, w2))
+                if type(w1) is bytes:
+                    w1 = w1.decode()
+                if type(w2) is bytes:
+                    w2 = w2.decode()
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
                     hits += 1
@@ -42,10 +45,9 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
         total_hits += h
         total_misses += m
 
-    sample_pair = np.random.choice(pairs)
-    sp1, sp2 = sample_pair
-    print("Hits: %d Misses: %d Size: %d" % (total_hits, total_misses, len(features)))
-    print("Sample pair: %s %s" % (sp1, sp2))
+    # sample_pair = np.random.choice(pairs)
+    # print("Hits: %d Misses: %d Size: %d" % (total_hits, total_misses, len(features)))
+    # print("Sample pair: %s" % sample_pair)
     return kb_x, kb_y, total_hits, total_misses
 
 

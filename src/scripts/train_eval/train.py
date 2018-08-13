@@ -20,9 +20,9 @@ from numpy.random import RandomState
 from tensorflow import set_random_seed
 
 
-
 matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
+
 
 def train_model(config, save_path):
     seed(config["seed"])
