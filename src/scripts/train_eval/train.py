@@ -29,12 +29,13 @@ def train_model(config, save_path):
     set_random_seed(config["seed"])
     rng = RandomState(config["seed"])
 
-    data_and_streams = build_data_and_streams(config, rng)
-    model = build_model(config, data_and_streams["data"])
+    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=[config["dataset"]])
+    model = build_model(config, datasets[config["dataset"]])
 
     # Call training loop
     baseline_training_loop(model=model,
-                           data_and_streams=data_and_streams,
+                           dataset=datasets[config["dataset"]],
+                           streams=streams[config["dataset"]],
                            save_path=save_path,
                            early_stopping=config["early_stopping"],
                            n_epochs=config["n_epochs"],
@@ -43,7 +44,7 @@ def train_model(config, save_path):
     if os.path.exists(os.path.join(save_path, "best_model.h5")):
         model.load_weights(os.path.join(save_path, "best_model.h5"))
 
-    metrics = compute_metrics(config, model, data_and_streams, eval_streams=["dev", "test"])
+    metrics = compute_metrics(config, model, datasets, streams, eval_streams=["dev", "test"])
 
     for stream_name, stream_metrics in metrics.items():
         loss, accuracy = stream_metrics

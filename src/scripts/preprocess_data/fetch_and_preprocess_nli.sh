@@ -11,14 +11,21 @@ fi
 
 ############################## Breaking NLI
 
-wget --no-check-certificate --content-disposition https://github.com/BIU-NLP/Breaking_NLI/blob/master/breaking_nli_dataset.zip?raw=true
-unzip breaking_nli_dataset.zip -d breaking_nli_dataset
-mv breaking_nli_dataset/data/dataset.jsonl $DATA_DIR/raw/test_breaking_nli.jsonl
-rm -rf breaking_nli_dataset
-rm breaking_nli_dataset.zip
+if [ ! -d "$DATA_DIR/raw/breaking" ]; then
+    mkdir -p $DATA_DIR/breaking
+    mkdir -p $DATA_DIR/raw/breaking
+    wget --no-check-certificate --content-disposition https://github.com/BIU-NLP/Breaking_NLI/blob/master/breaking_nli_dataset.zip?raw=true
+    unzip breaking_nli_dataset.zip -d breaking_nli_dataset
+    mv breaking_nli_dataset/data/dataset.jsonl $DATA_DIR/raw/breaking/test_breaking_nli.jsonl
+    rm -rf breaking_nli_dataset
+    rm breaking_nli_dataset.zip
+fi
 
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/test_breaking_nli.jsonl $DATA_DIR/snli/test_breaking_nli.h5 --type=snli --breaking_nli_dataset
-python src/util/convert_breaking_to_txt.py $DATA_DIR/snli/test_breaking_nli.h5
+# Parse to nicer format
+python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/breaking ${DATA_DIR}/breaking/ --type=breaking
+python src/util/pack_to_hdf5.py $DATA_DIR/breaking/breaking.txt $DATA_DIR/breaking/test.h5 --type=snli
+
+exit 0
 
 ############################## SNLI
 
@@ -33,7 +40,7 @@ mv stanford-corenlp-full-2016-10-31 ${DATA_DIR}/corenlp/
 rm -rf stanford-corenlp-full-2016-10-31.zip
 
 # Parse to nicer format
-python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/
+python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/ --type=snli
 
 # Convert to h5 files
 python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_train.txt $DATA_DIR/snli/train.h5 --type=snli

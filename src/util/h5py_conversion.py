@@ -223,6 +223,8 @@ def remove_non_ascii_characters(parse):
 def tokenize_and_lemmatize(file_path):
     tokenize_and_lemmatize_path = '%s/tokenize_and_lemmatize' % os.path.dirname(os.path.abspath(__file__))
 
+    print(tokenize_and_lemmatize_path)
+
     if not os.path.exists('%s.class' % tokenize_and_lemmatize_path):
         print('Compile ...')
         cmd = 'javac -cp "%s/corenlp/stanford-corenlp-full-2016-10-31/*" %s.java' % (
@@ -324,70 +326,6 @@ def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
             'sentence1_lemmatized': (0, len(d)),
             'sentence2_lemmatized': (0, len(d)),
             'label': (0, len(d)),
-            'text': (0, len(words))
-        }
-    })
-    dst.close()
-
-
-def breaking_nli_to_h5py_dataset(snli_path, dst_path):
-    with open(snli_path) as file:
-        dset = [eval(line.rstrip('\n')) for line in file]
-
-
-    d = pd.DataFrame()
-    d['sentence1_tokenized'] = [TreebankWordTokenizer().tokenize(dset[i]['sentence1']) for i in range(len(dset))]
-    d['sentence2_tokenized'] = [TreebankWordTokenizer().tokenize(dset[i]['sentence2']) for i in range(len(dset))]
-    d['gold_label'] = [dset[i]['gold_label'] for i in range(len(dset))]
-    d['gold_label_int'] = [SNLI_LABEL2INT[x] for x in d['gold_label']]
-    # Get all words
-    sentences = d['sentence1_tokenized'] + d['sentence2_tokenized']
-    words = np.array([w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s], dtype='S20')
-    sentences = [] # For safety
-    logging.info("Found {} words".format(len(words)))
-
-    # Pack (I hate writing this h5py code)
-    dtype = h5py.special_dtype(vlen='S20')
-    dst = h5py.File(dst_path, "w")
-    sentence1_ds = dst.create_dataset('sentence1', (len(d['sentence1_tokenized']),), dtype=dtype)
-    sentence2_ds = dst.create_dataset('sentence2', (len(d['sentence1_tokenized']),), dtype=dtype)
-    label_ds = dst.create_dataset('label', (len(d['sentence1_tokenized']),), dtype=np.int32)
-    words_ds = dst.create_dataset('text', (len(words),), dtype='S20')
-
-    ### h5py nonsense ###
-    sentence1_ds_shapes = dst.create_dataset('sentence1_ds_shapes', (len(d['sentence1_tokenized']), 1), dtype=("int"))
-    sentence2_ds_shapes = dst.create_dataset('sentence2_ds_shapes', (len(d['sentence1_tokenized']), 1), dtype=("int"))
-    ds_shape_labels = dst.create_dataset('ds_shape_labels', (1,), dtype="S20")
-    ### h5py nonsense ###
-    sentence1_ds[:] = np.array(d['sentence1_tokenized'])
-    sentence2_ds[:] = np.array(d['sentence2_tokenized'])
-
-    label_ds[:] = np.array(d['gold_label_int'])
-    words_ds[:] = words
-
-    ### h5py nonsense ###
-    sentence1_ds_shapes[:] = np.array([np.array(x).shape for x in d['sentence1_tokenized']])
-    sentence2_ds_shapes[:] = np.array([np.array(x).shape for x in d['sentence2_tokenized']])
-    ds_shape_labels[:] = np.array(['sentence_len'], dtype='S20')
-
-    sentence1_ds.dims.create_scale(sentence1_ds_shapes, 'shapes')
-    sentence1_ds.dims[0].attach_scale(sentence1_ds_shapes)
-    sentence1_ds.dims.create_scale(ds_shape_labels, 'shape_labels')
-    sentence1_ds.dims[0].attach_scale(ds_shape_labels)
-
-    sentence2_ds.dims.create_scale(sentence2_ds_shapes, 'shapes')
-    sentence2_ds.dims[0].attach_scale(sentence2_ds_shapes)
-    sentence2_ds.dims.create_scale(ds_shape_labels, 'shape_labels')
-    sentence2_ds.dims[0].attach_scale(ds_shape_labels)
-    ### h5py nonsense ###
-
-    print((len(d['sentence1_tokenized'])))
-
-    dst.attrs['split'] = H5PYDataset.create_split_array({
-        'all': {
-            'sentence1': (0, len(d['sentence1_tokenized'])),
-            'sentence2': (0, len(d['sentence1_tokenized'])),
-            'label': (0, len(d['sentence1_tokenized'])),
             'text': (0, len(words))
         }
     })
