@@ -6,7 +6,7 @@ from keras.utils import np_utils
 from keras.preprocessing.sequence import pad_sequences
 
 from src import DATA_DIR
-from src.util.data import SNLIData
+from src.util.data import NLIData
 from src.util.vocab import Vocabulary
 
 import tensorflow as tf
@@ -79,24 +79,20 @@ def load_pair_features(config):
     return features
 
 
-def build_data_and_streams(config, rng, additional_streams=[], default_batch_size=1):
-    data_and_streams = {}
-    if config["dataset"] == "snli":
-        data_and_streams["data"] = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli")
-    elif config["dataset"] == "mnli":
-        data_and_streams["data"] = SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "mnli"), "mnli")
-    else:
-        raise NotImplementedError('Dataset not supported: ' + config["dataset"])
+def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=1):
+    datasets_loaders = {
+        "snli": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli"),
+        "mnli": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "mnli"), "mnli"),
+        "breaking": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "breaking"), "breaking",
+                                    vocab_dir=os.path.join(DATA_DIR, "snli"))
+    }
+
+    datasets = {}
+    for dataset_name in datasets_to_load:
+        datasets[dataset_name] = datasets_loaders[dataset_name]()
 
     if config['useitrick']:
         features = load_pair_features(config)
-
-    # Loading additional streams
-    stream_loaders = {
-        "breaking": lambda: SNLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "breaking")
-    }
-    for stream in additional_streams:
-        data_and_streams["%s_data" % stream] = stream_loaders[stream]()
 
     class StreamWrapper:
         def __init__(self):
@@ -143,29 +139,35 @@ def build_data_and_streams(config, rng, additional_streams=[], default_batch_siz
 
             return _stream
 
-    for stream_name in list(config["batch_sizes"].keys()) + additional_streams:
-        data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
-        stream_batch_size = config["batch_sizes"].get(stream_name, default_batch_size)
-        stream = data.get_stream(stream_name,
-                                 shuffle=config['shuffle'].get(stream_name, False),
-                                 rng=rng,
-                                 batch_size=stream_batch_size)
-        data_and_streams[stream_name] = StreamWrapper().wrapped_stream(stream)()
+    streams = {}
+    for dataset_name, dataset in datasets.items():
+        for part_name in dataset.part_map.keys():
+            dataset_batch_sizes = config["batch_sizes"].get(dataset_name, {})
+            stream_batch_size = dataset_batch_sizes.get(part_name, default_batch_size)
+            should_shuffle = config["shuffle"].get(dataset_name, {}).get(part_name, False)
+            stream = dataset.get_stream(part_name,
+                                        shuffle=should_shuffle,
+                                        rng=rng,
+                                        batch_size=stream_batch_size)
+            if dataset_name not in streams:
+                streams[dataset_name] = {}
+            streams[dataset_name][part_name] = StreamWrapper().wrapped_stream(stream)()
+    return datasets, streams
 
-    return data_and_streams
 
-
-def compute_metrics(config, model, data_and_streams, eval_streams, default_batch_size=1):
+def compute_metrics(config, model, datasets, streams, eval_streams, default_batch_size=1):
     metrics = {}
-    for stream_name in eval_streams:
-        stream = data_and_streams[stream_name]
-        data = data_and_streams.get("%s_data" % stream_name, data_and_streams["data"])
-        num_examples = data.num_examples(stream_name)
-        print(num_examples)
-        print(num_examples / config["batch_sizes"].get(stream_name, default_batch_size))
-        metrics[stream_name] = model.evaluate_generator(
-            generator=stream,
-            steps=num_examples / config["batch_sizes"].get(stream_name, default_batch_size),
-            verbose=1
-        )
+    for dataset_name, dataset in datasets.items():
+        for stream_name in eval_streams:
+            if stream_name not in streams[dataset_name]:
+                continue
+            stream = streams[dataset_name][stream_name]
+            num_examples = dataset.num_examples(stream_name)
+            dataset_batch_sizes = config["batch_sizes"].get(dataset_name, {})
+            stream_batch_size = dataset_batch_sizes.get(stream_name, default_batch_size)
+            metrics["%s_%s" % (dataset_name, stream_name)] = model.evaluate_generator(
+                generator=stream,
+                steps=num_examples / stream_batch_size,
+                verbose=1
+            )
     return metrics

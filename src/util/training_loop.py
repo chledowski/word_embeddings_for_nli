@@ -90,7 +90,6 @@ class WarmUp:
 def create_lr_schedule(config, model, dataset_size, batch_size, save_path):
     learning_rate_schedule_type = config.get("lr_schedule_type", "list_of_lists")
     learning_rate_schedule = eval(config['lr_schedule'])
-    batch_size = config["batch_sizes"]["train"]
     n_epochs = config["n_epochs"]
 
     if learning_rate_schedule_type == "reduce_on_plateau":
@@ -129,19 +128,19 @@ def create_lr_schedule(config, model, dataset_size, batch_size, save_path):
 
 
 # train, test, dev are generators
-def baseline_training_loop(model, data_and_streams,
+def baseline_training_loop(model, dataset, streams,
                            early_stopping, n_epochs,
                            save_path, config):
 
-    train_num_examples = data_and_streams["data"].num_examples("train")
-    train_batch_size = config["batch_sizes"]["train"]
+    batch_sizes = config["batch_sizes"][config["dataset"]]
+    train_num_examples = dataset.num_examples("train")
+    train_batch_size = batch_sizes["train"]
 
-    dev_num_examples = data_and_streams["data"].num_examples("dev")
-    dev_batch_size = config["batch_sizes"]["dev"]
+    dev_num_examples = dataset.num_examples("dev")
+    dev_batch_size = batch_sizes["dev"]
 
     loop_state = {'last_epoch_done_id': -1}
 
-    # TODO(kchledowski): use best_model.h5
     if os.path.exists(os.path.join(save_path, "model.h5")):
         model.load_weights(os.path.join(save_path, "model.h5"))
 
@@ -189,13 +188,6 @@ def baseline_training_loop(model, data_and_streams,
 
     callbacks.append(LambdaCallback(on_epoch_end=save_history))
 
-    def reset_streams(epoch, logs):
-        for name, stream in data_and_streams.items():
-            if callable(stream):
-                stream.reset()
-
-    callbacks.append(LambdaCallback(on_epoch_begin=reset_streams))
-
     # Uncomment if you have tensorflow installed correctly
     # callbacks.append(DumpTensorflowSummaries(save_path=save_path))
     callbacks.append(ModelCheckpoint(monitor='val_acc',
@@ -206,11 +198,11 @@ def baseline_training_loop(model, data_and_streams,
     steps_per_epoch = train_num_examples // train_batch_size
     logger.info('Total steps per epoch: %d' % steps_per_epoch)
 
-    _ = model.fit_generator(data_and_streams["train"],
+    _ = model.fit_generator(streams["train"],
                             initial_epoch=loop_state['last_epoch_done_id'] + 1,
                             steps_per_epoch=steps_per_epoch,
                             epochs=n_epochs, verbose=1,
-                            validation_data=data_and_streams["dev"],
+                            validation_data=streams["dev"],
                             use_multiprocessing=True,
                             validation_steps=dev_num_examples // dev_batch_size,
                             callbacks=callbacks)

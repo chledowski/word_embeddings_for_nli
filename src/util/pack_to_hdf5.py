@@ -6,7 +6,7 @@ import logging
 from src.util import get_free_port
 from src.util.corenlp import start_corenlp
 from src.util.h5py_conversion import (
-    text_to_h5py_dataset, squad_to_h5py_dataset, snli_to_h5py_dataset, breaking_nli_to_h5py_dataset)
+    text_to_h5py_dataset, squad_to_h5py_dataset, snli_to_h5py_dataset)
 
 
 def main():
@@ -19,7 +19,6 @@ def main():
                         help="What kind of data should be converted")
     parser.add_argument("data", help="The data to convert")
     parser.add_argument("--lowercase", action="store_true")
-    parser.add_argument("--breaking_nli_dataset", action="store_true")
     parser.add_argument("h5", help="Destination")
     args = parser.parse_args()
 
@@ -38,13 +37,7 @@ def main():
             if corenlp and corenlp.returncode is None:
                 corenlp.kill()
     elif args.type == 'snli':
-        if args.breaking_nli_dataset:
-            if args.lowercase:
-                raise NotImplementedError()  # Just to be safe
-            else:
-                breaking_nli_to_h5py_dataset(args.data, args.h5)
-        else:
-            snli_to_h5py_dataset(args.data, args.h5, lowercase=args.lowercase)
+        snli_to_h5py_dataset(args.data, args.h5, lowercase=args.lowercase)
     else:
         raise NotImplementedError(args.type)
 

@@ -100,7 +100,7 @@ class Data(object):
     TODO: refactor, only leave the caching logic.
 
     """
-    def __init__(self, path, layout):
+    def __init__(self, path, layout, **kwargs):
         self._path = path
         self._layout = layout
         if not self._layout in ['standard', 'lambada', 'squad', 'snli', 'mnli', 'breaking']:
@@ -113,19 +113,9 @@ class Data(object):
     def vocab(self):
         raise NotImplementedError()
 
-    def get_dataset_path(self, part):
-        if self._layout == 'standard':
-            part_map = {'train': 'train.txt',
-                        'valid': 'valid.txt',
-                        'test': 'test.txt'}
-        elif self._layout == 'lambada':
-            part_map = {'train': 'train.h5',
-                        'valid': 'lambada_development_plain_text.txt',
-                        'test': 'lambada_test_plain_text.txt'}
-        elif self._layout == 'squad':
-            part_map = {'train': 'train.h5',
-                        'dev': 'dev.h5'}
-        elif self._layout == 'snli':
+    @property
+    def part_map(self):
+        if self._layout == 'snli':
             part_map = {'train': 'train.h5',
                         'dev': 'dev.h5',
                         'test': 'test.h5'}
@@ -134,10 +124,13 @@ class Data(object):
                         'dev': 'dev.h5',
                         'test': 'dev_mismatched.h5'}
         elif self._layout == 'breaking':
-            part_map = {'breaking': 'test_breaking_nli.h5'}
+            part_map = {'test': 'test.h5'}
         else:
             raise NotImplementedError('Not implemented layout ' + self._layout)
-        return os.path.join(self._path, part_map[part])
+        return part_map
+
+    def get_dataset_path(self, part):
+        return os.path.join(self._path, self.part_map[part])
 
     def get_dataset(self, part):
         if not part in self._dataset_cache:
@@ -146,15 +139,12 @@ class Data(object):
                 self._dataset_cache[part] = H5PYDataset(part_path, ('train',))
             elif self._layout == 'squad':
                 self._dataset_cache[part] = SQuADDataset(part_path, ('all',))
-            elif self._layout == 'snli':
+            elif self._layout in ['snli', 'breaking']:
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
                     ('all',), sources=('sentence1', 'sentence1_lemmatized',
                                        'sentence2', 'sentence2_lemmatized',
                                        'label',), load_in_memory=True)
             elif self._layout == 'mnli':
-                self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
-                    ('all',), sources=('sentence1', 'sentence2', 'label',), load_in_memory=True)
-            elif self._layout == 'breaking':
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
                     ('all',), sources=('sentence1', 'sentence2', 'label',), load_in_memory=True)
             else:
@@ -377,11 +367,15 @@ class FixedMapping(Transformer):
         return tuple(list(data) + image)
 
 
-class SNLIData(Data):
+class NLIData(Data):
     def __init__(self, fraction_train, *args, **kwargs):
-        super(SNLIData, self).__init__(*args, **kwargs)
+        super(NLIData, self).__init__(*args, **kwargs)
         self._retrieval = None
         self.fraction_train = fraction_train
+        if 'vocab_dir' in kwargs:
+            self.vocab_dir = kwargs['vocab_dir']
+        else:
+            self.vocab_dir = self._path
 
     def set_retrieval(self, retrieval):
         self._retrieval = retrieval
@@ -390,7 +384,7 @@ class SNLIData(Data):
     def vocab(self):
         if not self._vocab:
             self._vocab = Vocabulary(
-                os.path.join(self._path, "vocab.txt"))
+                os.path.join(self.vocab_dir, "vocab.txt"))
         return self._vocab
 
     def num_examples(self, part):

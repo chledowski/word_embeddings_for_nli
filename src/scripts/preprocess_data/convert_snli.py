@@ -5,6 +5,7 @@ Downloads SNLI dataset as zip file and unpacks it.
 '''
 
 import argparse
+import jsonlines
 import os
 
 def build_sequence(filepath, dst_dir):
@@ -36,12 +37,35 @@ def build_sequence(filepath, dst_dir):
             f3.write(dic[sents[0]] + '\n')
 
 
+def build_sequence_breaking(filepath, dst_dir):
+    dic_label = {
+        'entailment': '0',
+        'neutral': '1',
+        'contradiction': '2'
+    }
+
+    filename = 'breaking'
+    with open(filepath) as f, \
+         open(os.path.join(dst_dir, 'premise_%s.txt' % filename), 'w') as f1, \
+         open(os.path.join(dst_dir, 'hypothesis_%s.txt' % filename), 'w') as f2, \
+         open(os.path.join(dst_dir, 'label_%s.txt' % filename), 'w') as f3, \
+         jsonlines.open(filepath) as reader:
+        for obj in reader:
+            f1.write(obj['sentence1'] + '\n')
+            f2.write(obj['sentence2'] + '\n')
+            f3.write(dic_label[obj['gold_label']] + '\n')
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('snli_dir', type=str)
+    parser.add_argument('input_dir', type=str)
     parser.add_argument('output_dir', type=str)
+    parser.add_argument('--type', type=str, required=True)
     args = parser.parse_args()
 
-    build_sequence(os.path.join(args.snli_dir, 'snli_1.0_dev.txt'), args.output_dir)
-    build_sequence(os.path.join(args.snli_dir, 'snli_1.0_test.txt'), args.output_dir)
-    build_sequence(os.path.join(args.snli_dir, 'snli_1.0_train.txt'), args.output_dir)
+    if args.type == 'snli':
+        build_sequence(os.path.join(args.input_dir, 'snli_1.0_dev.txt'), args.output_dir)
+        build_sequence(os.path.join(args.input_dir, 'snli_1.0_test.txt'), args.output_dir)
+        build_sequence(os.path.join(args.input_dir, 'snli_1.0_train.txt'), args.output_dir)
+    elif args.type == 'breaking':
+        build_sequence_breaking(os.path.join(args.input_dir, 'test_breaking_nli.jsonl'), args.output_dir)

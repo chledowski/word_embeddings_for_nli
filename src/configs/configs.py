@@ -9,9 +9,19 @@ baseline_configs['bilstm'] = {
     "model": 'bilstm',
     "n_layers": 3,
     "batch_sizes": {
-        "train": 512,
-        "dev": 512,
-        "test": 512
+        "snli": {
+            "train": 91,
+            "dev": 133,
+            "test": 307
+        },
+        "breaking": {
+            "test": 3
+        }
+    },
+    "shuffle": {
+        "snli": {
+            "train": True,
+        }
     },
     "early_stopping": True,
     "n_epochs": 40,
@@ -40,14 +50,19 @@ baseline_configs['cbow'] = {
     "model": 'cbow',
     "n_layers": 3,
     "batch_sizes": {
-        "train": 91,
-        "dev": 133,
-        "test": 307
+        "snli": {
+            "train": 91,
+            "dev": 133,
+            "test": 307
+        },
+        "breaking": {
+            "test": 3
+        }
     },
     "shuffle": {
-        "train": True,
-        "dev": False,
-        "test": False
+        "snli": {
+            "train": True,
+        }
     },
     "early_stopping": True,
     "n_epochs": 40,
@@ -76,15 +91,19 @@ baseline_configs['esim'] = {
     'D': 0,
     'attention_lambda': 0.0,
     'batch_sizes': {
-        'dev': 133,
-        'test': 307,
-        'train': 32
-        "breaking": 3
+        "snli": {
+            "train": 91,
+            "dev": 133,
+            "test": 307
+        },
+        "breaking": {
+            "test": 3
+        }
     },
     "shuffle": {
-        "train": True,
-        "dev": False,
-        "test": False
+        "snli": {
+            "train": True,
+        }
     },
     'centering': False,
     'clip_gradient_norm': 10.0,
@@ -107,7 +126,7 @@ baseline_configs['esim'] = {
     'optimizer': 'adam',
     'pair_features_pkl_path': 'pair_features.pkl',
     'pair_features_txt_path': 'kim_data/pair_features.txt',
-    'seed': 1,
+    'seed': 2,
     'sentence_max_length': 90,
     'train_embeddings': False,
     'train_on_fraction': 1.0,
