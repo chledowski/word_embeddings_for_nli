@@ -23,7 +23,14 @@ python src/util/convert_breaking_to_txt.py $DATA_DIR/snli/test_breaking_nli.h5
 ############################## SNLI
 
 # Download SNLI
-python src/scripts/fetch_data/get_snli.py
+python src/scripts/preprocess_data/get_snli.py
+
+# Download CoreNLP
+wget http://nlp.stanford.edu/software/stanford-corenlp-full-2016-10-31.zip
+unzip stanford-corenlp-full-2016-10-31.zip
+mkdir ${DATA_DIR}/corenlp/
+mv stanford-corenlp-full-2016-10-31 ${DATA_DIR}/corenlp/
+rm -rf stanford-corenlp-full-2016-10-31.zip
 
 # Parse to nicer format
 python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/
