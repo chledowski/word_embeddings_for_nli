@@ -14,7 +14,7 @@ from keras.models import Model
 from keras.regularizers import l2
 
 from src import DATA_DIR
-from src.util.data import SNLIData
+from src.util.data import NLIData
 from src.util.prepare_embedding import prep_embedding_matrix
 
 logger = logging.getLogger(__name__)

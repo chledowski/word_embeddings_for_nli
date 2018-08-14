@@ -19,7 +19,7 @@ import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
 
 from src import DATA_DIR
-from src.util.data import SNLIData
+from src.util.data import NLIData
 from src.util.prepare_embedding import prep_embedding_matrix
 
 logger = logging.getLogger(__name__)
