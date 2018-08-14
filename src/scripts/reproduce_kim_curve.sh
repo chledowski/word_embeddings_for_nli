@@ -12,6 +12,10 @@ printf "${GREEN}Modulo $MODULO == $RUN_MODULO${NC}\n"
 printf "${GREEN}CUDA: $CUDA_VISIBLE_DEVICES${NC}\n"
 
 declare -a NAMES=(
+    "curve-kim-train-emb-0.008"
+    "curve-kim-train-emb-0.04"
+    "curve-kim-train-emb-0.2"
+    "curve-kim-train-emb-1.0"
     "curve-kim-0.008"
     "curve-kim-0.04"
     "curve-kim-0.2"
@@ -19,18 +23,20 @@ declare -a NAMES=(
     "curve-esim-0.008"
     "curve-esim-0.04"
     "curve-esim-0.2"
-#    "curve-esim-1.0"
 )
 
 declare -a ARGS=(
-    "--train_on_fraction=0.008 --useitrick=1"
-    "--train_on_fraction=0.04 --useitrick=1"
-    "--train_on_fraction=0.2 --useitrick=1"
-    "--train_on_fraction=1.0 --useitrick=1"
-    "--train_on_fraction=0.008 --useitrick=0"
-    "--train_on_fraction=0.04 --useitrick=0"
-    "--train_on_fraction=0.2 --useitrick=0"
-#    "--train_on_fraction=1.0 --useitrick=0"
+    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings=1"
+    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings=1"
+    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings=1"
+    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings=1"
+    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings=0"
+    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings=0"
+    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings=0"
+    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings=0"
+    "--train_on_fraction=0.008 --useitrick=0 --train_embeddings=0"
+    "--train_on_fraction=0.04 --useitrick=0 --train_embeddings=0"
+    "--train_on_fraction=0.2 --useitrick=0 --train_embeddings=0"
 )
 
 # python src/scripts/preprocess_data/fetch_embeddings.py --embeddings wiki
