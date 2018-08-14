@@ -26,17 +26,17 @@ declare -a NAMES=(
 )
 
 declare -a ARGS=(
-    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings=1"
-    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings=1"
-    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings=1"
-    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings=1"
-    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings=0"
-    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings=0"
-    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings=0"
-    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings=0"
-    "--train_on_fraction=0.008 --useitrick=0 --train_embeddings=0"
-    "--train_on_fraction=0.04 --useitrick=0 --train_embeddings=0"
-    "--train_on_fraction=0.2 --useitrick=0 --train_embeddings=0"
+    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings"
+    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings"
+    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings"
+    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings"
+    "--train_on_fraction=0.008 --useitrick=1 --no_train_embeddings"
+    "--train_on_fraction=0.04 --useitrick=1 --no_train_embeddings"
+    "--train_on_fraction=0.2 --useitrick=1 --no_train_embeddings"
+    "--train_on_fraction=1.0 --useitrick=1 --no_train_embeddings"
+    "--train_on_fraction=0.008 --useitrick=0 --no_train_embeddings"
+    "--train_on_fraction=0.04 --useitrick=0 --no_train_embeddings"
+    "--train_on_fraction=0.2 --useitrick=0 --no_train_embeddings"
 )
 
 # python src/scripts/preprocess_data/fetch_embeddings.py --embeddings wiki
