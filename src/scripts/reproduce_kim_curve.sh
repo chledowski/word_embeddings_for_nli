@@ -50,7 +50,7 @@ do
         printf "${GREEN}Running $NAME...${NC}\n"
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         mkdir -p $RESULTS_DIR
-        python src/scripts/train_eval/train.py esim $RESULTS_DIR --dataset=snli ${ARGS}
+        python src/scripts/train_eval/train.py esim $RESULTS_DIR --dataset=snli ${ARGS[i]}
         python src/scripts/train_eval/evaluate.py --model-name=$NAME
     fi
 done

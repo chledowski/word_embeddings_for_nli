@@ -31,7 +31,7 @@ def eval_model():
     # To evaluate on more streams, add them here
     # config["batch_size"][stream] = ...
 
-    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=["snli", "breaking"])
+    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=["snli"])
     model = build_model(config, datasets[config["dataset"]])
 
     # Restore the best model found during validation

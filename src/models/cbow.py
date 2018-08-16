@@ -29,7 +29,7 @@ def cbow(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
-    embedding_matrix = prep_embedding_matrix(config, data)
+    embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],

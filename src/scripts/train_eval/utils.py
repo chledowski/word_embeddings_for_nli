@@ -121,12 +121,10 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
                                             padding='post', truncating='post')
 
-                        x1_mask_padded = np.zeros(shape=(x1_mask.shape[0],
-                                                         config['sentence_max_length']))
-                        x2_mask_padded = np.zeros(shape=(x2_mask.shape[0],
-                                                         config['sentence_max_length']))
-                        x1_mask_padded[:x1_mask.shape[0], :x1_mask.shape[1]] = x1_mask
-                        x2_mask_padded[:x2_mask.shape[0], :x2_mask.shape[1]] = x2_mask
+                        x1_mask_padded = pad_sequences(x1_mask, maxlen=config['sentence_max_length'],
+                                           padding='post', truncating='post')
+                        x2_mask_padded = pad_sequences(x2_mask, maxlen=config['sentence_max_length'],
+                                           padding='post', truncating='post')
                         assert x1.shape == x1_mask_padded.shape
 
                         model_input = [x1, x1_mask_padded, x2, x2_mask_padded]

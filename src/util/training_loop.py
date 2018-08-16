@@ -144,10 +144,13 @@ def baseline_training_loop(model, dataset, streams,
     if os.path.exists(os.path.join(save_path, "model.h5")):
         model.load_weights(os.path.join(save_path, "model.h5"))
 
-    callbacks = [ModelCheckpoint(filepath=os.path.join(save_path, "best_model.h5"),
-                                 monitor='val_acc',
-                                 save_best_only=True,
-                                 save_weights_only=False)]
+    callbacks = []
+
+    if config['save_best_model']:
+        callbacks.append(ModelCheckpoint(filepath=os.path.join(save_path, "best_model.h5"),
+                                         monitor='val_acc',
+                                         save_best_only=True,
+                                         save_weights_only=False))
 
     def time_callback(epoch, logs):
         t = getattr(time_callback, "t")
@@ -190,9 +193,10 @@ def baseline_training_loop(model, dataset, streams,
 
     # Uncomment if you have tensorflow installed correctly
     # callbacks.append(DumpTensorflowSummaries(save_path=save_path))
-    callbacks.append(ModelCheckpoint(monitor='val_acc',
-                                     save_weights_only=False,
-                                     filepath=os.path.join(save_path, "model.h5")))
+    if config['save_model']:
+        callbacks.append(ModelCheckpoint(monitor='val_acc',
+                                         save_weights_only=False,
+                                         filepath=os.path.join(save_path, "model.h5")))
 
     logger.info('Training...')
     steps_per_epoch = train_num_examples // train_batch_size

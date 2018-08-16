@@ -67,5 +67,9 @@ if __name__ == '__main__':
         build_sequence(os.path.join(args.input_dir, 'snli_1.0_dev.txt'), args.output_dir)
         build_sequence(os.path.join(args.input_dir, 'snli_1.0_test.txt'), args.output_dir)
         build_sequence(os.path.join(args.input_dir, 'snli_1.0_train.txt'), args.output_dir)
+    elif args.type == 'mnli':
+        build_sequence(os.path.join(args.input_dir, 'multinli_1.0_dev_matched.txt'), args.output_dir)
+        build_sequence(os.path.join(args.input_dir, 'multinli_1.0_dev_mismatched.txt'), args.output_dir)
+        build_sequence(os.path.join(args.input_dir, 'multinli_1.0_train.txt'), args.output_dir)
     elif args.type == 'breaking':
         build_sequence_breaking(os.path.join(args.input_dir, 'test_breaking_nli.jsonl'), args.output_dir)

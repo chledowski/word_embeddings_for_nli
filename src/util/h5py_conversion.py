@@ -216,8 +216,8 @@ def extract_tokens_from_binary_parse(parse):
     return parse.replace('(', ' ').replace(')', ' ').replace('-LRB-', '(').replace('-RRB-', ')').split()
 
 
-def remove_non_ascii_characters(parse):
-    return parse.encode('ascii', errors='ignore').decode()
+def remove_non_ascii_characters(word):
+    return word.encode('ascii', errors='ignore').decode()
 
 
 def tokenize_and_lemmatize(file_path):
@@ -256,12 +256,16 @@ def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
     for ph, s12 in [('premise', 'sentence1'), ('hypothesis', 'sentence2')]:
         token_path, lemma_path = tokenize_and_lemmatize(os.path.join(dir_path, '%s_%s' % (ph, base_path)))
         with open(token_path) as f:
-            data['%s_tokenized' % s12] = [line.lower().split() if lowercase else line.split() for line in f]
+            data['%s_tokenized' % s12] = [remove_non_ascii_characters(line).lower().split() if lowercase
+                                          else remove_non_ascii_characters(line).split() for line in f]
         with open(lemma_path) as f:
-            data['%s_lemmatized' % s12] = [line.split() for line in f]
+            data['%s_lemmatized' % s12] = [remove_non_ascii_characters(line).split() for line in f]
 
     with open(os.path.join(dir_path, 'label_%s' % base_path)) as f:
         data['gold_label_int'] = [int(line.strip()) for line in f]
+
+    for k, v in data.items():
+        print(k, len(v))
 
     d = pd.DataFrame(data)
 
@@ -269,7 +273,8 @@ def snli_to_h5py_dataset(snli_path, dst_path, lowercase=False):
     sentences = [s for s in d['sentence1_tokenized']]
     sentences += [s for s in d['sentence2_tokenized']]
 
-    words = np.array([w.lower() if lowercase else w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s], dtype='S20')
+    words = [w.lower() if lowercase else w for s in tqdm.tqdm(sentences, total=len(sentences)) for w in s]
+    words = np.array(words, dtype='S20')
     sentences = [] # For safety
     logging.info("Found {} words".format(len(words)))
 

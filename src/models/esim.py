@@ -5,6 +5,7 @@ Simple model definitions
 """
 
 import logging
+import numpy as np
 import os
 
 import keras.backend as K
@@ -30,13 +31,29 @@ def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
-    embedding_matrix = prep_embedding_matrix(config, data)
+    embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],
                       mask_zero=False)
+
+    if config["embedding_second_name"] != config["embedding_name"]:
+        embedding_second_matrix = prep_embedding_matrix(config, data, config["embedding_second_name"])
+    else:
+        embedding_second_matrix = embedding_matrix
+
+    embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
+                              weights=[embedding_second_matrix],
+                              input_length=config["sentence_max_length"],
+                              trainable=config["train_embeddings"],
+                              mask_zero=False)
+
+    max_norm_second = np.max(np.sum(embedding_second_matrix ** 2, axis=-1), axis=-1)
+    print("max_norm_second: ", max_norm_second)
+
+    logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
     # 1, Embedding the input and project the embeddings
     premise = Input(shape=(config["sentence_max_length"],), dtype='int32')
@@ -46,11 +63,14 @@ def esim(config, data):
     KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
 
-    attention_lambda = config['attention_lambda']
-    KBatt = Lambda(lambda x: attention_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
+    a_lambda = config['a_lambda']
+    KBatt = Lambda(lambda x: a_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
 
     embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
+
+    embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
+    embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     # FIX(tomwesolowski): Add dropout
     embed_p = Dropout(config["dropout"])(embed_p)
@@ -81,26 +101,14 @@ def esim(config, data):
     F_p, F_h = embed_p, embed_h
     Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
 
-    # # FIX(tomwesolowski): Add attention lambda to words in relation.
-    # if config['useitrick']:
-    #     Eph = Add()([Eph, KBatt])
+    # # FIX(tomwesolowski): Add attention lambda to words in relation
+    if config['useatrick'] or config['fullkim']:
+        Eph = Add()([Eph, KBatt])
 
     Ep_soft = Lambda(lambda x: softmax(x))(Eph)  # [batch_size, Psize, Hsize]
 
     Ehp = Permute((2, 1))(Eph)  # [batch_size, Hsize, Psize]
     Eh_soft = Lambda(lambda x: softmax(x))(Ehp)  # [batch_size, Hsize, Psize]
-
-    # Ep_soft = Multiply()([Ep_soft, premise_mask])
-    # Eh_soft = Multiply()([Eh_soft, hypothesis_mask])
-
-    # def l2_pairwise_distance(AB):
-    #     A, B = AB
-    #     r = K.sum(A * A, 2, keepdims=True)
-    #     s = K.sum(B * B, 2, keepdims=True)
-    #     return r - 2 * Dot(axes=(2, 2))([A, B]) + K.permute_dimensions(s, (0, 2, 1))
-    #
-    # Dph = Lambda(l2_pairwise_distance)([F_p, F_h]) # [batch_size, Psize, Hsize]
-    # Dhp = Permute((2, 1))(Dph) # [batch_size, Hsize, Psize]
 
     # 4, Normalize score matrix, encoder premesis and get alignment
     PremAlign = Dot((2, 1))([Ep_soft, embed_h])  # [-1, Psize, dim]
@@ -110,8 +118,28 @@ def esim(config, data):
     sb_1 = Subtract()([embed_p, PremAlign])
     sb_2 = Subtract()([embed_h, HypoAlign])
 
-    if config['useitrick']:
-        knowledge_lambda = config['i_lambda']
+    knowledge_lambda = config['i_lambda']
+
+    if config['knowledge_after_lstm'] in ['dot', 'euc']:
+        if config['knowledge_after_lstm'] == 'dot':
+            Dph = Dot(axes=(2, 2))([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
+        elif config['knowledge_after_lstm'] == 'euc':
+            def l2_pairwise_distance(AB):
+                A, B = AB
+                r = K.sum(A * A, 2, keepdims=True)
+                s = K.sum(B * B, 2, keepdims=True)
+                return r - 2 * Dot(axes=(2, 2))([A, B]) + K.permute_dimensions(s, (0, 2, 1))
+            Dph = Lambda(l2_pairwise_distance)([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
+            Dph = Lambda(lambda x: 1 - x / (2*max_norm_second))(Dph)
+
+        Dhp = Permute((2, 1))(Dph)  # [batch_size, Hsize, Psize]
+        i_1 = Lambda(lambda x: K.sum(x[0] * x[1], axis=-1, keepdims=True))([Ep_soft, Dph])  # [batch_size, Psize, 1]
+        i_2 = Lambda(lambda x: K.sum(x[0] * x[1], axis=-1, keepdims=True))([Eh_soft, Dhp])  # [batch_size, Hsize, 1]
+        i_1 = Lambda(lambda x: knowledge_lambda * x)(i_1)  # [-1, Psize, 1]
+        i_2 = Lambda(lambda x: knowledge_lambda * x)(i_2)  # [-1, Hsize, 1]
+        PremAlign = Concatenate()([embed_p, PremAlign, sb_1, mm_1, i_1])  # [batch_size, Psize, 2*unit + 1]
+        HypoAlign = Concatenate()([embed_h, HypoAlign, sb_2, mm_2, i_2])  # [batch_size, Hsize, 2*unit + 1]
+    elif config['useitrick'] or config['fullkim']:
         i_1 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Ep_soft, KBph])  # [-1, Psize, Hsize, 5]
         i_2 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Eh_soft, KBhp])  # [-1, Hsize, Psize, 5]
         i_1 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(i_1)  # [-1, Psize, 5]
@@ -136,7 +164,9 @@ def esim(config, data):
     PremAlign = Dropout(config["dropout"])(PremAlign)
     HypoAlign = Dropout(config["dropout"])(HypoAlign)
 
-    if config['useitrick']:
+    if config['useitrick'] \
+            or config['knowledge_after_lstm'] in ['dot', 'euc'] \
+            or config['fullkim']:
         PremAlign = Concatenate()([PremAlign, i_1])
         HypoAlign = Concatenate()([HypoAlign, i_2])
 
@@ -161,7 +191,36 @@ def esim(config, data):
     avg_h = AveragePooling([final_h, hypothesis_mask_input])
     max_p = MaxPooling(final_p)
     max_h = MaxPooling(final_h)
-    Final = Concatenate()([avg_p, max_p, avg_h, max_h])
+
+    pooling_vectors = [avg_p, max_p, avg_h, max_h]
+
+    if config['usectrick'] or config['fullkim']:
+        weight_aw_p = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-1, keepdims=True))(
+            [Ep_soft, KBph])  # [-1, Psize, 5]
+        weight_aw_h = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-1, keepdims=True))(
+            [Eh_soft, KBhp])  # [-1, Hsize, 5]
+
+        gate_kb = TimeDistributed(
+            Dense(1,
+                kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+                activation='relu'))
+        weight_aw_p = gate_kb(weight_aw_p)  # [-1, Psize, 1]
+        weight_aw_h = gate_kb(weight_aw_h)  # [-1, Hsize, 1]
+        weight_aw_p = Lambda(lambda x: K.squeeze(x))(weight_aw_p)  # [-1, Psize]
+        weight_aw_h = Lambda(lambda x: K.squeeze(x))(weight_aw_h)  # [-1, Hsize]
+
+        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0]) - K.exp(K.max(x[0]))))([weight_aw_p, premise_mask_input])
+        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0]) - K.exp(K.max(x[0]))))([weight_aw_h, hypothesis_mask_input])
+
+        weight_aw_p = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_p)
+        weight_aw_h = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_h)
+
+        aw_p = Dot((1, 1))([weight_aw_p, final_p])  # [-1, Psize, 300]
+        aw_h = Dot((1, 1))([weight_aw_h, final_h])  # [-1, Psize, 300]
+
+        pooling_vectors += [aw_p, aw_h]
+
+    Final = Concatenate()(pooling_vectors)
     Final = Dropout(config["dropout"])(Final)
     Final = Dense(300,
                   # FIX(tomwesolowski): Remove regularizers
@@ -178,7 +237,8 @@ def esim(config, data):
                   name='judge300_' + config["dataset"])(Final)
 
     model_input = [premise, premise_mask_input, hypothesis, hypothesis_mask_input]
-    if config['useitrick']:
+
+    if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
         model_input += [KBph, KBhp]
 
     model = Model(inputs=model_input, outputs=Final)
