@@ -14,13 +14,11 @@ printf "${GREEN}CUDA_VISIBLE_DEVICES: $CUDA_VISIBLE_DEVICES${NC}\n"
 printf "${GREEN}Running RETRO${NC}\n"
 
 python src/scripts/retrofitting/retrofitting.py \
-    --embedding=common-crawl-840B \
+    --embedding=gcc840 \
     --save-embedding \
     --retrofitting \
-    --lexicon-name=cokim \
-    --q \
     --sum \
-    --save-text=cokim_CC840_12_q
+    --save-text=gcc840_snli_gcc840_fq_12
 
 python3 -u src/models/kim/scripts/kim/train.py \
     --embedding=cokim_CC840_12_q \

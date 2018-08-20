@@ -31,14 +31,19 @@ def eval_model():
     # To evaluate on more streams, add them here
     # config["batch_size"][stream] = ...
 
-    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=["snli", "breaking"])
+    datasets_to_load = list(set(["snli",
+                                 "breaking",
+                                 config["dataset"]]))
+    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=datasets_to_load)
     model = build_model(config, datasets[config["dataset"]])
 
     # Restore the best model found during validation
     model.load_weights(os.path.join('results', args.model_name, "best_model.h5"))
 
     metrics = compute_metrics(config, model, datasets, streams,
-                              eval_streams=["dev", "test"])
+                              eval_streams=[
+                                            "dev",
+                                            "test"])
 
     results_dict['accuracies'] = {}
     results_dict['losses'] = {}

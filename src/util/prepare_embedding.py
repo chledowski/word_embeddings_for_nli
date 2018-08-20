@@ -38,14 +38,14 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
     return W.astype('float32')
 
 
-def prep_embedding_matrix(config, data):
+def prep_embedding_matrix(config, data, embedding_name):
     if config["embedding_name"] == "random_uniform":
         if config["norm_weight"]:
             embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
         else:
             embedding_matrix = np.random.uniform(-0.1, 0.1, (data.vocab.size(), config["embedding_dim"]))
     else:
-        embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', config["embedding_name"] + ".h5"), 'r')
+        embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', embedding_name + ".h5"), 'r')
         embedding_words = embedding_file['words_flatten'][0].split('\n')
         embedding_words = [word.encode() for word in embedding_words]
         embedding_word_to_id = dict(list(zip(embedding_words, list(range(len(embedding_words))))))  # word -> id

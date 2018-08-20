@@ -139,14 +139,11 @@ class Data(object):
                 self._dataset_cache[part] = H5PYDataset(part_path, ('train',))
             elif self._layout == 'squad':
                 self._dataset_cache[part] = SQuADDataset(part_path, ('all',))
-            elif self._layout in ['snli', 'breaking']:
+            elif self._layout in ['snli', 'mnli', 'breaking']:
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
                     ('all',), sources=('sentence1', 'sentence1_lemmatized',
                                        'sentence2', 'sentence2_lemmatized',
                                        'label',), load_in_memory=True)
-            elif self._layout == 'mnli':
-                self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
-                    ('all',), sources=('sentence1', 'sentence2', 'label',), load_in_memory=True)
             else:
                 self._dataset_cache[part] = TextDataset(part_path)
         return self._dataset_cache[part]
@@ -383,6 +380,7 @@ class NLIData(Data):
     @property
     def vocab(self):
         if not self._vocab:
+            print("Loading vocab from " + os.path.join(self.vocab_dir, "vocab.txt"))
             self._vocab = Vocabulary(
                 os.path.join(self.vocab_dir, "vocab.txt"))
         return self._vocab

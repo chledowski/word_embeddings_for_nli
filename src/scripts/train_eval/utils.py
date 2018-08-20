@@ -24,8 +24,10 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
 
     def fill_kb(batch_id, words1, words2, kb):
         hits, misses = 0, 0
-        for i1, w1 in enumerate(words1):
-            for i2, w2 in enumerate(words2):
+        for i1 in range(min(len(words1), config['sentence_max_length'])):
+            w1 = words1[i1]
+            for i2 in range(min(len(words2), config['sentence_max_length'])):
+                w2 = words2[i2]
                 if type(w1) is bytes:
                     w1 = w1.decode()
                 if type(w2) is bytes:
@@ -91,7 +93,7 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
     for dataset_name in datasets_to_load:
         datasets[dataset_name] = datasets_loaders[dataset_name]()
 
-    if config['useitrick']:
+    if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
         features = load_pair_features(config)
 
     class StreamWrapper:
@@ -121,17 +123,15 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
                                             padding='post', truncating='post')
 
-                        x1_mask_padded = np.zeros(shape=(x1_mask.shape[0],
-                                                         config['sentence_max_length']))
-                        x2_mask_padded = np.zeros(shape=(x2_mask.shape[0],
-                                                         config['sentence_max_length']))
-                        x1_mask_padded[:x1_mask.shape[0], :x1_mask.shape[1]] = x1_mask
-                        x2_mask_padded[:x2_mask.shape[0], :x2_mask.shape[1]] = x2_mask
+                        x1_mask_padded = pad_sequences(x1_mask, maxlen=config['sentence_max_length'],
+                                           padding='post', truncating='post')
+                        x2_mask_padded = pad_sequences(x2_mask, maxlen=config['sentence_max_length'],
+                                           padding='post', truncating='post')
                         assert x1.shape == x1_mask_padded.shape
 
                         model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
 
-                        if config['useitrick']:
+                        if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
                             kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
                             model_input += [kb_x, kb_y]
 

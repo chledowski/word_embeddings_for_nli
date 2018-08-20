@@ -267,14 +267,16 @@ def run_with_redirection(stdout_path, stderr_path, func):
     return func_wrapper
 
 
-def add_config_arguments(config, parser):
+def add_config_arguments(config, parser, prefix=''):
     for key, value in list(config.items()):
         if isinstance(value, bool):
             parser.add_argument(
-                "--" + key, dest=key, default=None, action="store_true",
+                "--%s" % prefix + key,
+                dest=prefix + key, default=None, action="store_true",
                 help="Enable a setting from the configuration")
             parser.add_argument(
-                "--no_" + key, dest=key, default=None, action="store_false",
+                "--%sno_" % prefix + key,
+                dest=prefix + key, default=None, action="store_false",
                 help="Disable a setting from the configuration")
         else:
             convertor = type(value)
@@ -282,8 +284,10 @@ def add_config_arguments(config, parser):
             # lists of ints
             if isinstance(value, list):
                 convertor = lambda s: list(map(int, s.split(',')))
+            elif isinstance(value, dict):
+                add_config_arguments(value, parser, '%s%s.' % (prefix, key))
             parser.add_argument(
-                "--" + key, type=convertor,
+                "--%s" % prefix + key, type=convertor,
                 help="A setting from the configuration")
 
 
@@ -375,13 +379,22 @@ def main(config_registry, func, plugins=[], **training_func_kwargs):
     for p in plugins:
         args = p.on_parsed_args(args)
 
-    config = config_registry[args.config]
-    for key in args.__dict__:
+    def fill_config(config, keys, org_key):
+        key = keys[0]
         if key not in list(config.keys()):
             if key not in ['save_path', 'config']:
-                raise Exception("Not recognised " + key)
-        elif getattr(args, key) is not None:
-            config[key] = getattr(args, key)
+                raise Exception("Not recognised " + '.'.join(keys))
+        elif len(keys) > 1:
+            if not isinstance(config[key], dict):
+                raise Exception("Not recognised " + '.'.join(keys))
+            fill_config(config[key], keys[1:], org_key)
+        elif getattr(args, org_key) is not None:
+            config[key] = getattr(args, org_key)
+
+    config = config_registry[args.config]
+    for key in args.__dict__:
+        if getattr(args, key) is not None:
+            fill_config(config, key.split('.'), key)
 
     # Do some configurations, then run with redirection
     def call_training_func():

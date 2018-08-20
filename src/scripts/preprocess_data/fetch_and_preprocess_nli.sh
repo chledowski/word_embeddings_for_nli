@@ -11,45 +11,43 @@ fi
 
 ############################## Breaking NLI
 
-if [ ! -d "$DATA_DIR/raw/breaking" ]; then
-    mkdir -p $DATA_DIR/breaking
-    mkdir -p $DATA_DIR/raw/breaking
-    wget --no-check-certificate --content-disposition https://github.com/BIU-NLP/Breaking_NLI/blob/master/breaking_nli_dataset.zip?raw=true
-    unzip breaking_nli_dataset.zip -d breaking_nli_dataset
-    mv breaking_nli_dataset/data/dataset.jsonl $DATA_DIR/raw/breaking/test_breaking_nli.jsonl
-    rm -rf breaking_nli_dataset
-    rm breaking_nli_dataset.zip
-fi
-
-# Parse to nicer format
-python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/breaking ${DATA_DIR}/breaking/ --type=breaking
-python src/util/pack_to_hdf5.py $DATA_DIR/breaking/breaking.txt $DATA_DIR/breaking/test.h5 --type=snli
-
-exit 0
-
-############################## SNLI
-
-# Download SNLI
-python src/scripts/preprocess_data/get_snli.py
-
-# Download CoreNLP
-wget http://nlp.stanford.edu/software/stanford-corenlp-full-2016-10-31.zip
-unzip stanford-corenlp-full-2016-10-31.zip
-mkdir ${DATA_DIR}/corenlp/
-mv stanford-corenlp-full-2016-10-31 ${DATA_DIR}/corenlp/
-rm -rf stanford-corenlp-full-2016-10-31.zip
-
-# Parse to nicer format
-python src/scripts/preprocess_data/convert_snli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/ --type=snli
-
-# Convert to h5 files
-python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_train.txt $DATA_DIR/snli/train.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_dev.txt $DATA_DIR/snli/dev.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_test.txt $DATA_DIR/snli/test.h5 --type=snli
-
-# Build vocab for both train and all data
-python src/util/build_vocab.py $DATA_DIR/snli/train.h5 $DATA_DIR/snli/vocab.txt
-python src/util/build_vocab.py $DATA_DIR/snli/train.h5,$DATA_DIR/snli/dev.h5,$DATA_DIR/snli/test.h5 $DATA_DIR/snli/vocab_all.txt
+#if [ ! -d "$DATA_DIR/raw/breaking" ]; then
+#    mkdir -p $DATA_DIR/breaking
+#    mkdir -p $DATA_DIR/raw/breaking
+#    wget --no-check-certificate --content-disposition https://github.com/BIU-NLP/Breaking_NLI/blob/master/breaking_nli_dataset.zip?raw=true
+#    unzip breaking_nli_dataset.zip -d breaking_nli_dataset
+#    mv breaking_nli_dataset/data/dataset.jsonl $DATA_DIR/raw/breaking/test_breaking_nli.jsonl
+#    rm -rf breaking_nli_dataset
+#    rm breaking_nli_dataset.zip
+#fi
+#
+## Parse to nicer format
+#python src/scripts/preprocess_data/convert_nli.py ${DATA_DIR}/raw/breaking ${DATA_DIR}/breaking/ --type=breaking
+#python src/util/pack_to_hdf5.py $DATA_DIR/breaking/breaking.txt $DATA_DIR/breaking/test.h5 --type=snli
+#
+############################### SNLI
+#
+## Download SNLI
+#python src/scripts/preprocess_data/get_snli.py
+#
+## Download CoreNLP
+#wget http://nlp.stanford.edu/software/stanford-corenlp-full-2016-10-31.zip
+#unzip stanford-corenlp-full-2016-10-31.zip
+#mkdir ${DATA_DIR}/corenlp/
+#mv stanford-corenlp-full-2016-10-31 ${DATA_DIR}/corenlp/
+#rm -rf stanford-corenlp-full-2016-10-31.zip
+#
+## Parse to nicer format
+#python src/scripts/preprocess_data/convert_nli.py ${DATA_DIR}/raw/snli_1.0 ${DATA_DIR}/snli/ --type=snli
+#
+## Convert to h5 files
+#python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_train.txt $DATA_DIR/snli/train.h5 --type=snli
+#python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_dev.txt $DATA_DIR/snli/dev.h5 --type=snli
+#python src/util/pack_to_hdf5.py $DATA_DIR/snli/snli_1.0_test.txt $DATA_DIR/snli/test.h5 --type=snli
+#
+## Build vocab for both train and all data
+#python src/util/build_vocab.py $DATA_DIR/snli/train.h5 $DATA_DIR/snli/vocab.txt
+#python src/util/build_vocab.py $DATA_DIR/snli/train.h5,$DATA_DIR/snli/dev.h5,$DATA_DIR/snli/test.h5 $DATA_DIR/snli/vocab_all.txt
 
 ############################## MNLI
 
@@ -58,17 +56,19 @@ if [ ! -d "$DATA_DIR/mnli" ]; then
 
     mkdir $DATA_DIR/raw/multinli_1.0/
     mkdir $DATA_DIR/mnli/
-    unzip $DATA_DIR/raw/multinli_1.0.zip -d $DATA_DIR/raw/multinli_1.0/
+    unzip $DATA_DIR/raw/multinli_1.0.zip -d $DATA_DIR/raw/
     rm $DATA_DIR/raw/multinli_1.0.zip
 else
     echo "$DATA_DIR/mnli exists. Skipping download..."
 fi
 
-# Convert to h5 files
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/multinli_1.0/multinli_1.0/multinli_1.0_train.txt $DATA_DIR/mnli/train.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/multinli_1.0/multinli_1.0/multinli_1.0_dev_matched.txt $DATA_DIR/mnli/dev.h5 --type=snli
-python src/util/pack_to_hdf5.py $DATA_DIR/raw/multinli_1.0/multinli_1.0/multinli_1.0_dev_mismatched.txt $DATA_DIR/mnli/dev_mismatched.h5 --type=snli
+python src/scripts/preprocess_data/convert_nli.py ${DATA_DIR}/raw/multinli_1.0/ ${DATA_DIR}/mnli/ --type=mnli
 
-# Build vocab for both train and all data
+# Convert to h5 files
+python src/util/pack_to_hdf5.py $DATA_DIR/mnli/multinli_1.0_dev_matched.txt $DATA_DIR/mnli/dev.h5 --type=snli
+python src/util/pack_to_hdf5.py $DATA_DIR/mnli/multinli_1.0_dev_mismatched.txt $DATA_DIR/mnli/dev_mismatched.h5 --type=snli
+python src/util/pack_to_hdf5.py $DATA_DIR/mnli/multinli_1.0_train.txt $DATA_DIR/mnli/train.h5 --type=snli
+
+## Build vocab for both train and all data
 python src/util/build_vocab.py $DATA_DIR/mnli/train.h5 $DATA_DIR/mnli/vocab.txt
 python src/util/build_vocab.py $DATA_DIR/mnli/train.h5,$DATA_DIR/mnli/dev.h5,$DATA_DIR/mnli/dev_mismatched.h5 $DATA_DIR/mnli/vocab_all.txt

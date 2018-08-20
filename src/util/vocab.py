@@ -59,12 +59,12 @@ def standardize_string(s, clean_words=True, lower=True, language="english"):
 
 class Vocabulary(object):
     """Class that holds a vocabulary for the dataset."""
-    BOS = '<bos>'  # beginning-of-sequence
-    EOS = '<eos>'  # end-of-sequence
-    BOD = '<bod>'  # beginning-of-definition
-    EOD = '<eod>'  # end-of-definition
-    UNK = '<unk>'  # unknown token
-    PAD = '<pad>'  # padding token
+    BOS = b'<bos>'  # beginning-of-sequence
+    EOS = b'<eos>'  # end-of-sequence
+    BOD = b'<bod>'  # beginning-of-definition
+    EOD = b'<eod>'  # end-of-definition
+    UNK = b'<unk>'  # unknown token
+    PAD = b'<pad>'  # padding token
     SPECIAL_TOKEN_MAP = {
         BOS: 'bos',
         EOS: 'eos',
@@ -113,6 +113,9 @@ class Vocabulary(object):
                   for attr in list(self.SPECIAL_TOKEN_MAP.values())]:
             pass
             # raise ValueError("special token not found in the vocabulary")
+
+        for attr in list(self.SPECIAL_TOKEN_MAP.values()):
+            print(attr, getattr(self, attr))
 
     def size(self):
         return len(self._id_to_word)
