@@ -44,12 +44,6 @@ def esim(config, data):
     else:
         embedding_second_matrix = embedding_matrix
 
-    embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
-                              weights=[embedding_second_matrix],
-                              input_length=config["sentence_max_length"],
-                              trainable=config["train_embeddings"],
-                              mask_zero=False)
-2
     max_norm_second = np.max(np.sum(embedding_second_matrix ** 2, axis=-1), axis=-1)
     print("max_norm_second: ", max_norm_second)
 
@@ -69,8 +63,14 @@ def esim(config, data):
     embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
-    embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
-    embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
+    if config['knowledge_after_lstm'] in ['dot', 'euc']:
+        embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
+                                  weights=[embedding_second_matrix],
+                                  input_length=config["sentence_max_length"],
+                                  trainable=config["train_embeddings"],
+                                  mask_zero=False)
+        embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
+        embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     # FIX(tomwesolowski): Add dropout
     embed_p = Dropout(config["dropout"])(embed_p)
