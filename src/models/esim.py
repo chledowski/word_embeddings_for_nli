@@ -49,7 +49,7 @@ def esim(config, data):
                               input_length=config["sentence_max_length"],
                               trainable=config["train_embeddings"],
                               mask_zero=False)
-
+2
     max_norm_second = np.max(np.sum(embedding_second_matrix ** 2, axis=-1), axis=-1)
     print("max_norm_second: ", max_norm_second)
 
@@ -179,8 +179,8 @@ def esim(config, data):
                  return_sequences=True),
             name='finaldecoder')  # [-1,2*units]
 
-    final_p = bilstm_decoder(PremAlign)
-    final_h = bilstm_decoder(HypoAlign)
+    final_p = bilstm_decoder(PremAlign)  # [-1, Psize, 600]
+    final_h = bilstm_decoder(HypoAlign)  # [-1, Hsize, 600]
 
     final_p = Multiply()([final_p, premise_mask])
     final_h = Multiply()([final_h, hypothesis_mask])
@@ -195,9 +195,9 @@ def esim(config, data):
     pooling_vectors = [avg_p, max_p, avg_h, max_h]
 
     if config['usectrick'] or config['fullkim']:
-        weight_aw_p = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-1, keepdims=True))(
+        weight_aw_p = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-2))(
             [Ep_soft, KBph])  # [-1, Psize, 5]
-        weight_aw_h = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-1, keepdims=True))(
+        weight_aw_h = Lambda(lambda x: K.sum(K.expand_dims(x[0]) * x[1], axis=-2))(
             [Eh_soft, KBhp])  # [-1, Hsize, 5]
 
         gate_kb = TimeDistributed(
@@ -206,17 +206,17 @@ def esim(config, data):
                 activation='relu'))
         weight_aw_p = gate_kb(weight_aw_p)  # [-1, Psize, 1]
         weight_aw_h = gate_kb(weight_aw_h)  # [-1, Hsize, 1]
-        weight_aw_p = Lambda(lambda x: K.squeeze(x))(weight_aw_p)  # [-1, Psize]
-        weight_aw_h = Lambda(lambda x: K.squeeze(x))(weight_aw_h)  # [-1, Hsize]
+        weight_aw_p = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_p)  # [-1, Psize]
+        weight_aw_h = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_h)  # [-1, Hsize]
 
-        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0]) - K.exp(K.max(x[0]))))([weight_aw_p, premise_mask_input])
-        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0]) - K.exp(K.max(x[0]))))([weight_aw_h, hypothesis_mask_input])
+        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0]))))([weight_aw_p, premise_mask_input])
+        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0]))))([weight_aw_h, hypothesis_mask_input])
 
         weight_aw_p = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_p)
         weight_aw_h = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_h)
 
-        aw_p = Dot((1, 1))([weight_aw_p, final_p])  # [-1, Psize, 300]
-        aw_h = Dot((1, 1))([weight_aw_h, final_h])  # [-1, Psize, 300]
+        aw_p = Dot((1, 1))([weight_aw_p, final_p])  # [-1, Psize] + [-1, Psize, 600] = [-1, 600]
+        aw_h = Dot((1, 1))([weight_aw_h, final_h])  # [-1, 600]
 
         pooling_vectors += [aw_p, aw_h]
 

@@ -7,33 +7,34 @@ NC='\033[0m' # No Color
 
 RUN_MODULO=$1
 MODULO=$2 # how many runs at once
+DATASET=$3
 
 printf "${GREEN}Modulo $MODULO == $RUN_MODULO${NC}\n"
 printf "${GREEN}CUDA: $CUDA_VISIBLE_DEVICES${NC}\n"
 
 declare -a NAMES=(
-    "curve-kim-train-emb-0.008"
-    "curve-kim-train-emb-0.04"
-    "curve-kim-train-emb-0.2"
-    "curve-kim-train-emb-1.0"
+#    "curve-kim-train-emb-0.008"
+#    "curve-kim-train-emb-0.04"
+#    "curve-kim-train-emb-0.2"
+#    "curve-kim-train-emb-1.0"
     "curve-kim-0.008"
     "curve-kim-0.04"
     "curve-kim-0.2"
-    "curve-kim-1.0"
+#    "curve-kim-1.0"
     "curve-esim-0.008"
     "curve-esim-0.04"
     "curve-esim-0.2"
 )
 
 declare -a ARGS=(
-    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings"
-    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings"
-    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings"
-    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings"
+#    "--train_on_fraction=0.008 --useitrick=1 --train_embeddings"
+#    "--train_on_fraction=0.04 --useitrick=1 --train_embeddings"
+#    "--train_on_fraction=0.2 --useitrick=1 --train_embeddings"
+#    "--train_on_fraction=1.0 --useitrick=1 --train_embeddings"
     "--train_on_fraction=0.008 --useitrick=1 --no_train_embeddings"
     "--train_on_fraction=0.04 --useitrick=1 --no_train_embeddings"
     "--train_on_fraction=0.2 --useitrick=1 --no_train_embeddings"
-    "--train_on_fraction=1.0 --useitrick=1 --no_train_embeddings"
+#    "--train_on_fraction=1.0 --useitrick=1 --no_train_embeddings"
     "--train_on_fraction=0.008 --useitrick=0 --no_train_embeddings"
     "--train_on_fraction=0.04 --useitrick=0 --no_train_embeddings"
     "--train_on_fraction=0.2 --useitrick=0 --no_train_embeddings"
@@ -50,7 +51,7 @@ do
         printf "${GREEN}Running $NAME...${NC}\n"
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         mkdir -p $RESULTS_DIR
-        python src/scripts/train_eval/train.py esim $RESULTS_DIR --dataset=snli ${ARGS[i]}
+        python src/scripts/train_eval/train.py esim $RESULTS_DIR --dataset=$DATASET ${ARGS[i]}
         python src/scripts/train_eval/evaluate.py --model-name=$NAME
     fi
 done

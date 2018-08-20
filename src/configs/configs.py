@@ -121,7 +121,7 @@ baseline_configs['esim'] = {
     'embedding_name': 'gcc840',
     'embedding_second_name': 'gcc840',
     'fullkim': False,
-    'a_lambda': 0.0,
+    'a_lambda': 0.2,
     'i_lambda': 1.0,
     'intersection_of_embedding_dicts': False,
     'knowledge_after_lstm': 'none',
