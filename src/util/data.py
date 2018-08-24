@@ -414,7 +414,7 @@ class NLIData(Data):
             stream = FixedMapping(
                 stream,
                 functools.partial(retrieve_and_pad_snli, self._retrieval),
-                add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map")) # This is because there is bug in Fuel :( Cannot concatenate tuple and list
+                add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map"))  # This is because there is bug in Fuel :( Cannot concatenate tuple and list
 
         if not raw_text:
             stream = SourcewiseMapping(stream, functools.partial(digitize, self.vocab),

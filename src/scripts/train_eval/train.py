@@ -8,6 +8,8 @@ Run like: python src/scripts/train_esim.py cc840 results/test_run
 import os
 import logging
 import matplotlib
+import tensorflow as tf
+import keras.backend.tensorflow_backend as ktf
 
 from src.configs.configs import baseline_configs
 from src.models import build_model
@@ -28,6 +30,10 @@ def train_model(config, save_path):
     seed(config["seed"])
     set_random_seed(config["seed"])
     rng = RandomState(config["seed"])
+
+    ktf.set_session(
+        tf.Session(config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True)))
+    )
 
     datasets, streams = build_data_and_streams(config, rng, datasets_to_load=[config["dataset"]])
     model = build_model(config, datasets[config["dataset"]])

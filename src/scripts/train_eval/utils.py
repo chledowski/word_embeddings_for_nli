@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pickle as pkl
 
+from keras.models import Model
 from keras.utils import np_utils
 from keras.preprocessing.sequence import pad_sequences
 
@@ -25,13 +26,13 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
     def fill_kb(batch_id, words1, words2, kb):
         hits, misses = 0, 0
         for i1 in range(min(len(words1), config['sentence_max_length'])):
-            w1 = words1[i1]
+            w1 = words1[i1].decode()
             for i2 in range(min(len(words2), config['sentence_max_length'])):
-                w2 = words2[i2]
-                if type(w1) is bytes:
-                    w1 = w1.decode()
-                if type(w2) is bytes:
-                    w2 = w2.decode()
+                w2 = words2[i2].decode()
+                # if type(w1) is bytes:
+                #     w1 = w1.decode()
+                # if type(w2) is bytes:
+                #     w2 = w2.decode()
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
                     hits += 1
@@ -103,6 +104,32 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
         def reset(self):
             self.force_reset = True
 
+        def dump(self, x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y):
+            bs = config['batch_sizes']['snli']['test']
+            x1_dump_path = os.path.join(DATA_DIR, 'debug', 'dump_bs%d_x1.txt' % bs)
+            x2_dump_path = os.path.join(DATA_DIR, 'debug', 'dump_bs%d_x2.txt' % bs)
+            x1_mask_dump_path = os.path.join(DATA_DIR, 'debug', 'dump_bs%d_x1_mask.txt' % bs)
+            x2_mask_dump_path = os.path.join(DATA_DIR, 'debug', 'dump_bs%d_x2_mask.txt' % bs)
+            y_dump_path = os.path.join(DATA_DIR, 'debug', 'dump_bs%d_y.txt' % bs)
+
+            # print("x1.shape", x1.shape)
+            # print("x2.shape", x2.shape)
+            # print("y.shape", y.shape)
+
+            def _dump(path, x):
+                with open(path, 'a+') as f:
+                    for s in x:
+                        if isinstance(s, np.int32):
+                            f.write("%d\n" % s)
+                        else:
+                            f.write("%s\n" % " ".join([str(w) for w in s]))
+
+            _dump(x1_dump_path, x1_lemma)
+            _dump(x2_dump_path, x2_lemma)
+            _dump(x1_mask_dump_path, x1_mask)
+            _dump(x2_mask_dump_path, x2_mask)
+            _dump(y_dump_path, y)
+
         def wrapped_stream(self, stream):
             def _stream():
                 while True:
@@ -123,13 +150,16 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
                                             padding='post', truncating='post')
 
-                        x1_mask_padded = pad_sequences(x1_mask, maxlen=config['sentence_max_length'],
+                        x1_mask = pad_sequences(x1_mask, maxlen=config['sentence_max_length'],
                                            padding='post', truncating='post')
-                        x2_mask_padded = pad_sequences(x2_mask, maxlen=config['sentence_max_length'],
+                        x2_mask = pad_sequences(x2_mask, maxlen=config['sentence_max_length'],
                                            padding='post', truncating='post')
-                        assert x1.shape == x1_mask_padded.shape
+                        assert x1.shape == x1_mask.shape
 
-                        model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
+                        model_input = [x1, x1_mask, x2, x2_mask]
+
+                        if 'dump' in config and config['dump']:
+                            self.dump(x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y)
 
                         if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
                             kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
@@ -165,9 +195,56 @@ def compute_metrics(config, model, datasets, streams, eval_streams, default_batc
             num_examples = dataset.num_examples(stream_name)
             dataset_batch_sizes = config["batch_sizes"].get(dataset_name, {})
             stream_batch_size = dataset_batch_sizes.get(stream_name, default_batch_size)
-            metrics["%s_%s" % (dataset_name, stream_name)] = model.evaluate_generator(
+            # metrics["%s_%s" % (dataset_name, stream_name)] = model.evaluate_generator(
+            #     generator=stream,
+            #     steps=4 / stream_batch_size,
+            #     verbose=1
+            # )
+
+            intermediate_layers = [
+                'embedding_1',
+                'embedding_1',
+                'lambda_2',
+                'lambda_3',
+                'multiply_1',
+                'multiply_2',
+                'concatenate_1',
+                'concatenate_2',
+                'concatenate_3',
+                'concatenate_4',
+                'multiply_5',
+                'multiply_6',
+                'lambda_8',
+                'lambda_9',
+                'translate',
+                'translate',
+                'dropout_3',
+                'dropout_4',
+                # 'lambda_10',
+                # 'lambda_11',
+                # 'lambda_10',
+                # 'lambda_11',
+                # 'dot_4',
+                # 'dot_5',
+                'judge300_snli'
+            ]
+            output_nodes = [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 1, 0, 0,
+                            0, 0, 1, 1, 0, 0]
+
+            intermediate_layer_model = Model(inputs=model.input,
+                                             outputs=[
+                                                 model.get_layer(layer_name).get_output_at(output_node)
+                                                 for layer_name, output_node in zip(intermediate_layers,
+                                                                                    output_nodes)
+            ])
+            intermediate_output = intermediate_layer_model.predict_generator(
                 generator=stream,
-                steps=num_examples / stream_batch_size,
+                steps=4 / stream_batch_size,
                 verbose=1
             )
+            for layer_name, output_node, output in zip(intermediate_layers, output_nodes, intermediate_output):
+                np.save("/home/z1079621/storage/embeddings/debug/kim_%s_%d_bs%d.npy" % (
+                    layer_name, output_node, stream_batch_size),
+                        output)
     return metrics

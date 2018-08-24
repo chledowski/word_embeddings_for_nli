@@ -7,14 +7,22 @@ Run like: python src/scripts/train_esim.py cc840 results/test_run
 
 import argparse
 import json
+import numpy as np
 import os
+import tensorflow as tf
+import keras.backend.tensorflow_backend as ktf
+
+from src import DATA_DIR
 
 from src.models import build_model
 from src.util import modified_stream, evaluate_wv, load_embedding_from_h5
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
+from keras.models import Model
+
 from numpy.random import seed
 from numpy.random import RandomState
+from pprint import pprint
 from tensorflow import set_random_seed
 
 
@@ -31,9 +39,13 @@ def eval_model():
     # To evaluate on more streams, add them here
     # config["batch_size"][stream] = ...
 
-    datasets_to_load = list(set(["snli",
-                                 "breaking",
-                                 config["dataset"]]))
+    pprint(config)
+
+    ktf.set_session(
+        tf.Session(config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True)))
+    )
+
+    datasets_to_load = list(set(["snli", config["dataset"]]))
     datasets, streams = build_data_and_streams(config, rng, datasets_to_load=datasets_to_load)
     model = build_model(config, datasets[config["dataset"]])
 
@@ -42,7 +54,7 @@ def eval_model():
 
     metrics = compute_metrics(config, model, datasets, streams,
                               eval_streams=[
-                                            "dev",
+                                            # "dev",
                                             "test"])
 
     results_dict['accuracies'] = {}
