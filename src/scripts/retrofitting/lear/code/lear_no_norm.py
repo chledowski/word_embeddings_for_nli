@@ -632,7 +632,7 @@ def load_word_vectors(file_destination):
             line = line.split(" ", 1)   
             key = str(line[0].lower())
             vect = numpy.fromstring(line[1], dtype="float32", sep=" ")
-            word_dictionary[key] = vect / norm(vect)
+            word_dictionary[key] = vect
 
         except:
             continue
@@ -936,5 +936,6 @@ def main():
 
 
 if __name__=='__main__':
+
     main()
 
