@@ -8,6 +8,7 @@ Run like: python src/scripts/train_esim.py cc840 results/test_run
 import argparse
 import json
 import os
+import pprint as pp
 
 from src.models import build_model
 from src.util import modified_stream, evaluate_wv, load_embedding_from_h5
@@ -18,11 +19,17 @@ from numpy.random import RandomState
 from tensorflow import set_random_seed
 
 
-def eval_model():
+def eval_model(batch_size=None):
     results_dict = {}
 
     with open(os.path.join('results', args.model_name, 'config.json'), 'r') as f:
         config = json.load(f)
+
+    if batch_size:
+        config['batch_sizes']['snli']['test'] = batch_size
+        config['batch_sizes']['breaking']['test'] = batch_size
+
+    pp.pprint(config)
 
     seed(config["seed"])
     set_random_seed(config["seed"])
@@ -41,9 +48,7 @@ def eval_model():
     model.load_weights(os.path.join('results', args.model_name, "best_model.h5"))
 
     metrics = compute_metrics(config, model, datasets, streams,
-                              eval_streams=[
-                                            "dev",
-                                            "test"])
+                              eval_streams=["test"])
 
     results_dict['accuracies'] = {}
     results_dict['losses'] = {}
@@ -53,20 +58,21 @@ def eval_model():
         results_dict['accuracies'][stream_name] = accuracy
         results_dict['losses'][stream_name] = loss
 
-    if args.embedding_name is not None:
-        _, _, wv = load_embedding_from_h5(args.embedding_name)
-        results_dict['backup'] = evaluate_wv(wv, simlex_only=False)
+    output_dir_path = 'results/%s_bs%d' % (args.model_name, batch_size)
 
-    model_name = args.model_name.split('/')[0]
+    if not os.path.exists(output_dir_path):
+        os.makedirs(output_dir_path)
 
-    with open('results/%s/retrofitting_results.json' % model_name, 'w') as f:
+    with open(os.path.join(output_dir_path, 'retrofitting_results.json'), 'w') as f:
         json.dump(results_dict, f)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-name", type=str)
-    parser.add_argument("--embedding-name", type=str)
 
     args = parser.parse_args()
-    eval_model()
+
+    batch_sizes_to_check = [307, 2, 4]
+    for batch_size in batch_sizes_to_check:
+        eval_model(batch_size)

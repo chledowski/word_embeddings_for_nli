@@ -52,4 +52,4 @@ def train_model(config, save_path):
 
 if __name__ == "__main__":
     main(baseline_configs, train_model,
-         plugins=[MetaSaver(), AutomaticNamer(namer="timestamp_namer")])
+         plugins=[MetaSaver()])
