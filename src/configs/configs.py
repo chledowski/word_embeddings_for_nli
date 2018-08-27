@@ -106,7 +106,7 @@ baseline_configs['esim'] = {
     },
     'shuffle': {
         'snli': {
-            'train': False,
+            'train': True,
         },
         'mnli': {
             'train': True,
@@ -129,7 +129,7 @@ baseline_configs['esim'] = {
     'lr_schedule': '[[1000, 0.0004]]',
     'lr_schedule_type': 'reduce_on_plateau',
     'model': 'esim',
-    'n_epochs': 1,
+    'n_epochs': 60,
     'n_labels': 3,
     'n_layers': 3,
     'norm_weight': True,
@@ -142,7 +142,7 @@ baseline_configs['esim'] = {
     'seed': 2,
     'sentence_max_length': 90,
     'train_embeddings': False,
-    'train_on_fraction': 0.01,
+    'train_on_fraction': 1.0,
     'useatrick': 0,
     'useitrick': 0,
     'usectrick': 0,
