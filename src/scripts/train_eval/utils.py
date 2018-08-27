@@ -25,13 +25,9 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
     def fill_kb(batch_id, words1, words2, kb):
         hits, misses = 0, 0
         for i1 in range(min(len(words1), config['sentence_max_length'])):
-            w1 = words1[i1]
+            w1 = words1[i1].decode()
             for i2 in range(min(len(words2), config['sentence_max_length'])):
-                w2 = words2[i2]
-                if type(w1) is bytes:
-                    w1 = w1.decode()
-                if type(w2) is bytes:
-                    w2 = w2.decode()
+                w2 = words2[i2].decode()
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
                     hits += 1
