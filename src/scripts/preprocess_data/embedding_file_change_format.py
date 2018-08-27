@@ -42,25 +42,20 @@ def h5_to_txt(h5_name, txt_name, prefix="en_"):
     emb_matrix_all = emb_file[list(emb_file.keys())[0]][:]
     # emb_matrix_all = normalize_embeddings(emb_matrix_all)
 
-    if txt_name == 'wv_pre_lear':
-        txt_path = 'src/scripts/retrofitting/lear/word_vectors/wv_pre_lear.txt'
-    else:
-        txt_path = os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt")
+    txt_path = os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt")
 
-    with open(txt_path, 'w') as text_file:
-        for i in tqdm(range(len(emb_words))):
-            word = emb_words[i]
-            str_embedding = ' '.join(list(map(str, emb_matrix_all[i])))
-            text_file.write("%s%s %s\n" % (prefix, word, str_embedding))
+    if not os.path.exists(txt_path):
+        with open(txt_path, 'w') as text_file:
+            for i in tqdm(range(len(emb_words))):
+                word = emb_words[i]
+                str_embedding = ' '.join(list(map(str, emb_matrix_all[i])))
+                text_file.write("%s%s %s\n" % (prefix, word, str_embedding))
 
 
 def txt_to_h5(h5_name, txt_name):
     word_dictionary = {}
 
-    if txt_name == 'wv_after_lear':
-        f = codecs.open('src/scripts/retrofitting/lear/word_vectors/wv_after_lear.txt', 'r')
-    else:
-        f = codecs.open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'r')
+    f = codecs.open(os.path.join(DATA_DIR, 'embeddings', txt_name + ".txt"), 'r')
 
     for line in f:
         try:

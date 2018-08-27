@@ -152,6 +152,13 @@ def faruqui(wv_original, lexicon, n_epochs, losses, losses_2):
 
 
 def retrofit():
+
+    if args.normalize_wv_only:
+        emb_words, emb_matrix_all, wv = load_embedding_from_h5(args.embedding, normalize=True)
+        if args.save_embedding:
+            export_dict_to_h5(wv, os.path.join(DATA_DIR, "embeddings", args.save_text + ".h5"))
+        return 0
+
     emb_words, emb_matrix_all, wv = load_embedding_from_h5(args.embedding)
 
     if args.verbose:
@@ -184,17 +191,25 @@ def retrofit():
             z[:, 0:args.components] = 0
             wv_2_emb_matrix = pca.inverse_transform(z)
 
-            if args.normalize_wv2:
-                pca_qw = PCA()
-                pca_qw.fit(wv_2_emb_matrix)
-                print(pca.explained_variance_[0])
-                print(pca_qw.explained_variance_[0])
-                wv_2_emb_matrix = pca.explained_variance_[0] / pca_qw.explained_variance_[0] * wv_2_emb_matrix
+            # if args.normalize_wv2:
+            #     pca_qw = PCA()
+            #     pca_qw.fit(wv_2_emb_matrix)
+            #     print(pca.explained_variance_[0])
+            #     print(pca_qw.explained_variance_[0])
+            #     wv_2_emb_matrix = pca.explained_variance_[0] / pca_qw.explained_variance_[0] * wv_2_emb_matrix
 
             wv_2 = {}
 
             for key in q_word_to_id.keys():
                 wv_2[key] = wv_2_emb_matrix[q_word_to_id[key]]
+
+        elif args.normalize_wv2:
+            norm_wv1 = np.mean(np.linalg.norm(wv_1_emb_matrix, None, axis=1))
+            norm_wv2 = np.mean(np.linalg.norm(wv_2_emb_matrix, None, axis=1))
+            ratio = norm_wv1 / norm_wv2
+            print("ratio: ", ratio, norm_wv1, norm_wv2)
+            wv_2_emb_matrix =  ratio * wv_2_emb_matrix
+
 
         for key in wv_2.keys():
 
@@ -229,6 +244,7 @@ if __name__ == "__main__":
     parser.add_argument("--second-embedding", default='', type=str)
 
     parser.add_argument("--normalize-wv2", action='store_true')
+    parser.add_argument("--normalize-wv-only", action='store_true')
     parser.add_argument("--pca", action='store_true')
     parser.add_argument("--save-embedding", action='store_true')
     parser.add_argument("--sum", action='store_true')
