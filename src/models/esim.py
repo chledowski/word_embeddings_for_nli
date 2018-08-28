@@ -120,6 +120,11 @@ def esim(config, data):
 
     knowledge_lambda = config['i_lambda']
 
+    prem_knowledge_vector = [embed_p, PremAlign, sb_1, mm_1]
+    hypo_knowledge_vector = [embed_h, HypoAlign, sb_2, mm_2]
+    prem_i_vector = []
+    hypo_i_vector = []
+
     if config['knowledge_after_lstm'] in ['dot', 'euc']:
         if config['knowledge_after_lstm'] == 'dot':
             Dph = Dot(axes=(2, 2))([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
@@ -137,18 +142,18 @@ def esim(config, data):
         i_2 = Lambda(lambda x: K.sum(x[0] * x[1], axis=-1, keepdims=True))([Eh_soft, Dhp])  # [batch_size, Hsize, 1]
         i_1 = Lambda(lambda x: knowledge_lambda * x)(i_1)  # [-1, Psize, 1]
         i_2 = Lambda(lambda x: knowledge_lambda * x)(i_2)  # [-1, Hsize, 1]
-        PremAlign = Concatenate()([embed_p, PremAlign, sb_1, mm_1, i_1])  # [batch_size, Psize, 2*unit + 1]
-        HypoAlign = Concatenate()([embed_h, HypoAlign, sb_2, mm_2, i_2])  # [batch_size, Hsize, 2*unit + 1]
-    elif config['useitrick'] or config['fullkim']:
-        i_1 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Ep_soft, KBph])  # [-1, Psize, Hsize, 5]
-        i_2 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Eh_soft, KBhp])  # [-1, Hsize, Psize, 5]
-        i_1 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(i_1)  # [-1, Psize, 5]
-        i_2 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(i_2)  # [-1, Hsize, 5]
-        PremAlign = Concatenate()([embed_p, PremAlign, sb_1, mm_1, i_1])  # [batch_size, Psize, 2*unit + 5]
-        HypoAlign = Concatenate()([embed_h, HypoAlign, sb_2, mm_2, i_2])  # [batch_size, Hsize, 2*unit + 5]
-    else:
-        PremAlign = Concatenate()([embed_p, PremAlign, sb_1, mm_1])  # [batch_size, Psize, 2*unit]
-        HypoAlign = Concatenate()([embed_h, HypoAlign, sb_2, mm_2])  # [batch_size, Hsize, 2*unit]
+        prem_i_vector += [i_1]
+        hypo_i_vector += [i_2]
+    if config['useitrick'] or config['fullkim']:
+        kim_i_1 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Ep_soft, KBph])  # [-1, Psize, Hsize, 5]
+        kim_i_2 = Lambda(lambda x: K.expand_dims(x[0]) * x[1])([Eh_soft, KBhp])  # [-1, Hsize, Psize, 5]
+        kim_i_1 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(kim_i_1)  # [-1, Psize, 5]
+        kim_i_2 = Lambda(lambda x: knowledge_lambda * K.sum(x, axis=-2))(kim_i_2)  # [-1, Hsize, 5]
+        prem_i_vector += [kim_i_1]
+        hypo_i_vector += [kim_i_2]
+
+    PremAlign = Concatenate()(prem_knowledge_vector + prem_i_vector)
+    HypoAlign = Concatenate()(hypo_knowledge_vector + hypo_i_vector)
 
     translate = TimeDistributed(
         Dense(config["embedding_dim"],
@@ -167,8 +172,8 @@ def esim(config, data):
     if config['useitrick'] \
             or config['knowledge_after_lstm'] in ['dot', 'euc'] \
             or config['fullkim']:
-        PremAlign = Concatenate()([PremAlign, i_1])
-        HypoAlign = Concatenate()([HypoAlign, i_2])
+        PremAlign = Concatenate()([PremAlign] + prem_i_vector)
+        HypoAlign = Concatenate()([HypoAlign] + hypo_i_vector)
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
@@ -209,11 +214,11 @@ def esim(config, data):
         weight_aw_p = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_p)  # [-1, Psize]
         weight_aw_h = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_h)  # [-1, Hsize]
 
-        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0]))))([weight_aw_p, premise_mask_input])
-        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0]))))([weight_aw_h, hypothesis_mask_input])
+        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))([weight_aw_p, premise_mask_input])
+        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))([weight_aw_h, hypothesis_mask_input])
 
-        weight_aw_p = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_p)
-        weight_aw_h = Lambda(lambda x: x / K.sum(x, keepdims=True))(weight_aw_h)
+        weight_aw_p = Lambda(lambda x: x / K.sum(x, axis=1, keepdims=True))(weight_aw_p)
+        weight_aw_h = Lambda(lambda x: x / K.sum(x, axis=1, keepdims=True))(weight_aw_h)
 
         aw_p = Dot((1, 1))([weight_aw_p, final_p])  # [-1, Psize] + [-1, Psize, 600] = [-1, 600]
         aw_h = Dot((1, 1))([weight_aw_h, final_h])  # [-1, 600]

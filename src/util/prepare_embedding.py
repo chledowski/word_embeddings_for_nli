@@ -84,6 +84,11 @@ def prep_embedding_matrix(config, data, embedding_name):
         if config["D"] != 0:
             embedding_matrix = remove_mean_and_d_components(embedding_matrix, config["D"],
                                                             partial_whitening=config["whitening"])
+
+        del embedding_words, embedding_matrix_all
+        embedding_file.close()
+
+
     embedding_matrix[0, :] = 0
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
