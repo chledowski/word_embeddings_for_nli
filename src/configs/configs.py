@@ -141,6 +141,7 @@ baseline_configs['esim'] = {
     'save_model': False,
     'seed': 2,
     'sentence_max_length': 90,
+    'steps_per_epoch_scale': 1.0,
     'train_embeddings': False,
     'train_on_fraction': 1.0,
     'useatrick': 0,

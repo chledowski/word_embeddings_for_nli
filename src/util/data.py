@@ -380,7 +380,7 @@ class NLIData(Data):
     @property
     def vocab(self):
         if not self._vocab:
-            print("Loading vocab from " + os.path.join(self.vocab_dir, "vocab.txt"))
+            # print("Loading vocab from " + os.path.join(self.vocab_dir, "vocab.txt"))
             self._vocab = Vocabulary(
                 os.path.join(self.vocab_dir, "vocab.txt"))
         return self._vocab
@@ -395,7 +395,7 @@ class NLIData(Data):
 
     def get_stream(self, part, batch_size, shuffle, rng, raw_text=False):
         d = self.get_dataset(part)
-        print(("Dataset with {} examples".format(self.num_examples(part))))
+        # print(("Dataset with {} examples".format(self.num_examples(part))))
         it = SequentialExampleScheme(
             examples=rng.choice(
                     a=self.total_num_examples(part),

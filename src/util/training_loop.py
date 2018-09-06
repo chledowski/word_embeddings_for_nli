@@ -12,6 +12,8 @@ from keras.models import load_model
 import keras
 import keras.backend as K
 
+from src.scripts.analyse.analyse_dataset import eval_on_dataset
+
 # # Might misbehave with tensorflow-gpu, make sure u use tensorflow-cpu if using Theano for keras
 # try:
 #     import tensorflow
@@ -159,6 +161,23 @@ def baseline_training_loop(model, dataset, streams,
     setattr(time_callback, "t", time.time())
     callbacks.append(LambdaCallback(on_epoch_end=time_callback))
 
+    def easy_hard_dset(epoch, logs):
+        easy_hard_path = os.path.join(save_path, "easy_hard_dataset_acc.csv")
+        if os.path.exists(easy_hard_path):
+            H = pd.read_csv(easy_hard_path)
+            H = {col: list(H[col].values) for col in H.columns}
+        else:
+            H = {}
+
+        if 'easy' not in H:
+            H['easy'] = [eval_on_dataset(model, dset='easy', confidency='0.45')]
+            H['hard'] = [eval_on_dataset(model, dset='hard', confidency='0.45')]
+        else:
+            H['easy'].append(eval_on_dataset(model, dset='easy', confidency='0.45'))
+            H['hard'].append(eval_on_dataset(model, dset='hard', confidency='0.45'))
+        pd.DataFrame(H).to_csv(os.path.join(save_path, "easy_hard_dataset_acc.csv"), index=False)
+    callbacks.append(LambdaCallback(on_epoch_end=easy_hard_dset))
+
     #lr schedule
     if config["lr_schedule_type"] != "none":
         callbacks.append(create_lr_schedule(
@@ -199,7 +218,7 @@ def baseline_training_loop(model, dataset, streams,
                                          filepath=os.path.join(save_path, "model.h5")))
 
     logger.info('Training...')
-    steps_per_epoch = train_num_examples // train_batch_size
+    steps_per_epoch = (config['steps_per_epoch_scale'] * train_num_examples) // train_batch_size
     logger.info('Total steps per epoch: %d' % steps_per_epoch)
 
     _ = model.fit_generator(streams["train"],

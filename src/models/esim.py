@@ -45,7 +45,7 @@ def esim(config, data):
         embedding_second_matrix = embedding_matrix
 
     max_norm_second = np.max(np.sum(embedding_second_matrix ** 2, axis=-1), axis=-1)
-    print("max_norm_second: ", max_norm_second)
+    # print("max_norm_second: ", max_norm_second)
 
     logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
@@ -264,6 +264,6 @@ def esim(config, data):
                                                 clipnorm=config["clip_gradient_norm"]),
                       loss='categorical_crossentropy', metrics=['accuracy'])
 
-    print((model.summary()))
+    # print((model.summary()))
 
     return model

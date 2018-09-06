@@ -27,7 +27,7 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-name", default='cbow', type=str)
+    parser.add_argument("--model-name", default='esim', type=str)
     parser.add_argument("--prefix", default='', type=str)
     args = parser.parse_args()
 

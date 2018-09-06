@@ -67,10 +67,10 @@ def load_pair_features(config):
 
     with open(features_pkl_path, 'rb') as f:
         features = pkl.load(f)
-        print("Sample pair features:")
+        # print("Sample pair features:")
         for i, w1 in enumerate(list(features.keys())):
             w2 = np.random.choice(list(features[w1].keys()))
-            print(w1, w2, features[w1][w2])
+            # print(w1, w2, features[w1][w2])
             if i >= 5:
                 break
     assert len(features) > 0
@@ -167,3 +167,10 @@ def compute_metrics(config, model, datasets, streams, eval_streams, default_batc
                 verbose=1
             )
     return metrics
+
+# def display_instances(config, model, datasets, streams):
+#     good = []
+#     bad = []
+#
+#
+#     print(results)

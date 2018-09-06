@@ -7,6 +7,7 @@ import logging
 from six import string_types, text_type
 import numpy
 import time
+import numpy as np
 logger = logging.getLogger()
 
 
@@ -139,7 +140,11 @@ class Vocabulary(object):
         return self._id_to_word[cur_id]
 
     def decode(self, cur_ids):
-        return ' '.join([self.id_to_word(cur_id) for cur_id in cur_ids])
+        _cur_ids = cur_ids[np.nonzero(cur_ids)]
+        try:
+            return ' '.join([self.id_to_word(cur_id) for cur_id in _cur_ids])
+        except:
+            return b' '.join([self.id_to_word(cur_id) for cur_id in _cur_ids])
 
     def encode(self, sentence):
         word_ids = [self.word_to_id(cur_word) for cur_word in sentence]

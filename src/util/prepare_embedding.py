@@ -93,5 +93,5 @@ def prep_embedding_matrix(config, data, embedding_name):
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
 
-    print("Emb matrix norm", np.linalg.norm(embedding_matrix))
+    # print("Emb matrix norm", np.linalg.norm(embedding_matrix))
     return embedding_matrix
