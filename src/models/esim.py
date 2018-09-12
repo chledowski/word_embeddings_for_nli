@@ -7,6 +7,7 @@ Simple model definitions
 import logging
 import numpy as np
 import os
+import tensorflow as tf
 
 import keras.backend as K
 from keras import optimizers
@@ -24,6 +25,8 @@ from keras.regularizers import l2
 from src import DATA_DIR
 from src.util.prepare_embedding import prep_embedding_matrix
 from src.models.utils import ScaledRandomNormal
+from src.models.bilm.elmo import weight_layers
+from src.models.bilm.model import BidirectionalLanguageModel
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +60,40 @@ def esim(config, data):
     KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
 
+    if config['use_elmo']:
+        premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
+        hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
+        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', tensor=premise_placeholder)
+        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', tensor=hypothesis_placeholder)
+
     a_lambda = config['a_lambda']
     KBatt = Lambda(lambda x: a_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
 
     embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
+
+    if config['use_elmo']:
+        elmodir = os.path.join(DATA_DIR, 'elmo')
+
+        # load the model
+        options_file = os.path.join(elmodir, 'options.json')
+        weight_file = os.path.join(elmodir, 'lm_weights.hdf5')
+        embedding_weight_file = os.path.join(elmodir, 'elmo_token_embeddings.hdf5')
+        elmo_model = BidirectionalLanguageModel(
+            options_file, weight_file,
+            use_character_inputs=False,
+            embedding_weight_file=embedding_weight_file)
+
+        bilm_prem_ops = elmo_model(premise_placeholder)
+        bilm_hypo_ops = elmo_model(hypothesis_placeholder)
+
+        # TODO(tomwesolowski): Set optional arguments according to paper.
+        elmo_p = weight_layers('before_lstm', bilm_prem_ops, l2_coef=0.0)['weighted_op']
+        with tf.variable_scope('', reuse=True):
+            elmo_h = weight_layers('before_lstm', bilm_hypo_ops, l2_coef=0.0)['weighted_op']
+
+        embed_p = Concatenate(axis=2)([embed_p, elmo_p])
+        embed_h = Concatenate(axis=2)([embed_h, elmo_h])
 
     if config['knowledge_after_lstm'] in ['dot', 'euc']:
         embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
@@ -93,6 +125,17 @@ def esim(config, data):
     premise_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask_input)
     # [-1, Hsize, 1]
     hypothesis_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(hypothesis_mask_input)
+
+    if config['use_elmo']:
+        # TODO(tomwesolowski): Set optional arguments according to paper.
+        elmo_after_p = weight_layers('after_lstm', bilm_prem_ops, l2_coef=0.0)['weighted_op']
+        with tf.variable_scope('', reuse=True):
+            elmo_after_h = weight_layers('after_lstm', bilm_hypo_ops, l2_coef=0.0)['weighted_op']
+
+        assert elmo_after_p is not None
+        assert elmo_after_h is not None
+        embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
+        embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
 
     embed_p = Multiply()([embed_p, premise_mask])
     embed_h = Multiply()([embed_h, hypothesis_mask])
@@ -245,6 +288,9 @@ def esim(config, data):
 
     if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
         model_input += [KBph, KBhp]
+
+    if config['use_elmo']:
+        model_input += [premise_elmo_input, hypothesis_elmo_input]
 
     model = Model(inputs=model_input, outputs=Final)
 
