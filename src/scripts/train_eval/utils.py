@@ -79,9 +79,9 @@ def load_pair_features(config):
 
 def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=1):
     datasets_loaders = {
-        "snli": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "snli"), "snli"),
-        "mnli": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "mnli"), "mnli"),
-        "breaking": lambda: NLIData(config["train_on_fraction"], os.path.join(DATA_DIR, "breaking"), "breaking",
+        "snli": lambda: NLIData(config, os.path.join(DATA_DIR, "snli"), "snli"),
+        "mnli": lambda: NLIData(config, os.path.join(DATA_DIR, "mnli"), "mnli"),
+        "breaking": lambda: NLIData(config, os.path.join(DATA_DIR, "breaking"), "breaking",
                                     vocab_dir=os.path.join(DATA_DIR, "snli"))
     }
 
@@ -107,29 +107,36 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         if self.force_reset:
                             self.force_reset = False
                             break
-                        if len(batch) == 5:
-                            x1, x1_mask, x2, x2_mask, y = batch
-                        elif len(batch) == 7:
-                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
+                        if len(batch) not in [7, 9]:
+                            raise ValueError("Expected 7 or 9 elements in batch. Got %d" % len(batch))
+
+                        if config['use_elmo']:
+                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y, x1_elmo, x2_elmo = batch
                         else:
-                            raise ValueError("Expected 5 or 7 elements in batch. Got %d" % len(batch))
+                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
 
-                        x1 = pad_sequences(x1, maxlen=config['sentence_max_length'],
-                                           padding='post', truncating='post')
-                        x2 = pad_sequences(x2, maxlen=config['sentence_max_length'],
-                                            padding='post', truncating='post')
 
-                        x1_mask_padded = pad_sequences(x1_mask, maxlen=config['sentence_max_length'],
-                                           padding='post', truncating='post')
-                        x2_mask_padded = pad_sequences(x2_mask, maxlen=config['sentence_max_length'],
-                                           padding='post', truncating='post')
-                        assert x1.shape == x1_mask_padded.shape
+                        def _pad(x):
+                            return pad_sequences(x, maxlen=config['sentence_max_length'],
+                                                  padding='post', truncating='post')
 
-                        model_input = [x1, x1_mask_padded, x2, x2_mask_padded]
+                        x1 = _pad(x1)
+                        x2 = _pad(x2)
+                        x1_mask = _pad(x1_mask)
+                        x2_mask = _pad(x2_mask)
+
+                        if config['use_elmo']:
+                            x1_elmo = _pad(x1_elmo)
+                            x2_elmo = _pad(x2_elmo)
+
+                        model_input = [x1, x1_mask, x2, x2_mask]
 
                         if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
                             kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
                             model_input += [kb_x, kb_y]
+
+                        if config['use_elmo']:
+                            model_input += [x1_elmo, x2_elmo]
 
                         yield model_input, np_utils.to_categorical(y, 3)
 

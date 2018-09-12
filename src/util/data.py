@@ -30,6 +30,8 @@ from fuel.transformers import (
     Mapping, Batch, Padding, AgnosticSourcewiseTransformer,
     FilterSources, Transformer, Unpack)
 
+from src import DATA_DIR
+from src.models.bilm.data import TokenBatcher
 from src.util.vocab import Vocabulary
 
 #from dictlearn.datasets import TextDataset, SQuADDataset, PutTextTransfomer
@@ -222,6 +224,10 @@ def retrieve_and_pad_snli(retrieval, example):
     return [defs, def_mask, s1_def_map, s2_def_map]
 
 
+def digitize_elmo(source, batcher, data):
+    return batcher.batch_sentences(data[source])
+
+
 def digitize(vocab, source_data):
     return numpy.array([vocab.encode(words) for words in source_data])
 
@@ -327,6 +333,7 @@ class ExtractiveQAData(Data):
         stream = Padding(stream, mask_sources=('contexts', 'questions'), mask_dtype='float32')
         return stream
 
+
 # TODO(kudkudak): Introduce this to Fuel
 class FixedMapping(Transformer):
     """Applies a mapping to the data of the wrapped data stream.
@@ -365,10 +372,13 @@ class FixedMapping(Transformer):
 
 
 class NLIData(Data):
-    def __init__(self, fraction_train, *args, **kwargs):
+    def __init__(self, config, *args, **kwargs):
         super(NLIData, self).__init__(*args, **kwargs)
+        self.config = config
         self._retrieval = None
-        self.fraction_train = fraction_train
+        self._batcher = None
+        if 'elmo_dir' in config:
+            self._elmo_dir = config['elmo_dir']
         if 'vocab_dir' in kwargs:
             self.vocab_dir = kwargs['vocab_dir']
         else:
@@ -385,9 +395,16 @@ class NLIData(Data):
                 os.path.join(self.vocab_dir, "vocab.txt"))
         return self._vocab
 
+    @property
+    def batcher(self):
+        if not self._batcher:
+            self._batcher = TokenBatcher(
+                os.path.join(DATA_DIR, self._elmo_dir, "vocab_elmo.txt"))
+        return self._batcher
+
     def num_examples(self, part):
         return int(self.get_dataset(part).num_examples * (
-            self.fraction_train if part == 'train' else 1.0
+            self.config['train_on_fraction'] if part == 'train' else 1.0
         ))
 
     def total_num_examples(self, part):
@@ -417,6 +434,13 @@ class NLIData(Data):
                 add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map")) # This is because there is bug in Fuel :( Cannot concatenate tuple and list
 
         if not raw_text:
+            if self.config['use_elmo']:
+                stream = FixedMapping(stream,
+                                      functools.partial(digitize_elmo, 'sentence1', self.batcher),
+                                      add_sources=('sentence1_elmo', ))
+                stream = FixedMapping(stream,
+                                      functools.partial(digitize_elmo, 'sentence2', self.batcher),
+                                      add_sources=('sentence2_elmo', ))
             stream = SourcewiseMapping(stream, functools.partial(digitize, self.vocab),
                                        which_sources=('sentence1', 'sentence2'))
             stream = SourcewiseMapping(stream, functools.partial(surround_sentence, self.vocab),

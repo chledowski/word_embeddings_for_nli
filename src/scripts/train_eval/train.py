@@ -50,6 +50,7 @@ def train_model(config, save_path):
         loss, accuracy = stream_metrics
         logger.info('{} loss / accuracy = {:.4f} / {:4f}'.format(stream_name, loss, accuracy))
 
+
 if __name__ == "__main__":
     main(baseline_configs, train_model,
          plugins=[MetaSaver()])
