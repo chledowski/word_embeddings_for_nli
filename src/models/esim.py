@@ -84,13 +84,13 @@ def esim(config, data):
             use_character_inputs=False,
             embedding_weight_file=embedding_weight_file)
 
-        bilm_prem_ops = elmo_model(premise_placeholder)
-        bilm_hypo_ops = elmo_model(hypothesis_placeholder)
+        bilm_prem_ops = Lambda(lambda x: elmo_model(x))(premise_placeholder)
+        bilm_hypo_ops = Lambda(lambda x: elmo_model(x))(hypothesis_placeholder)
 
         # TODO(tomwesolowski): Set optional arguments according to paper.
-        elmo_p = weight_layers('before_lstm', bilm_prem_ops, l2_coef=0.0)['weighted_op']
-        with tf.variable_scope('', reuse=True):
-            elmo_h = weight_layers('before_lstm', bilm_hypo_ops, l2_coef=0.0)['weighted_op']
+        lambda_weight_layers = Lambda(lambda x: weight_layers('before_lstm', x, l2_coef=0.0)['weighted_op'])
+        elmo_p = lambda_weight_layers(bilm_prem_ops)
+        elmo_h = lambda_weight_layers(bilm_hypo_ops)
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])
@@ -128,9 +128,9 @@ def esim(config, data):
 
     if config['use_elmo']:
         # TODO(tomwesolowski): Set optional arguments according to paper.
-        elmo_after_p = weight_layers('after_lstm', bilm_prem_ops, l2_coef=0.0)['weighted_op']
-        with tf.variable_scope('', reuse=True):
-            elmo_after_h = weight_layers('after_lstm', bilm_hypo_ops, l2_coef=0.0)['weighted_op']
+        lambda_weight_after_layers = Lambda(lambda x: weight_layers('after_lstm', x, l2_coef=0.0)['weighted_op'])
+        elmo_after_p = lambda_weight_after_layers(bilm_prem_ops)
+        elmo_after_h = lambda_weight_after_layers(bilm_hypo_ops)
 
         assert elmo_after_p is not None
         assert elmo_after_h is not None
