@@ -642,7 +642,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
             )
 
     with h5py.File(outfile, 'w') as fout:
-        ds = fout.create_dataset(
+        fout.create_dataset(
             'embedding', embeddings.shape, dtype='float32', data=embeddings
         )
 

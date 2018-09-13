@@ -88,7 +88,8 @@ def esim(config, data):
         bilm_hypo_ops = Lambda(lambda x: elmo_model(x))(hypothesis_placeholder)
 
         # TODO(tomwesolowski): Set optional arguments according to paper.
-        lambda_weight_layers = Lambda(lambda x: weight_layers('before_lstm', x, l2_coef=0.0)['weighted_op'])
+        lambda_weight_layers = Lambda(lambda x: weight_layers('before_lstm', x, l2_coef=0.0)['weighted_op'],
+                                      output_shape=(config['sentence_max_length'], 1024,))
         elmo_p = lambda_weight_layers(bilm_prem_ops)
         elmo_h = lambda_weight_layers(bilm_hypo_ops)
 
@@ -128,7 +129,8 @@ def esim(config, data):
 
     if config['use_elmo']:
         # TODO(tomwesolowski): Set optional arguments according to paper.
-        lambda_weight_after_layers = Lambda(lambda x: weight_layers('after_lstm', x, l2_coef=0.0)['weighted_op'])
+        lambda_weight_after_layers = Lambda(lambda x: weight_layers('after_lstm', x, l2_coef=0.0)['weighted_op'],
+                                            output_shape=(config['sentence_max_length'], 1024,))
         elmo_after_p = lambda_weight_after_layers(bilm_prem_ops)
         elmo_after_h = lambda_weight_after_layers(bilm_hypo_ops)
 
