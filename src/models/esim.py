@@ -24,6 +24,7 @@ from keras.regularizers import l2
 
 from src import DATA_DIR
 from src.util.prepare_embedding import prep_embedding_matrix
+from src.models.elmo import ElmoEmbeddings
 from src.models.utils import ScaledRandomNormal
 from src.models.bilm.elmo import weight_layers
 from src.models.bilm.model import BidirectionalLanguageModel
@@ -35,6 +36,8 @@ def esim(config, data):
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
     embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
+
+    elmo_embed = ElmoEmbeddings(config)
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
@@ -61,10 +64,10 @@ def esim(config, data):
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
 
     if config['use_elmo']:
-        premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
-        hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
-        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', tensor=premise_placeholder)
-        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', tensor=hypothesis_placeholder)
+        # premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
+        # hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
+        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32')
+        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32')
 
     a_lambda = config['a_lambda']
     KBatt = Lambda(lambda x: a_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
@@ -73,25 +76,11 @@ def esim(config, data):
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     if config['use_elmo']:
-        elmodir = os.path.join(DATA_DIR, 'elmo')
+        elmo_p = elmo_embed([premise_elmo_input, premise_mask_input], weight_name="before_lstm")
+        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_input], weight_name="before_lstm")
 
-        # load the model
-        options_file = os.path.join(elmodir, 'options.json')
-        weight_file = os.path.join(elmodir, 'lm_weights.hdf5')
-        embedding_weight_file = os.path.join(elmodir, 'elmo_token_embeddings.hdf5')
-        elmo_model = BidirectionalLanguageModel(
-            options_file, weight_file,
-            use_character_inputs=False,
-            embedding_weight_file=embedding_weight_file)
-
-        bilm_prem_ops = Lambda(lambda x: elmo_model(x))(premise_placeholder)
-        bilm_hypo_ops = Lambda(lambda x: elmo_model(x))(hypothesis_placeholder)
-
-        # TODO(tomwesolowski): Set optional arguments according to paper.
-        lambda_weight_layers = Lambda(lambda x: weight_layers('before_lstm', x, l2_coef=0.0)['weighted_op'],
-                                      output_shape=(config['sentence_max_length'], 1024,))
-        elmo_p = lambda_weight_layers(bilm_prem_ops)
-        elmo_h = lambda_weight_layers(bilm_hypo_ops)
+        print("embed_p", K.int_shape(embed_p))
+        print("elmo_p", K.int_shape(elmo_p))
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])
@@ -128,14 +117,9 @@ def esim(config, data):
     hypothesis_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(hypothesis_mask_input)
 
     if config['use_elmo']:
-        # TODO(tomwesolowski): Set optional arguments according to paper.
-        lambda_weight_after_layers = Lambda(lambda x: weight_layers('after_lstm', x, l2_coef=0.0)['weighted_op'],
-                                            output_shape=(config['sentence_max_length'], 1024,))
-        elmo_after_p = lambda_weight_after_layers(bilm_prem_ops)
-        elmo_after_h = lambda_weight_after_layers(bilm_hypo_ops)
+        elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_input], weight_name="after_lstm")
+        elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_input], weight_name="after_lstm")
 
-        assert elmo_after_p is not None
-        assert elmo_after_h is not None
         embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
 
@@ -312,6 +296,8 @@ def esim(config, data):
                                                 clipnorm=config["clip_gradient_norm"]),
                       loss='categorical_crossentropy', metrics=['accuracy'])
 
-    # print((model.summary()))
+    print(model.summary())
+    if config['use_elmo']:
+        elmo_embed.load_weights()
 
     return model

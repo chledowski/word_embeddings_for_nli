@@ -224,8 +224,10 @@ def retrieve_and_pad_snli(retrieval, example):
     return [defs, def_mask, s1_def_map, s2_def_map]
 
 
-def digitize_elmo(source, batcher, data):
-    return batcher.batch_sentences(data[source])
+def digitize_elmo(batcher, data):
+    s1, s1_lemma, s2, s2_lemma, label = data
+    return [batcher.batch_sentences(s1),
+            batcher.batch_sentences(s2)]
 
 
 def digitize(vocab, source_data):
@@ -436,11 +438,8 @@ class NLIData(Data):
         if not raw_text:
             if self.config['use_elmo']:
                 stream = FixedMapping(stream,
-                                      functools.partial(digitize_elmo, 'sentence1', self.batcher),
-                                      add_sources=('sentence1_elmo', ))
-                stream = FixedMapping(stream,
-                                      functools.partial(digitize_elmo, 'sentence2', self.batcher),
-                                      add_sources=('sentence2_elmo', ))
+                                      functools.partial(digitize_elmo, self.batcher),
+                                      add_sources=('sentence1_elmo', 'sentence2_elmo'))
             stream = SourcewiseMapping(stream, functools.partial(digitize, self.vocab),
                                        which_sources=('sentence1', 'sentence2'))
             stream = SourcewiseMapping(stream, functools.partial(surround_sentence, self.vocab),
