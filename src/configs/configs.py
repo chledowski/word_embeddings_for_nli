@@ -4,15 +4,17 @@ from src.util.vegab import ConfigRegistry
 baseline_configs = ConfigRegistry()
 
 baseline_configs['bilstm'] = {
-    'dataset': 'snli',
-    'n_labels': 3,
     'model': 'bilstm',
-    'n_layers': 3,
     'batch_sizes': {
         'snli': {
-            'train': 91,
+            'train': 32,
             'dev': 133,
             'test': 307
+        },
+        'mnli': {
+            'train': 32,
+            'dev': 65,
+            'test': 8
         },
         'breaking': {
             'test': 3
@@ -21,9 +23,16 @@ baseline_configs['bilstm'] = {
     'shuffle': {
         'snli': {
             'train': True,
+        },
+        'mnli': {
+            'train': True,
         }
     },
+    'dataset': 'snli',
     'early_stopping': True,
+    'elmo_dir': 'elmo',
+    'n_labels': 3,
+    'n_layers': 0,
     'n_epochs': 40,
     'batch_normalization': True,
     'dropout': 0.1,
@@ -39,9 +48,19 @@ baseline_configs['bilstm'] = {
     'normalize': False,
     'norm_weight': False,
     'embedding_dim': 300,
-    'embedding_name': 'cos',
-    'train_embeddings': True,
-    'train_on_fraction': 1.0
+    'embedding_name': 'gcc840',
+    'train_embeddings': False,
+    'train_on_fraction': 1.0,
+    'seed': 1,
+    'sentence_max_length': 90,
+    'save_best_model': True,
+    'save_model': False,
+    'steps_per_epoch_scale': 1.0,
+    'fullkim': False,
+    'useatrick': 0,
+    'useitrick': 0,
+    'usectrick': 0,
+    'use_elmo': False,
 }
 
 baseline_configs['cbow'] = {
@@ -68,7 +87,7 @@ baseline_configs['cbow'] = {
     'n_epochs': 40,
     'batch_normalization': False,
     'dropout': 0.1,
-    'sentence_max_length': 100,
+    'sentence_max_length': 90,
     'optimizer': 'rmsprop',
     'learning_rate': 10000,
     'lr_schedule': '[[1000, 0.001]]',
@@ -127,6 +146,8 @@ baseline_configs['esim'] = {
     'intersection_of_embedding_dicts': False,
     'knowledge_after_lstm': 'none',
     'learning_rate': 0.0004,
+    'l2_elmo_regularization': 0.0,
+    'l2_weight_regularization': 0.0,
     'lr_schedule': '[[1000, 0.0004]]',
     'lr_schedule_type': 'reduce_on_plateau',
     'model': 'esim',

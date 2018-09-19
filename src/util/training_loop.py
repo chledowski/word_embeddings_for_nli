@@ -176,7 +176,8 @@ def baseline_training_loop(model, dataset, streams,
             H['easy'].append(eval_on_dataset(model, dset='easy', confidency='0.45'))
             H['hard'].append(eval_on_dataset(model, dset='hard', confidency='0.45'))
         pd.DataFrame(H).to_csv(os.path.join(save_path, "easy_hard_dataset_acc.csv"), index=False)
-    callbacks.append(LambdaCallback(on_epoch_end=easy_hard_dset))
+
+    # callbacks.append(LambdaCallback(on_epoch_end=easy_hard_dset))
 
     #lr schedule
     if config["lr_schedule_type"] != "none":

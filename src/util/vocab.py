@@ -92,7 +92,6 @@ class Vocabulary(object):
                     words_and_freqs.append((word, freq))
         else:
             words_and_freqs = path_or_data
-        time.sleep(10)
 
         self._id_to_word = []
         self._id_to_freq = []

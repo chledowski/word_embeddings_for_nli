@@ -31,13 +31,12 @@ from src.models.bilm.model import BidirectionalLanguageModel
 
 logger = logging.getLogger(__name__)
 
+
 def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
     embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
-
-    elmo_embed = ElmoEmbeddings(config)
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
@@ -56,18 +55,28 @@ def esim(config, data):
     logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
     # 1, Embedding the input and project the embeddings
-    premise = Input(shape=(config["sentence_max_length"],), dtype='int32')
-    premise_mask_input = Input(shape=(config["sentence_max_length"],), dtype='float32')
-    hypothesis = Input(shape=(config["sentence_max_length"],), dtype='int32')
-    hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='float32')
-    KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
-    KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32')
+    premise = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise')
+    premise_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_mask_input')
+    hypothesis = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis')
+    hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis_mask_input')
+    KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBph')
+    KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBhp')
 
     if config['use_elmo']:
+        elmo_embed = ElmoEmbeddings(config)
         # premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
         # hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
-        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32')
-        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32')
+        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
+        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32',
+                                      name='hypothesis_elmo_input')
+
+    premise_mask = Lambda(lambda x: K.cast(x, 'float32'))(premise_mask_input)
+    hypothesis_mask = Lambda(lambda x: K.cast(x, 'float32'))(hypothesis_mask_input)
+
+    # [-1, Psize, 1]
+    premise_mask_exp = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask)
+    # [-1, Hsize, 1]
+    hypothesis_mask_exp = Lambda(lambda x: K.expand_dims(x, axis=-1))(hypothesis_mask)
 
     a_lambda = config['a_lambda']
     KBatt = Lambda(lambda x: a_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
@@ -76,11 +85,12 @@ def esim(config, data):
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     if config['use_elmo']:
-        elmo_p = elmo_embed([premise_elmo_input, premise_mask_input], weight_name="before_lstm")
-        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_input], weight_name="before_lstm")
-
-        print("embed_p", K.int_shape(embed_p))
-        print("elmo_p", K.int_shape(elmo_p))
+        # TODO(tomwesolowski): Elmo - add L2 regularization with coef. 0.0001 to all layers
+        # TODO(tomwesolowski): Elmo - add 50% dropout after attention layer
+        # TODO(tomwesolowski): Elmo - add L2 reg. on elmo embeddings to the loss with coef. 0.001
+        # TODO(tomwesolowski): Elmo - clip_gradient_norm=5.0
+        elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm")
+        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm")
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])
@@ -94,41 +104,44 @@ def esim(config, data):
         embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
         embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
 
+    # TODO(tomwesolowski): Elmo - change to variational dropout
     # FIX(tomwesolowski): Add dropout
     embed_p = Dropout(config["dropout"])(embed_p)
     embed_h = Dropout(config["dropout"])(embed_h)
 
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
-        CuDNNLSTM(units=config["embedding_dim"],
-             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-             kernel_initializer=Orthogonal(seed=config["seed"]),
-             recurrent_initializer=Orthogonal(seed=config["seed"]),
-             return_sequences=True)
+        CuDNNLSTM(
+            units=config["embedding_dim"],
+            # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+            kernel_initializer=Orthogonal(seed=config["seed"]),
+            recurrent_initializer=Orthogonal(seed=config["seed"]),
+            recurrent_regularizer=l2(config["l2_weight_regularization"]),
+            bias_regularizer=l2(config["l2_weight_regularization"]),
+            return_sequences=True)
     )
 
     # FIX(tomwesolowski): Remove dropout
     embed_p = bilstm_encoder(embed_p)
     embed_h = bilstm_encoder(embed_h)
 
-    # [-1, Psize, 1]
-    premise_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask_input)
-    # [-1, Hsize, 1]
-    hypothesis_mask = Lambda(lambda x: K.expand_dims(x, axis=-1))(hypothesis_mask_input)
-
     if config['use_elmo']:
-        elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_input], weight_name="after_lstm")
-        elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_input], weight_name="after_lstm")
+        elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm")
+        elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="post_lstm")
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
 
-    embed_p = Multiply()([embed_p, premise_mask])
-    embed_h = Multiply()([embed_h, hypothesis_mask])
+    embed_p = Multiply()([embed_p, premise_mask_exp])
+    embed_h = Multiply()([embed_h, hypothesis_mask_exp])
 
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
     Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
+
+    if config['use_elmo']:
+        # TODO(tomwesolowski): Double check if properly implemented.
+        Eph = Dropout(config["dropout"])(Eph)
 
     # # FIX(tomwesolowski): Add attention lambda to words in relation
     if config['useatrick'] or config['fullkim']:
@@ -189,6 +202,8 @@ def esim(config, data):
               # FIX(tomwesolowski): Remove regularizers
               # FIX(tomwesolowski): Add initializer
               kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+              kernel_regularizer=l2(config["l2_weight_regularization"]),
+              bias_regularizer=l2(config["l2_weight_regularization"]),
               activation='relu'),
         name='translate')
 
@@ -206,23 +221,26 @@ def esim(config, data):
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
-        CuDNNLSTM(units=300,
-                 # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-                 kernel_initializer=Orthogonal(seed=config["seed"]),
-                 recurrent_initializer=Orthogonal(seed=config["seed"]),
-                 return_sequences=True),
-            name='finaldecoder')  # [-1,2*units]
+        CuDNNLSTM(
+            units=300,
+            # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
+            kernel_initializer=Orthogonal(seed=config["seed"]),
+            recurrent_initializer=Orthogonal(seed=config["seed"]),
+            recurrent_regularizer=l2(config["l2_weight_regularization"]),
+            bias_regularizer=l2(config["l2_weight_regularization"]),
+            return_sequences=True),
+        name='finaldecoder')  # [-1,2*units]
 
     final_p = bilstm_decoder(PremAlign)  # [-1, Psize, 600]
     final_h = bilstm_decoder(HypoAlign)  # [-1, Hsize, 600]
 
-    final_p = Multiply()([final_p, premise_mask])
-    final_h = Multiply()([final_h, hypothesis_mask])
+    final_p = Multiply()([final_p, premise_mask_exp])
+    final_h = Multiply()([final_h, hypothesis_mask_exp])
 
     AveragePooling = Lambda(lambda x: K.sum(x[0], axis=1) / K.sum(x[1], axis=-1, keepdims=True))  # outs [-1, dim]
     MaxPooling = Lambda(lambda x: K.max(x, axis=1))  # outs [-1, dim]
-    avg_p = AveragePooling([final_p, premise_mask_input])
-    avg_h = AveragePooling([final_h, hypothesis_mask_input])
+    avg_p = AveragePooling([final_p, premise_mask])
+    avg_h = AveragePooling([final_h, hypothesis_mask])
     max_p = MaxPooling(final_p)
     max_h = MaxPooling(final_h)
 
@@ -243,8 +261,10 @@ def esim(config, data):
         weight_aw_p = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_p)  # [-1, Psize]
         weight_aw_h = Lambda(lambda x: K.squeeze(x, axis=-1))(weight_aw_h)  # [-1, Hsize]
 
-        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))([weight_aw_p, premise_mask_input])
-        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))([weight_aw_h, hypothesis_mask_input])
+        weight_aw_p = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))(
+            [weight_aw_p, premise_mask])
+        weight_aw_h = Lambda(lambda x: x[1] * (K.exp(x[0] - K.max(x[0], axis=1, keepdims=True))))(
+            [weight_aw_h, hypothesis_mask])
 
         weight_aw_p = Lambda(lambda x: x / K.sum(x, axis=1, keepdims=True))(weight_aw_p)
         weight_aw_h = Lambda(lambda x: x / K.sum(x, axis=1, keepdims=True))(weight_aw_h)
@@ -260,6 +280,8 @@ def esim(config, data):
                   # FIX(tomwesolowski): Remove regularizers
                   # FIX(tomwesolowski): Add initializer
                   kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+                  kernel_regularizer=l2(config["l2_weight_regularization"]),
+                  bias_regularizer=l2(config["l2_weight_regularization"]),
                   # FIX(tomwesolowski): Add tanh activation
                   activation='tanh',
                   name='dense300_' + config["dataset"])(Final)
@@ -267,6 +289,8 @@ def esim(config, data):
     Final = Dense(3,
                   # FIX(tomwesolowski): Add initializer
                   kernel_initializer=ScaledRandomNormal(stddev=1.0, scale=0.01),
+                  kernel_regularizer=l2(config["l2_weight_regularization"]),
+                  bias_regularizer=l2(config["l2_weight_regularization"]),
                   activation='softmax',
                   name='judge300_' + config["dataset"])(Final)
 
@@ -280,24 +304,32 @@ def esim(config, data):
 
     model = Model(inputs=model_input, outputs=Final)
 
+    def elmo_loss(y_true, y_pred):
+        elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
+        return (K.categorical_crossentropy(y_true, y_pred) +
+                config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
+
+    if config['use_elmo']:
+        loss = elmo_loss
+    else:
+        loss = 'categorical_crossentropy'
+
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"],
                                                    clipnorm=config["clip_gradient_norm"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+                      loss=loss, metrics=['accuracy'])
 
     elif config["optimizer"] == 'sgd':
         model.compile(optimizer=optimizers.SGD(lr=config["learning_rate"],
                                                momentum=0.9,
                                                clipnorm=config["clip_gradient_norm"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+                      loss=loss, metrics=['accuracy'])
 
     elif config["optimizer"] == 'adam':
         model.compile(optimizer=optimizers.Adam(lr=config["learning_rate"],
                                                 clipnorm=config["clip_gradient_norm"]),
-                      loss='categorical_crossentropy', metrics=['accuracy'])
+                      loss=loss, metrics=['accuracy'])
 
     print(model.summary())
-    if config['use_elmo']:
-        elmo_embed.load_weights()
 
     return model
