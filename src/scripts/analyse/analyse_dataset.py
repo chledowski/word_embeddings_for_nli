@@ -17,7 +17,6 @@ from tensorflow import set_random_seed
 
 
 def eval_on_dataset(model, dset = 'easy', confidency = '0.45', dataset = None):
-
     if dataset is None:
         if dset == 'easy':
             dataset = dd.io.load('results/easy_dataset_%s.json' % confidency)

@@ -110,11 +110,16 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         if len(batch) not in [7, 9]:
                             raise ValueError("Expected 7 or 9 elements in batch. Got %d" % len(batch))
 
+                        use_external_knowledge = (
+                                config['useitrick'] or
+                                config['useatrick'] or
+                                config['usectrick'] or
+                                config['fullkim'])
+
                         if config['use_elmo']:
                             x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y, x1_elmo, x2_elmo = batch
                         else:
                             x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
-
 
                         def _pad(x):
                             return pad_sequences(x, maxlen=config['sentence_max_length'],
@@ -131,7 +136,7 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
 
                         model_input = [x1, x1_mask, x2, x2_mask]
 
-                        if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
+                        if use_external_knowledge:
                             kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
                             model_input += [kb_x, kb_y]
 

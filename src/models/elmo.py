@@ -16,6 +16,8 @@ from keras.layers import Add, Subtract, Dense, Dropout, Input, TimeDistributed, 
 
 from src import DATA_DIR
 
+DTYPE = 'float32'
+
 
 class LSTMCellWithClippingAndProjection(Layer):
     def __init__(self, units,
@@ -24,6 +26,7 @@ class LSTMCellWithClippingAndProjection(Layer):
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
+                 projection_initializer='zeros',
                  bias_initializer='zeros',
                  unit_forget_bias=True,
                  kernel_regularizer=None,
@@ -50,6 +53,7 @@ class LSTMCellWithClippingAndProjection(Layer):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.recurrent_initializer = initializers.get(recurrent_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
+        self.projection_initializer = initializers.get(projection_initializer)
         self.unit_forget_bias = unit_forget_bias
 
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
@@ -89,7 +93,7 @@ class LSTMCellWithClippingAndProjection(Layer):
             self.projection_kernel = self.add_weight(
                 shape=(self.units, self.projection_dim),
                 name='projection_kernel',
-                initializer=self.kernel_initializer,
+                initializer=self.projection_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint)
 
@@ -241,6 +245,7 @@ class LSTMWithClippingAndProjection(LSTM):
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
                  bias_initializer='zeros',
+                 projection_initializer='zeros',
                  unit_forget_bias=True,
                  kernel_regularizer=None,
                  recurrent_regularizer=None,
@@ -280,6 +285,7 @@ class LSTMWithClippingAndProjection(LSTM):
                                                  use_bias=use_bias,
                                                  kernel_initializer=kernel_initializer,
                                                  recurrent_initializer=recurrent_initializer,
+                                                 projection_initializer=projection_initializer,
                                                  unit_forget_bias=unit_forget_bias,
                                                  bias_initializer=bias_initializer,
                                                  kernel_regularizer=kernel_regularizer,
@@ -325,7 +331,10 @@ class ElmoEmbeddings(Layer):
         self.proj_clip = self.options['lstm'].get('proj_clip')
         self.use_skip_connections = self.options['lstm']['use_skip_connections']
 
-        with h5py.File(os.path.join(self.elmo_dir, 'elmo_token_embeddings.hdf5'), 'r') as fin:
+        self.embedding_weight_file = os.path.join(self.elmo_dir, 'elmo_token_embeddings.hdf5')
+        self.weight_file = os.path.join(self.elmo_dir, 'lm_weights.hdf5')
+
+        with h5py.File(self.embedding_weight_file, 'r') as fin:
             self.vocab_size, self.embedding_dim = fin['embedding'].shape
 
     @property
@@ -347,11 +356,77 @@ class ElmoEmbeddings(Layer):
                 nontrainables.extend(sublayer.trainable_weights)
         return nontrainables
 
-    def compute_output_shape(self, input_shape):
-        return input_shape[0] + (2*self.projection_dim,)
+    def compute_output_shape(self, input_shapes):
+        return input_shapes[0] + (2*self.projection_dim,)
 
-    def _load_embedding_weights(self):
-        with h5py.File(os.path.join(self.elmo_dir, 'elmo_token_embeddings.hdf5'), 'r') as fin:
+    def _custom_getter(self, getter, name, *args, **kwargs):
+        print("_custom_getter:", name)
+        kwargs['trainable'] = False
+        # kwargs['initializer'] = self._pretrained_initializer(
+        #     name, self.weight_file, self.embedding_weight_file
+        # )
+        return getter(name, *args, **kwargs)
+
+    def _pretrained_initializer(self, varname, weight_file, embedding_weight_file=None):
+        '''
+        We'll stub out all the initializers in the pretrained LM with
+        a function that loads the weights from the file
+        '''
+
+        weight_name_map = {}
+        for i in range(2):
+            for j in range(8):  # if we decide to add more layers
+                root = 'RNN_{}/RNN/MultiRNNCell/Cell{}'.format(i, j)
+                weight_name_map[root + '/rnn/lstm_cell/kernel'] = \
+                    root + '/LSTMCell/W_0'
+                weight_name_map[root + '/rnn/lstm_cell/bias'] = \
+                    root + '/LSTMCell/B'
+                weight_name_map[root + '/rnn/lstm_cell/projection/kernel'] = \
+                    root + '/LSTMCell/W_P_0'
+
+        # convert the graph name to that in the checkpoint
+        varname_in_file = varname[5:]
+        if varname_in_file.startswith('RNN'):
+            varname_in_file = weight_name_map[varname_in_file]
+
+        if varname_in_file == 'embedding':
+            with h5py.File(embedding_weight_file, 'r') as fin:
+                # Have added a special 0 index for padding not present
+                # in the original model.
+                embed_weights = fin[varname_in_file][...]
+                weights = np.zeros(
+                    (embed_weights.shape[0] + 1, embed_weights.shape[1]),
+                    dtype=DTYPE
+                )
+                weights[1:, :] = embed_weights
+        else:
+            with h5py.File(weight_file, 'r') as fin:
+                if varname_in_file == 'char_embed':
+                    # Have added a special 0 index for padding not present
+                    # in the original model.
+                    char_embed_weights = fin[varname_in_file][...]
+                    weights = np.zeros(
+                        (char_embed_weights.shape[0] + 1,
+                         char_embed_weights.shape[1]),
+                        dtype=DTYPE
+                    )
+                    weights[1:, :] = char_embed_weights
+                else:
+                    weights = fin[varname_in_file][...]
+
+        def ret(shape, **kwargs):
+            if list(shape) != list(weights.shape):
+                raise ValueError(
+                    "Invalid shape initializing {0}, got {1}, expected {2}".format(
+                        varname_in_file, shape, weights.shape)
+                )
+            return weights
+
+        return ret
+
+    def _load_embedding_weights(self, shape):
+        print("loading embeddings...")
+        with h5py.File(self.embedding_weight_file, 'r') as fin:
             # Have added a special 0 index for padding not present
             # in the original model.
             embed_weights = fin['embedding'][...]
@@ -363,17 +438,30 @@ class ElmoEmbeddings(Layer):
             weights[1:, :] = embed_weights
         return weights
 
-    def print_weights_shapes(self):
+    def _load_lstm_weights(self, i_layer, i_dir, weight):
+        with h5py.File(self.weight_file, 'r') as fin:
+            prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
+            weights = {
+                'kernel': fin[prefix + 'W_0'][:self.embedding_dim],  # kernel
+                'recurrent': fin[prefix + 'W_0'][self.embedding_dim:],  # recurrent kernel
+                'projection': fin[prefix + 'W_P_0'][...],  # projection
+                'bias': fin[prefix + 'B'][...]  # bias
+            }
+
+            def _initializer(shape):
+                return K.variable(weights[weight], dtype=DTYPE)
+
+            return _initializer
+
+    def _print_weights_shapes(self):
         for weight in self.lstms['forward'][0].get_weights():
             print(weight.shape)
 
-    def load_weights(self):
+    def load_all_weights(self):
         embedding_weights = self._load_embedding_weights()
         self.embed.set_weights([embedding_weights])
 
-        weight_file = os.path.join(self.elmo_dir, 'lm_weights.hdf5')
-
-        with h5py.File(weight_file, 'r') as fin:
+        with h5py.File(self.weight_file, 'r') as fin:
             for i_layer in range(self.num_layers):
                 for i_dir, direction in enumerate(['forward', 'backward']):
                     prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
@@ -387,45 +475,72 @@ class ElmoEmbeddings(Layer):
     def build(self, input_shapes):
         self.sublayers = []
 
-        self.embed = Embedding(self.vocab_size + 1,
-                               self.embedding_dim,
-                               input_length=self.config["sentence_max_length"],
-                               trainable=False,
-                               mask_zero=False)
-        self.sublayers.append(self.embed)
-        self.lstms = {}
+        with tf.variable_scope('', custom_getter=self._custom_getter):
+            self.embed = Embedding(self.vocab_size + 1,
+                                   self.embedding_dim,
+                                   input_length=self.config["sentence_max_length"],
+                                   trainable=False,
+                                   embeddings_initializer=self._load_embedding_weights,
+                                   mask_zero=False)
+            self.sublayers.append(self.embed)
+            self.lstms = {}
 
-        for direction in ['forward', 'backward']:
-            self.lstms[direction] = []
-            for i in range(self.num_layers):
-                lstm = LSTMWithClippingAndProjection(
-                        recurrent_initializer='zeros',
-                        recurrent_activation='sigmoid',
-                        units=self.lstm_dim,
-                        return_sequences=True,
-                        cell_clip=self.cell_clip,
-                        projection_dim=self.projection_dim,
-                        proj_clip=self.proj_clip,
-                        go_backwards=direction == 'backward',
-                        trainable=False
-                )
-                self.lstms[direction].append(lstm)
-                self.sublayers.append(lstm)
+            for i_dir, direction in enumerate(['forward', 'backward']):
+                self.lstms[direction] = []
+                for i_layer in range(self.num_layers):
+                    lstm_initializer = functools.partial(self._load_lstm_weights, i_layer, i_dir)
+                    lstm = LSTMWithClippingAndProjection(
+                            recurrent_initializer=lstm_initializer('recurrent'),
+                            bias_initializer=lstm_initializer('bias'),
+                            kernel_initializer=lstm_initializer('kernel'),
+                            projection_initializer=lstm_initializer('projection'),
+                            recurrent_activation='sigmoid',
+                            units=self.lstm_dim,
+                            return_sequences=True,
+                            cell_clip=self.cell_clip,
+                            projection_dim=self.projection_dim,
+                            proj_clip=self.proj_clip,
+                            go_backwards=direction == 'backward',
+                            unit_forget_bias=False,
+                            trainable=False
+                    )
+                    self.lstms[direction].append(lstm)
+                    self.sublayers.append(lstm)
+
+        weight_embeddings_stages = [
+            'pre_lstm', 'post_lstm'
+        ]
+
+        self.embeddings_weights = {}
+        self.gammas = {}
+        for stage in weight_embeddings_stages:
+            self.embeddings_weights[stage] = self.add_weight(
+                name='{}_ELMo_W'.format(stage),
+                shape=(self.num_layers + 1,),
+                initializer='zeros',
+                # TODO(tomwesolowski): Add regularizer.
+                trainable=True,
+            )
+            self.gammas[stage] = self.add_weight(
+                name='{}_ELMo_gamma'.format(stage),
+                shape=(1,),
+                initializer='ones',
+                regularizer=None,
+                trainable=True,
+            )
 
         self.built = True
 
-    def call(self, inputs, weight_name, **kwargs):
-        # TODO(chledows): add charcnn and finetuning.
-        # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
-        input_embeddings, mask = inputs
+    def _get_embeddings(self, inputs):
+        input_embeddings = inputs
         input_embeddings = self.embed(input_embeddings)
+
         elmo_embeddings = {}
-        print("num_layers", self.num_layers)
         for direction in ['forward', 'backward']:
             input = input_embeddings
             elmo_embeddings[direction] = [input]
             for i in range(self.num_layers):
-                output = self.lstms[direction][i](input)  # [-1, maxlen, lstm_dim]
+                output = self.lstms[direction][i](input)  # [-1, maxlen, projection_dim]
                 if i > 0 and self.use_skip_connections:
                     # Residual connection between between first hidden and output layer.
                     input = Lambda(lambda x: x[0] + x[1])([input, output])
@@ -434,121 +549,171 @@ class ElmoEmbeddings(Layer):
                 elmo_embeddings[direction].append(input)  # [-1, maxlen, projection_dim]
 
         elmo_embeddings_both = []
-        for forward_layer, backward_layer in zip(elmo_embeddings['forward'], elmo_embeddings['backward']):
-            forward_layer = Lambda(lambda x: K.expand_dims(x, axis=1))(forward_layer)  # [-1, 1, maxlen, projection_dim]
-            backward_layer = Lambda(lambda x: K.expand_dims(x, axis=1))(backward_layer)
+        for i, (forward_layer, backward_layer) in enumerate(
+                zip(elmo_embeddings['forward'], elmo_embeddings['backward'])):
+            forward_layer_exp = Lambda(lambda x: K.expand_dims(x, axis=1),
+                                       name='expand_forward_%d' % i)(forward_layer)  # [-1, 1, maxlen, projection_dim]
+            backward_layer_exp = Lambda(lambda x: K.expand_dims(x, axis=1),
+                                        name='expand_backward_%d' % i)(backward_layer)
             elmo_embeddings_both.append(
-                Concatenate(axis=-1)([forward_layer, backward_layer])  # [-1, 1, maxlen, 2*projection_dim]
+                # [-1, 1, maxlen, 2*projection_dim]
+                Concatenate(name='concat_directions_%d' % i, axis=-1)([forward_layer_exp, backward_layer_exp])
             )
 
-        elmo_embeddings_concat = Concatenate(axis=1)(elmo_embeddings_both)  # [-1, num_layers, maxlen, 2*projection_dim]
-        weight_layers_fn = functools.partial(self.weight_layers, weight_name)
-        return Lambda(lambda x: weight_layers_fn(x)['weighted_op'])(
-            [elmo_embeddings_concat, mask]
+        # [-1, num_layers, maxlen, 2*projection_dim]
+        return Concatenate(name='concat_layers', axis=1)(elmo_embeddings_both)
+
+    def _normalize_embeddings(self, all_embeddings, mask):
+        # embeddings: [-1, num_layers+1, maxlen, 2*proj_dim]
+        # mask: [-1, maxlen, 1]
+
+        separate_embeddings = tf.split(all_embeddings, self.num_layers + 1, axis=1)
+        means = []
+        variances = []
+
+        for x in separate_embeddings:
+            x = tf.squeeze(x, axis=1)
+            x_masked = x * mask  # [-1, maxlen, 1024]
+            num_mask = tf.reduce_sum(mask, axis=[1, 2])  # [-1]
+            mean = tf.reduce_sum(x_masked, axis=[1, 2]) / num_mask  # [-1]
+            mean = K.expand_dims(K.expand_dims(mean))  # [-1, 1, 1]
+            variance = tf.reduce_sum(((x_masked - mean) * mask) ** 2, axis=[1, 2]) / num_mask
+            variance = K.expand_dims(K.expand_dims(variance))  # [-1, 1, 1]
+            means.append(mean)
+            variances.append(variance)
+
+        return tf.nn.batch_normalization(
+            all_embeddings, tf.stack(means, axis=1), tf.stack(variances, axis=1), None, None, 1E-12
         )
 
-    def weight_layers(self, name, lm_embeddings_and_mask, l2_coef=None,
-                      use_top_only=False, do_layer_norm=False):
-        '''
-        Weight the layers of a biLM with trainable scalar weights to
-        compute ELMo representations.
-        For each output layer, this returns two ops.  The first computes
-            a layer specific weighted average of the biLM layers, and
-            the second the l2 regularizer loss term.
-        The regularization terms are also add to tf.GraphKeys.REGULARIZATION_LOSSES
-        Input:
-            name = a string prefix used for the trainable variable names
-            bilm_ops = the tensorflow ops returned to compute internal
-                representations from a biLM.  This is the return value
-                from BidirectionalLanguageModel(...)(ids_placeholder)
-            l2_coef: the l2 regularization coefficient $\lambda$.
-                Pass None or 0.0 for no regularization.
-            use_top_only: if True, then only use the top layer.
-            do_layer_norm: if True, then apply layer normalization to each biLM
-                layer before normalizing
-        Output:
-            {
-                'weighted_op': op to compute weighted average for output,
-                'regularization_op': op to compute regularization term
-            }
-        '''
-        lm_embeddings, mask = lm_embeddings_and_mask
+    def _weight_embeddings(self, embeddings, mask, stage):
+        normed_weights = Lambda(
+            lambda weights: tf.nn.softmax(weights))(self.embeddings_weights[stage])
+        # [-1, -1, layers, 1]
+        normed_weights_exp = Lambda(lambda x: K.expand_dims(K.expand_dims(K.expand_dims(x)), axis=0))(normed_weights)
 
-        def _l2_regularizer(weights):
-            if l2_coef is not None:
-                return l2_coef * tf.reduce_sum(tf.square(weights))
-            else:
-                return tf.constant(0.0)
+        normed_embeddings = Lambda(lambda x: self._normalize_embeddings(x[0], x[1]))([embeddings, mask])
 
-        n_lm_layers = int(lm_embeddings.get_shape()[1])
-        lm_dim = int(lm_embeddings.get_shape()[3])
+        weighted_embeddings = Multiply()([normed_weights_exp, normed_embeddings])
+        weighted_embeddings = Lambda(lambda x: K.sum(x, axis=1))(weighted_embeddings)
 
-        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-            with tf.control_dependencies([lm_embeddings, mask]):
-                # Cast the mask and broadcast for layer use.
-                mask_float = tf.cast(mask, 'float32')
-                broadcast_mask = tf.expand_dims(mask_float, axis=-1)
+        gamma = self.gammas[stage]
+        weighted_embeddings = Lambda(lambda x: gamma * x)(weighted_embeddings)
+        return weighted_embeddings
 
-                def _do_ln(x):
-                    # do layer normalization excluding the mask
-                    x_masked = x * broadcast_mask
-                    N = tf.reduce_sum(mask_float) * lm_dim
-                    mean = tf.reduce_sum(x_masked) / N
-                    variance = tf.reduce_sum(((x_masked - mean) * broadcast_mask) ** 2
-                                             ) / N
-                    return tf.nn.batch_normalization(
-                        x, mean, variance, None, None, 1E-12
-                    )
+    def call(self, inputs, stage, **kwargs):
+        # TODO(chledows): add charcnn and finetuning.
+        # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
+        embeddings, mask = inputs
+        elmo_embeddings = self._get_embeddings(embeddings)
+        return self._weight_embeddings(elmo_embeddings, mask, stage)
 
-                if use_top_only:
-                    layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
-                    # just the top layer
-                    sum_pieces = tf.squeeze(layers[-1], squeeze_dims=1)
-                    # no regularization
-                    reg = 0.0
-                else:
-                    W = self.add_weight(
-                        name='{}_ELMo_W'.format(name),
-                        shape=(n_lm_layers,),
-                        initializer='zeros',
-                        regularizer=_l2_regularizer,
-                        trainable=True,
-                    )
-                    # get the regularizer
-                    reg = self._losses[-1]
-
-                    # normalize the weights
-                    normed_weights = tf.split(
-                        tf.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
-                    )
-                    # split LM layers
-                    layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
-
-                    # compute the weighted, normalized LM activations
-                    pieces = []
-                    for w, t in zip(normed_weights, layers):
-                        if do_layer_norm:
-                            pieces.append(w * _do_ln(tf.squeeze(t, squeeze_dims=1)))
-                        else:
-                            pieces.append(w * tf.squeeze(t, squeeze_dims=1))
-                    sum_pieces = tf.add_n(pieces)
-
-
-                # scale the weighted sum by gamma
-                gamma = self.add_weight(
-                    name='{}_ELMo_gamma'.format(name),
-                    shape=(1,),
-                    initializer='ones',
-                    regularizer=None,
-                    trainable=True,
-                )
-                weighted_lm_layers = sum_pieces * gamma
-
-                print(K.int_shape(weighted_lm_layers))
-
-                ret = {'weighted_op': weighted_lm_layers, 'regularization_op': reg}
-
-        return ret
+    # def weight_layers(self, name, lm_embeddings, l2_coef=None,
+    #                   use_top_only=False, do_layer_norm=False):
+    #     '''
+    #     Weight the layers of a biLM with trainable scalar weights to
+    #     compute ELMo representations.
+    #     For each output layer, this returns two ops.  The first computes
+    #         a layer specific weighted average of the biLM layers, and
+    #         the second the l2 regularizer loss term.
+    #     The regularization terms are also add to tf.GraphKeys.REGULARIZATION_LOSSES
+    #     Input:
+    #         name = a string prefix used for the trainable variable names
+    #         bilm_ops = the tensorflow ops returned to compute internal
+    #             representations from a biLM.  This is the return value
+    #             from BidirectionalLanguageModel(...)(ids_placeholder)
+    #         l2_coef: the l2 regularization coefficient $\lambda$.
+    #             Pass None or 0.0 for no regularization.
+    #         use_top_only: if True, then only use the top layer.
+    #         do_layer_norm: if True, then apply layer normalization to each biLM
+    #             layer before normalizing
+    #     Output:
+    #         {
+    #             'weighted_op': op to compute weighted average for output,
+    #             'regularization_op': op to compute regularization term
+    #         }
+    #     '''
+    #     # lm_embeddings = lm_embeddings_and_mask[0]
+    #     # mask = lm_embeddings_and_mask[1]
+    #     print("lm_embeddings", K.int_shape(lm_embeddings))
+    #     # print("mask", K.int_shape(mask))
+    #
+    #     def _l2_regularizer(weights):
+    #         if l2_coef is not None:
+    #             return l2_coef * tf.reduce_sum(tf.square(weights))
+    #         else:
+    #             return tf.constant(0.0)
+    #
+    #     n_lm_layers = int(lm_embeddings.get_shape()[1]) # 3
+    #     lm_dim = int(lm_embeddings.get_shape()[3]) # 1024
+    #
+    #     with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+    #         with tf.control_dependencies([lm_embeddings]):
+    #             # Cast the mask and broadcast for layer use.
+    #             # mask_float = tf.cast(mask, 'float32', name='mask_float')
+    #             # broadcast_mask = tf.expand_dims(mask_float, axis=-1, name='broadcast_mask')
+    #
+    #             def _do_ln(x):
+    #                 # do layer normalization excluding the mask
+    #                 broadcast_mask  #  [-1, maxlen, 1]
+    #                 x_masked = x * broadcast_mask
+    #                 N = tf.reduce_sum(mask_float) * lm_dim # ??
+    #                 mean = tf.reduce_sum(x_masked) / N
+    #                 variance = tf.reduce_sum(((x_masked - mean) * broadcast_mask) ** 2
+    #                                          ) / N
+    #                 return tf.nn.batch_normalization(
+    #                     x, mean, variance, None, None, 1E-12
+    #                 )
+    #
+    #             if use_top_only:
+    #                 layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
+    #                 # just the top layer
+    #                 sum_pieces = tf.squeeze(layers[-1], squeeze_dims=1)
+    #                 # no regularization
+    #                 reg = 0.0
+    #             else:
+    #                 W = self.add_weight(
+    #                     name='{}_ELMo_W'.format(name),
+    #                     shape=(n_lm_layers,),
+    #                     initializer='zeros',
+    #                     regularizer=_l2_regularizer,
+    #                     trainable=True,
+    #                 )
+    #                 # get the regularizer
+    #                 reg = self._losses[-1]
+    #
+    #                 # normalize the weights
+    #                 normed_weights = tf.split(
+    #                     tf.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
+    #                 )
+    #                 # split LM layers
+    #                 layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
+    #
+    #                 # compute the weighted, normalized LM activations
+    #                 pieces = []
+    #                 for w, t in zip(normed_weights, layers):
+    #                     if do_layer_norm:
+    #                         pieces.append(w * _do_ln(tf.squeeze(t, squeeze_dims=1)))
+    #                     else:
+    #                         pieces.append(w * tf.squeeze(t, squeeze_dims=1))
+    #                 sum_pieces = tf.add_n(pieces)
+    #
+    #
+    #             # scale the weighted sum by gamma
+    #             gamma = self.add_weight(
+    #                 name='{}_ELMo_gamma'.format(name),
+    #                 shape=(1,),
+    #                 initializer='ones',
+    #                 regularizer=None,
+    #                 trainable=True,
+    #             )
+    #             weighted_lm_layers = sum_pieces * gamma
+    #
+    #             print(K.int_shape(weighted_lm_layers))
+    #
+    #             ret = {'weighted_op': weighted_lm_layers, 'regularization_op': reg}
+    #
+    #     return ret
 
 
 
