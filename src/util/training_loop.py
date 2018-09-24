@@ -220,6 +220,8 @@ def baseline_training_loop(model, dataset, streams,
 
     logger.info('Training...')
     steps_per_epoch = (config['steps_per_epoch_scale'] * train_num_examples) // train_batch_size
+    if 'steps_per_epoch' in config and config['steps_per_epoch'] > 0:
+        steps_per_epoch = config['steps_per_epoch']
     logger.info('Total steps per epoch: %d' % steps_per_epoch)
 
     _ = model.fit_generator(streams["train"],
@@ -227,6 +229,6 @@ def baseline_training_loop(model, dataset, streams,
                             steps_per_epoch=steps_per_epoch,
                             epochs=n_epochs, verbose=1,
                             validation_data=streams["dev"],
-                            use_multiprocessing=True,
+                            use_multiprocessing=use_multiprocessing,
                             validation_steps=dev_num_examples // dev_batch_size,
                             callbacks=callbacks)

@@ -29,6 +29,8 @@ baseline_configs['bilstm'] = {
         }
     },
     'dataset': 'snli',
+    'dump_elmo': False,
+    'dump_lemma': False,
     'early_stopping': True,
     'elmo_dir': 'elmo',
     'n_labels': 3,
@@ -56,6 +58,7 @@ baseline_configs['bilstm'] = {
     'save_best_model': True,
     'save_model': False,
     'steps_per_epoch_scale': 1.0,
+    'steps_per_epoch': -1,
     'fullkim': False,
     'useatrick': 0,
     'useitrick': 0,

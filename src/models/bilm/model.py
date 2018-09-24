@@ -659,7 +659,7 @@ def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
                                      shape=(None, None, max_word_length)
     )
     model = BidirectionalLanguageModel(options_file, weight_file)
-    ops = model(ids_placeholder)
+    lm_embeddings, mask = model(ids_placeholder)
 
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
@@ -670,7 +670,7 @@ def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
                 sentence = line.strip().split()
                 char_ids = batcher.batch_sentences([sentence])
                 embeddings = sess.run(
-                    ops['lm_embeddings'], feed_dict={ids_placeholder: char_ids}
+                    lm_embeddings, feed_dict={ids_placeholder: char_ids}
                 )
                 ds = fout.create_dataset(
                     '{}'.format(sentence_id),

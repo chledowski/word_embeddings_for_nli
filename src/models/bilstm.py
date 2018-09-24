@@ -61,8 +61,8 @@ def bilstm(config, data):
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     if config['use_elmo']:
-        elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm")
-        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm")
+        elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm", name='p')
+        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm", name='h')
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])

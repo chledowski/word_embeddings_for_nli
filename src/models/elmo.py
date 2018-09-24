@@ -323,6 +323,7 @@ class ElmoEmbeddings(Layer):
         with open(options_file, 'r') as fin:
             self.options = json.load(fin)
 
+        self._elmo_embeddings = dict()
         self.num_layers = 2
         self.lstm_dim = self.options['lstm']['dim']
         self.projection_dim = self.options['lstm']['projection_dim']
@@ -345,6 +346,12 @@ class ElmoEmbeddings(Layer):
         for sublayer in self.sublayers:
             trainables.extend(sublayer.trainable_weights)
         return trainables
+
+    def get_embeddings(self, stage, name):
+        dict_name = '%s_%s' % (stage, name)
+        if dict_name not in self._elmo_embeddings:
+            raise ValueError('Unknown stage: %s' % stage)
+        return self._elmo_embeddings[dict_name]
 
     @property
     def non_trainable_weights(self):
@@ -529,6 +536,36 @@ class ElmoEmbeddings(Layer):
                 trainable=True,
             )
 
+        self.residual_connection = Lambda(lambda x: x[0] + x[1])
+        self.concat_layers = Concatenate(name='concat_layers', axis=1)
+        self.expand_forwards = []
+        self.expand_backwards = []
+        self.concat_directions = []
+
+        self.norm_weights = Lambda(
+            lambda weights: tf.nn.softmax(weights))
+
+        self.expand_normed_weights = Lambda(
+            lambda x: K.expand_dims(K.expand_dims(K.expand_dims(x)), axis=0))
+
+        self.normalize_embeddings = Lambda(lambda x: self._normalize_embeddings(x[0], x[1]))
+        self.weight_embeddings = Multiply()
+        self.add_embeddings = Lambda(lambda x: K.sum(x, axis=1))
+        self.gamma_multiply = Lambda(lambda x: x[0] * x[1])
+
+        for i in range(self.num_layers + 1):
+            self.expand_forwards.append(
+                Lambda(lambda x: K.expand_dims(x, axis=1),
+                   name='expand_forward_%d' % i))
+
+            self.expand_backwards.append(
+                Lambda(lambda x: K.expand_dims(x, axis=1),
+                       name='expand_backward_%d' % i))
+
+            self.concat_directions.append(
+                Concatenate(name='concat_directions_%d' % i, axis=-1)
+            )
+
         self.built = True
 
     def _get_embeddings(self, inputs):
@@ -543,7 +580,7 @@ class ElmoEmbeddings(Layer):
                 output = self.lstms[direction][i](input)  # [-1, maxlen, projection_dim]
                 if i > 0 and self.use_skip_connections:
                     # Residual connection between between first hidden and output layer.
-                    input = Lambda(lambda x: x[0] + x[1])([input, output])
+                    input = self.residual_connection([input, output])
                 else:
                     input = output
                 elmo_embeddings[direction].append(input)  # [-1, maxlen, projection_dim]
@@ -551,17 +588,15 @@ class ElmoEmbeddings(Layer):
         elmo_embeddings_both = []
         for i, (forward_layer, backward_layer) in enumerate(
                 zip(elmo_embeddings['forward'], elmo_embeddings['backward'])):
-            forward_layer_exp = Lambda(lambda x: K.expand_dims(x, axis=1),
-                                       name='expand_forward_%d' % i)(forward_layer)  # [-1, 1, maxlen, projection_dim]
-            backward_layer_exp = Lambda(lambda x: K.expand_dims(x, axis=1),
-                                        name='expand_backward_%d' % i)(backward_layer)
+            forward_layer_exp = self.expand_forwards[i](forward_layer)  # [-1, 1, maxlen, projection_dim]
+            backward_layer_exp = self.expand_backwards[i](backward_layer)
             elmo_embeddings_both.append(
                 # [-1, 1, maxlen, 2*projection_dim]
-                Concatenate(name='concat_directions_%d' % i, axis=-1)([forward_layer_exp, backward_layer_exp])
+                self.concat_directions[i]([forward_layer_exp, backward_layer_exp])
             )
 
         # [-1, num_layers, maxlen, 2*projection_dim]
-        return Concatenate(name='concat_layers', axis=1)(elmo_embeddings_both)
+        return self.concat_layers(elmo_embeddings_both)
 
     def _normalize_embeddings(self, all_embeddings, mask):
         # embeddings: [-1, num_layers+1, maxlen, 2*proj_dim]
@@ -587,26 +622,25 @@ class ElmoEmbeddings(Layer):
         )
 
     def _weight_embeddings(self, embeddings, mask, stage):
-        normed_weights = Lambda(
-            lambda weights: tf.nn.softmax(weights))(self.embeddings_weights[stage])
+        normed_weights = self.norm_weights(self.embeddings_weights[stage])
         # [-1, -1, layers, 1]
-        normed_weights_exp = Lambda(lambda x: K.expand_dims(K.expand_dims(K.expand_dims(x)), axis=0))(normed_weights)
+        normed_weights_exp = self.expand_normed_weights(normed_weights)
 
-        normed_embeddings = Lambda(lambda x: self._normalize_embeddings(x[0], x[1]))([embeddings, mask])
+        normed_embeddings = self.normalize_embeddings([embeddings, mask])
 
-        weighted_embeddings = Multiply()([normed_weights_exp, normed_embeddings])
-        weighted_embeddings = Lambda(lambda x: K.sum(x, axis=1))(weighted_embeddings)
+        weighted_embeddings = self.weight_embeddings([normed_weights_exp, normed_embeddings])
+        weighted_embeddings = self.add_embeddings(weighted_embeddings)
 
         gamma = self.gammas[stage]
-        weighted_embeddings = Lambda(lambda x: gamma * x)(weighted_embeddings)
+        weighted_embeddings = self.gamma_multiply([gamma, weighted_embeddings])
         return weighted_embeddings
 
-    def call(self, inputs, stage, **kwargs):
+    def call(self, inputs, stage, name, **kwargs):
         # TODO(chledows): add charcnn and finetuning.
         # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
         embeddings, mask = inputs
-        elmo_embeddings = self._get_embeddings(embeddings)
-        return self._weight_embeddings(elmo_embeddings, mask, stage)
+        self._elmo_embeddings['%s_%s' % (stage, name)] = self._get_embeddings(embeddings)
+        return self._weight_embeddings(self._elmo_embeddings['%s_%s' % (stage, name)], mask, stage)
 
     # def weight_layers(self, name, lm_embeddings, l2_coef=None,
     #                   use_top_only=False, do_layer_norm=False):
