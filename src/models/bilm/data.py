@@ -24,15 +24,15 @@ class Vocabulary(object):
         self._bos = -1
         self._eos = -1
 
-        with open(filename) as f:
+        with open(filename, "rb") as f:
             idx = 0
             for line in f:
                 word_name = line.strip()
-                if word_name == '<S>':
+                if word_name == b'<S>':
                     self._bos = idx
-                elif word_name == '</S>':
+                elif word_name == b'</S>':
                     self._eos = idx
-                elif word_name == '<UNK>':
+                elif word_name == b'<UNK>':
                     self._unk = idx
                 if word_name == '!!!MAXTERMID':
                     continue
@@ -73,7 +73,7 @@ class Vocabulary(object):
 
     def decode(self, cur_ids):
         """Convert a list of ids to a sentence, with space inserted."""
-        return ' '.join([self.id_to_word(cur_id) for cur_id in cur_ids])
+        return ' '.join([self.id_to_word(cur_id).decode() for cur_id in cur_ids])
 
     def encode(self, sentence, reverse=False, split=True):
         """Convert a sentence to a list of ids, with special tokens added.
@@ -160,7 +160,11 @@ class UnicodeCharsVocabulary(Vocabulary):
         code = np.zeros([self.max_word_length], dtype=np.int32)
         code[:] = self.pad_char
 
-        word_encoded = word.encode('utf-8', 'ignore')[:(self.max_word_length-2)]
+        if not type(word) is bytes:
+            word_encoded = word.encode('utf-8', 'ignore')
+        else:
+            word_encoded = word
+        word_encoded = word_encoded[:(self.max_word_length-2)]
         code[0] = self.bow_char
         for k, chr_id in enumerate(word_encoded, start=1):
             code[k] = chr_id
