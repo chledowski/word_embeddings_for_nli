@@ -55,6 +55,7 @@ class LSTMCellWithClippingAndProjection(Layer):
         self.bias_initializer = initializers.get(bias_initializer)
         self.projection_initializer = initializers.get(projection_initializer)
         self.unit_forget_bias = unit_forget_bias
+        self.forget_bias = 1.0
 
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.recurrent_regularizer = regularizers.get(recurrent_regularizer)
@@ -193,8 +194,9 @@ class LSTMCellWithClippingAndProjection(Layer):
                 h_tm1_o = h_tm1
             i = self.recurrent_activation(x_i + K.dot(h_tm1_i,
                                                       self.recurrent_kernel_i))
+            # TODO(tomwesolowski): Add forget_bias to implementation==0 version.
             f = self.recurrent_activation(x_f + K.dot(h_tm1_f,
-                                                      self.recurrent_kernel_f))
+                                                      self.recurrent_kernel_f) + self.forget_bias)
             c = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1_c,
                                                             self.recurrent_kernel_c))
             o = self.recurrent_activation(x_o + K.dot(h_tm1_o,
@@ -364,7 +366,8 @@ class ElmoEmbeddings(Layer):
         return nontrainables
 
     def compute_output_shape(self, input_shapes):
-        return input_shapes[0] + (2*self.projection_dim,)
+        output_dim = 2*(self.projection_dim or self.lstm_dim)
+        return input_shapes[0] + (2*output_dim,)
 
     def _custom_getter(self, getter, name, *args, **kwargs):
         print("_custom_getter:", name)
@@ -373,63 +376,6 @@ class ElmoEmbeddings(Layer):
         #     name, self.weight_file, self.embedding_weight_file
         # )
         return getter(name, *args, **kwargs)
-
-    def _pretrained_initializer(self, varname, weight_file, embedding_weight_file=None):
-        '''
-        We'll stub out all the initializers in the pretrained LM with
-        a function that loads the weights from the file
-        '''
-
-        weight_name_map = {}
-        for i in range(2):
-            for j in range(8):  # if we decide to add more layers
-                root = 'RNN_{}/RNN/MultiRNNCell/Cell{}'.format(i, j)
-                weight_name_map[root + '/rnn/lstm_cell/kernel'] = \
-                    root + '/LSTMCell/W_0'
-                weight_name_map[root + '/rnn/lstm_cell/bias'] = \
-                    root + '/LSTMCell/B'
-                weight_name_map[root + '/rnn/lstm_cell/projection/kernel'] = \
-                    root + '/LSTMCell/W_P_0'
-
-        # convert the graph name to that in the checkpoint
-        varname_in_file = varname[5:]
-        if varname_in_file.startswith('RNN'):
-            varname_in_file = weight_name_map[varname_in_file]
-
-        if varname_in_file == 'embedding':
-            with h5py.File(embedding_weight_file, 'r') as fin:
-                # Have added a special 0 index for padding not present
-                # in the original model.
-                embed_weights = fin[varname_in_file][...]
-                weights = np.zeros(
-                    (embed_weights.shape[0] + 1, embed_weights.shape[1]),
-                    dtype=DTYPE
-                )
-                weights[1:, :] = embed_weights
-        else:
-            with h5py.File(weight_file, 'r') as fin:
-                if varname_in_file == 'char_embed':
-                    # Have added a special 0 index for padding not present
-                    # in the original model.
-                    char_embed_weights = fin[varname_in_file][...]
-                    weights = np.zeros(
-                        (char_embed_weights.shape[0] + 1,
-                         char_embed_weights.shape[1]),
-                        dtype=DTYPE
-                    )
-                    weights[1:, :] = char_embed_weights
-                else:
-                    weights = fin[varname_in_file][...]
-
-        def ret(shape, **kwargs):
-            if list(shape) != list(weights.shape):
-                raise ValueError(
-                    "Invalid shape initializing {0}, got {1}, expected {2}".format(
-                        varname_in_file, shape, weights.shape)
-                )
-            return weights
-
-        return ret
 
     def _load_embedding_weights(self, shape):
         print("loading embeddings...")
@@ -447,7 +393,7 @@ class ElmoEmbeddings(Layer):
 
     def _load_lstm_weights(self, i_layer, i_dir, weight):
         with h5py.File(self.weight_file, 'r') as fin:
-            prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
+            prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_dir, i_layer)
             weights = {
                 'kernel': fin[prefix + 'W_0'][:self.embedding_dim],  # kernel
                 'recurrent': fin[prefix + 'W_0'][self.embedding_dim:],  # recurrent kernel
@@ -464,20 +410,20 @@ class ElmoEmbeddings(Layer):
         for weight in self.lstms['forward'][0].get_weights():
             print(weight.shape)
 
-    def load_all_weights(self):
-        embedding_weights = self._load_embedding_weights()
-        self.embed.set_weights([embedding_weights])
-
-        with h5py.File(self.weight_file, 'r') as fin:
-            for i_layer in range(self.num_layers):
-                for i_dir, direction in enumerate(['forward', 'backward']):
-                    prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
-                    self.lstms[direction][i_layer].set_weights([
-                        fin[prefix + 'W_0'][:self.embedding_dim],  # kernel
-                        fin[prefix + 'W_0'][self.embedding_dim:],  # recurrent kernel
-                        fin[prefix + 'W_P_0'][...],  # projection
-                        fin[prefix + 'B'][...]  # bias
-                    ])
+    # def load_all_weights(self):
+    #     embedding_weights = self._load_embedding_weights()
+    #     self.embed.set_weights([embedding_weights])
+    #
+    #     with h5py.File(self.weight_file, 'r') as fin:
+    #         for i_layer in range(self.num_layers):
+    #             for i_dir, direction in enumerate(['forward', 'backward']):
+    #                 prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
+    #                 self.lstms[direction][i_layer].set_weights([
+    #                     fin[prefix + 'W_0'][:self.embedding_dim],  # kernel
+    #                     fin[prefix + 'W_0'][self.embedding_dim:],  # recurrent kernel
+    #                     fin[prefix + 'W_P_0'][...],  # projection
+    #                     fin[prefix + 'B'][...]  # bias
+    #                 ])
 
     def build(self, input_shapes):
         self.sublayers = []
