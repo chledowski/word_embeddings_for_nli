@@ -5,16 +5,19 @@ Trains a simple baseline on SNLI
 Run like: python src/scripts/train_esim.py cc840 results/test_run
 """
 
+import glob
 import keras.backend as K
 import logging
 import matplotlib
 import numpy as np
 import os
+import re
 
 from keras.layers import Concatenate, Dense, Input, Dropout, TimeDistributed, Bidirectional, Lambda
 from keras.models import Model
 from numpy.random import seed
 from numpy.random import RandomState
+from pathlib import Path
 from tensorflow import set_random_seed
 
 from src import DATA_DIR
@@ -75,8 +78,8 @@ def build_elmo_model(config, data):
 def test_elmo():
     config = baseline_configs['bilstm']
 
-    config['dump_elmo'] = True
-    config['dump_lemma'] = True
+    # config['dump_elmo'] = True
+    # config['dump_lemma'] = True
     config['use_elmo'] = True
     config['use_multiprocessing'] = False
     config['batch_sizes']['snli']['train'] = 2
@@ -102,8 +105,23 @@ def test_elmo():
     input = output[:2]
     output = output[2:]
 
+    paths_and_times = []
+    dirpath = os.path.join(DATA_DIR, 'elmo/elmo_our_out_*')
+    for name in glob.glob(dirpath):
+        path = Path(name)
+        paths_and_times.append((path.stat().st_mtime, name))
+
+    paths_and_times = sorted(paths_and_times, key=lambda x: -x[0])
+    _, paths_sorted = zip(*paths_and_times)
+    latest_path = paths_sorted[0]
+    latest_number = int(re.findall('elmo_our_out_(\d)', latest_path)[0])
+
+    out_path = os.path.join(DATA_DIR, 'elmo/elmo_our_out_%d.npy' % (latest_number+1))
+
     np.save(os.path.join(DATA_DIR, 'elmo/elmo_our_inp.npy'), input)
-    np.save(os.path.join(DATA_DIR, 'elmo/elmo_our_out.npy'), output)
+    np.save(out_path, output)
+
+    print("Saved to: %s" % out_path)
 
 
 if __name__ == "__main__":

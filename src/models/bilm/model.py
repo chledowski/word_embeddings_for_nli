@@ -5,7 +5,7 @@ import h5py
 import json
 import re
 
-from .data import UnicodeCharsVocabulary, Batcher
+from .data import UnicodeCharsVocabulary, Batcher, TokenBatcher
 
 DTYPE = 'float32'
 DTYPE_INT = 'int64'
@@ -680,3 +680,41 @@ def dump_bilm_embeddings(vocab_file, dataset_file, options_file,
 
                 sentence_id += 1
 
+
+def dump_bilm_embeddings_with_tokens(vocab_file, dataset_file, options_file,
+                         weight_file, token_embedding_file, outfile):
+    with open(options_file, 'r') as fin:
+        options = json.load(fin)
+    max_word_length = options['char_cnn']['max_characters_per_token']
+
+    batcher = TokenBatcher(vocab_file)
+
+    ids_placeholder = tf.placeholder('int32',
+                                     shape=(None, None)
+    )
+    model = BidirectionalLanguageModel(
+        options_file,
+        weight_file,
+        use_character_inputs=False,
+        embedding_weight_file=token_embedding_file
+    )
+    lm_embeddings, mask = model(ids_placeholder)
+
+    config = tf.ConfigProto(allow_soft_placement=True)
+    with tf.Session(config=config) as sess:
+        sess.run(tf.global_variables_initializer())
+        sentence_id = 0
+        with open(dataset_file, 'rb') as fin, h5py.File(outfile, 'w') as fout:
+            for line in fin:
+                sentence = line.strip().split()
+                token_ids = batcher.batch_sentences([sentence])
+                embeddings = sess.run(
+                    lm_embeddings, feed_dict={ids_placeholder: token_ids}
+                )
+                ds = fout.create_dataset(
+                    '{}'.format(sentence_id),
+                    embeddings.shape[1:], dtype='float32',
+                    data=embeddings[0, :, :, :]
+                )
+
+                sentence_id += 1
