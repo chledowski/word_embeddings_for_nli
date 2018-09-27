@@ -623,10 +623,11 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
                                      shape=(None, None, max_word_length)
     )
     model = BidirectionalLanguageModel(options_file, weight_file)
-    embedding_op = model(ids_placeholder)['token_embeddings']
+    lm_embeddings, mask = model(ids_placeholder)
+    lm_token_embeddings = lm_embeddings[:, 0]
 
     n_tokens = vocab.size
-    embed_dim = int(embedding_op.shape[2])
+    embed_dim = int(lm_token_embeddings.shape[2])
 
     embeddings = np.zeros((n_tokens, embed_dim), dtype=DTYPE)
 
@@ -638,7 +639,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
             char_ids = batcher.batch_sentences([[token]])[0, 1, :].reshape(
                 1, 1, -1)
             embeddings[k, :] = sess.run(
-                embedding_op, feed_dict={ids_placeholder: char_ids}
+                lm_token_embeddings, feed_dict={ids_placeholder: char_ids}
             )
 
     with h5py.File(outfile, 'w') as fout:
