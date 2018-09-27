@@ -229,6 +229,6 @@ def baseline_training_loop(model, dataset, streams,
                             steps_per_epoch=steps_per_epoch,
                             epochs=n_epochs, verbose=1,
                             validation_data=streams["dev"],
-                            use_multiprocessing=use_multiprocessing,
+                            use_multiprocessing=True,
                             validation_steps=dev_num_examples // dev_batch_size,
                             callbacks=callbacks)

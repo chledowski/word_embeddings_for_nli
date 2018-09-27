@@ -6,6 +6,7 @@ Simple model definitions
 
 import logging
 import os
+import tensorflow as tf
 
 import keras.backend as K
 
@@ -61,6 +62,7 @@ def bilstm(config, data):
     embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     if config['use_elmo']:
+        # with tf.device('/cpu:0'):
         elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm", name='p')
         elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm", name='h')
 
