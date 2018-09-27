@@ -215,8 +215,9 @@ def baseline_training_loop(model, dataset, streams,
     # callbacks.append(DumpTensorflowSummaries(save_path=save_path))
     if config['save_model']:
         callbacks.append(ModelCheckpoint(monitor='val_acc',
-                                         save_weights_only=False,
-                                         filepath=os.path.join(save_path, "model.h5")))
+                                         save_weights_only=not config['save_every_epoch'],
+                                         filepath=os.path.join(save_path, "model_{epoch:02d}.h5")))
+
 
     logger.info('Training...')
     steps_per_epoch = (config['steps_per_epoch_scale'] * train_num_examples) // train_batch_size
