@@ -33,6 +33,7 @@ baseline_configs['bilstm'] = {
     'dump_lemma': False,
     'early_stopping': True,
     'elmo_dir': 'elmo',
+    'elmo_use_weighted_embeddings': True,
     'n_labels': 3,
     'n_layers': 0,
     'n_epochs': 40,

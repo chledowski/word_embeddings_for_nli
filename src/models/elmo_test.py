@@ -82,7 +82,9 @@ def test_elmo():
     # config['dump_lemma'] = True
     config['use_elmo'] = True
     config['use_multiprocessing'] = False
-    config['batch_sizes']['snli']['train'] = 2
+    config['batch_sizes']['snli']['train'] = 32
+    steps = 8
+    config['seed'] = 1234
 
     seed(config["seed"])
     set_random_seed(config["seed"])
@@ -98,8 +100,9 @@ def test_elmo():
 
     output = model.predict_generator(
         generator=modified_stream(streams["snli"]["train"]),
-        steps=1,
-        use_multiprocessing=False
+        steps=steps,
+        use_multiprocessing=False,
+        verbose=True
     )
 
     input = output[:2]
@@ -112,9 +115,12 @@ def test_elmo():
         paths_and_times.append((path.stat().st_mtime, name))
 
     paths_and_times = sorted(paths_and_times, key=lambda x: -x[0])
-    _, paths_sorted = zip(*paths_and_times)
-    latest_path = paths_sorted[0]
-    latest_number = int(re.findall('elmo_our_out_(\d)', latest_path)[0])
+    if paths_and_times:
+        _, paths_sorted = zip(*paths_and_times)
+        latest_path = paths_sorted[0]
+        latest_number = int(re.findall('elmo_our_out_(\d+)', latest_path)[0])
+    else:
+        latest_number = 0
 
     out_path = os.path.join(DATA_DIR, 'elmo/elmo_our_out_%d.npy' % (latest_number+1))
 

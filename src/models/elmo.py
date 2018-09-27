@@ -117,24 +117,24 @@ class LSTMCellWithClippingAndProjection(Layer):
             self.bias = None
 
         self.kernel_i = self.kernel[:, :self.units]
-        self.kernel_f = self.kernel[:, self.units: self.units * 2]
-        self.kernel_c = self.kernel[:, self.units * 2: self.units * 3]
+        self.kernel_c = self.kernel[:, self.units: self.units * 2]
+        self.kernel_f = self.kernel[:, self.units * 2: self.units * 3]
         self.kernel_o = self.kernel[:, self.units * 3:]
 
         self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
+        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units: self.units * 2]
+        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units * 2: self.units * 3]
         self.recurrent_kernel_o = self.recurrent_kernel[:, self.units * 3:]
 
         if self.use_bias:
             self.bias_i = self.bias[:self.units]
-            self.bias_f = self.bias[self.units: self.units * 2]
-            self.bias_c = self.bias[self.units * 2: self.units * 3]
+            self.bias_c = self.bias[self.units: self.units * 2]
+            self.bias_f = self.bias[self.units * 2: self.units * 3]
             self.bias_o = self.bias[self.units * 3:]
         else:
             self.bias_i = None
-            self.bias_f = None
             self.bias_c = None
+            self.bias_f = None
             self.bias_o = None
         self.built = True
 
@@ -333,6 +333,7 @@ class ElmoEmbeddings(Layer):
         self.cell_clip = self.options['lstm'].get('cell_clip')
         self.proj_clip = self.options['lstm'].get('proj_clip')
         self.use_skip_connections = self.options['lstm']['use_skip_connections']
+        self.use_weighted_embeddings = self.config['elmo_use_weighted_embeddings']
 
         self.embedding_weight_file = os.path.join(self.elmo_dir, 'elmo_token_embeddings.hdf5')
         self.weight_file = os.path.join(self.elmo_dir, 'lm_weights.hdf5')
@@ -367,7 +368,7 @@ class ElmoEmbeddings(Layer):
 
     def compute_output_shape(self, input_shapes):
         output_dim = 2*(self.projection_dim or self.lstm_dim)
-        return input_shapes[0] + (2*output_dim,)
+        return input_shapes[0] + (output_dim,)
 
     def _custom_getter(self, getter, name, *args, **kwargs):
         print("_custom_getter:", name)
@@ -434,7 +435,7 @@ class ElmoEmbeddings(Layer):
                                    input_length=self.config["sentence_max_length"],
                                    trainable=False,
                                    embeddings_initializer=self._load_embedding_weights,
-                                   mask_zero=False)
+                                   mask_zero=True)
             self.sublayers.append(self.embed)
             self.lstms = {}
 
@@ -499,6 +500,9 @@ class ElmoEmbeddings(Layer):
         self.add_embeddings = Lambda(lambda x: K.sum(x, axis=1))
         self.gamma_multiply = Lambda(lambda x: x[0] * x[1])
 
+        self.reverse_sequence = Lambda(lambda x: x[:, ::-1, :])
+        self.mask_sequence = Lambda(lambda x: x[0] * x[1])
+
         for i in range(self.num_layers + 1):
             self.expand_forwards.append(
                 Lambda(lambda x: K.expand_dims(x, axis=1),
@@ -514,7 +518,7 @@ class ElmoEmbeddings(Layer):
 
         self.built = True
 
-    def _get_embeddings(self, inputs):
+    def _get_embeddings(self, inputs, mask):
         input_embeddings = inputs
         input_embeddings = self.embed(input_embeddings)
 
@@ -523,13 +527,16 @@ class ElmoEmbeddings(Layer):
             input = input_embeddings
             elmo_embeddings[direction] = [input]
             for i in range(self.num_layers):
-                output = self.lstms[direction][i](input)  # [-1, maxlen, projection_dim]
+                output = self.lstms[direction][i](input, mask=mask)  # [-1, maxlen, projection_dim]
+                if direction == 'backward':
+                    output = self.reverse_sequence(output)
                 if i > 0 and self.use_skip_connections:
                     # Residual connection between between first hidden and output layer.
                     input = self.residual_connection([input, output])
                 else:
                     input = output
                 elmo_embeddings[direction].append(input)  # [-1, maxlen, projection_dim]
+                # input = self.mask_sequence([input, mask])
 
         elmo_embeddings_both = []
         for i, (forward_layer, backward_layer) in enumerate(
@@ -585,8 +592,16 @@ class ElmoEmbeddings(Layer):
         # TODO(chledows): add charcnn and finetuning.
         # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
         embeddings, mask = inputs
-        self._elmo_embeddings['%s_%s' % (stage, name)] = self._get_embeddings(embeddings)
-        return self._weight_embeddings(self._elmo_embeddings['%s_%s' % (stage, name)], mask, stage)
+
+        elmo_embeddings = self._get_embeddings(embeddings, mask)
+        self._elmo_embeddings['%s_%s' % (stage, name)] = elmo_embeddings
+
+        if self.use_weighted_embeddings:
+            weighted_embeddings = self._weight_embeddings(elmo_embeddings, mask, stage)
+        else:
+            weighted_embeddings = Lambda(lambda x: K.sum(x, axis=1))(elmo_embeddings)
+
+        return weighted_embeddings
 
     # def weight_layers(self, name, lm_embeddings, l2_coef=None,
     #                   use_top_only=False, do_layer_norm=False):

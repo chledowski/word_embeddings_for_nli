@@ -113,68 +113,68 @@ class BidirectionalLanguageModel(object):
         return ret
 
     def _build_ops(self, lm_graph):
-        with tf.control_dependencies([lm_graph.update_state_op]):
-            # get the LM embeddings
-            token_embeddings = lm_graph.embedding
-            layers = [
-                tf.concat([token_embeddings, token_embeddings], axis=2)
-            ]
+        # with tf.control_dependencies([lm_graph.update_state_op]):
+        # get the LM embeddings
+        token_embeddings = lm_graph.embedding
+        layers = [
+            tf.concat([token_embeddings, token_embeddings], axis=2)
+        ]
 
-            n_lm_layers = len(lm_graph.lstm_outputs['forward'])
-            for i in range(n_lm_layers):
-                layers.append(
-                    tf.concat(
-                        [lm_graph.lstm_outputs['forward'][i],
-                         lm_graph.lstm_outputs['backward'][i]],
-                        axis=-1
-                    )
+        n_lm_layers = len(lm_graph.lstm_outputs['forward'])
+        for i in range(n_lm_layers):
+            layers.append(
+                tf.concat(
+                    [lm_graph.lstm_outputs['forward'][i],
+                     lm_graph.lstm_outputs['backward'][i]],
+                    axis=-1
                 )
-
-            # The layers include the BOS/EOS tokens.  Remove them
-            sequence_length_wo_bos_eos = lm_graph.sequence_lengths - 2
-            layers_without_bos_eos = []
-            for layer in layers:
-                layer_wo_bos_eos = layer[:, 1:, :]
-                layer_wo_bos_eos = tf.reverse_sequence(
-                    layer_wo_bos_eos, 
-                    lm_graph.sequence_lengths - 1,
-                    seq_axis=1,
-                    batch_axis=0,
-                )
-                layer_wo_bos_eos = layer_wo_bos_eos[:, 1:, :]
-                layer_wo_bos_eos = tf.reverse_sequence(
-                    layer_wo_bos_eos,
-                    sequence_length_wo_bos_eos,
-                    seq_axis=1,
-                    batch_axis=0,
-                )
-                layers_without_bos_eos.append(layer_wo_bos_eos)
-
-            # concatenate the layers
-            lm_embeddings = tf.concat(
-                # FIX(tomwesolowski): layers_without_bos_eos -> layers
-                [tf.expand_dims(t, axis=1) for t in layers],
-                axis=1
             )
 
-            # get the mask op without bos/eos.
-            # tf doesn't support reversing boolean tensors, so cast
-            # to int then back
-            mask_wo_bos_eos = tf.cast(lm_graph.mask[:, 1:], 'int32')
-            mask_wo_bos_eos = tf.reverse_sequence(
-                mask_wo_bos_eos,
+        # The layers include the BOS/EOS tokens.  Remove them
+        sequence_length_wo_bos_eos = lm_graph.sequence_lengths - 2
+        layers_without_bos_eos = []
+        for layer in layers:
+            layer_wo_bos_eos = layer[:, 1:, :]
+            layer_wo_bos_eos = tf.reverse_sequence(
+                layer_wo_bos_eos,
                 lm_graph.sequence_lengths - 1,
                 seq_axis=1,
                 batch_axis=0,
             )
-            mask_wo_bos_eos = mask_wo_bos_eos[:, 1:]
-            mask_wo_bos_eos = tf.reverse_sequence(
-                mask_wo_bos_eos,
+            layer_wo_bos_eos = layer_wo_bos_eos[:, 1:, :]
+            layer_wo_bos_eos = tf.reverse_sequence(
+                layer_wo_bos_eos,
                 sequence_length_wo_bos_eos,
                 seq_axis=1,
                 batch_axis=0,
             )
-            mask_wo_bos_eos = tf.cast(mask_wo_bos_eos, 'bool')
+            layers_without_bos_eos.append(layer_wo_bos_eos)
+
+        # concatenate the layers
+        lm_embeddings = tf.concat(
+            # FIX(tomwesolowski): layers_without_bos_eos -> layers
+            [tf.expand_dims(t, axis=1) for t in layers],
+            axis=1
+        )
+
+        # get the mask op without bos/eos.
+        # tf doesn't support reversing boolean tensors, so cast
+        # to int then back
+        mask_wo_bos_eos = tf.cast(lm_graph.mask[:, 1:], 'int32')
+        mask_wo_bos_eos = tf.reverse_sequence(
+            mask_wo_bos_eos,
+            lm_graph.sequence_lengths - 1,
+            seq_axis=1,
+            batch_axis=0,
+        )
+        mask_wo_bos_eos = mask_wo_bos_eos[:, 1:]
+        mask_wo_bos_eos = tf.reverse_sequence(
+            mask_wo_bos_eos,
+            sequence_length_wo_bos_eos,
+            seq_axis=1,
+            batch_axis=0,
+        )
+        mask_wo_bos_eos = tf.cast(mask_wo_bos_eos, 'bool')
 
         # return {
         #     'lm_embeddings': lm_embeddings,
@@ -707,6 +707,7 @@ def dump_bilm_embeddings_with_tokens(vocab_file, dataset_file, options_file,
         with open(dataset_file, 'rb') as fin, h5py.File(outfile, 'w') as fout:
             for line in fin:
                 sentence = line.strip().split()
+                print(sentence, len(sentence))
                 token_ids = batcher.batch_sentences([sentence])
                 embeddings = sess.run(
                     lm_embeddings, feed_dict={ids_placeholder: token_ids}
