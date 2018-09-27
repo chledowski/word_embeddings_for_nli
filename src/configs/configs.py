@@ -141,6 +141,7 @@ baseline_configs['esim'] = {
     'dropout': 0.5,
     'early_stopping': True,
     'elmo_dir': 'elmo',
+    'elmo_use_weighted_embeddings': True,
     'embedding_dim': 300,
     'embedding_name': 'gcc840',
     'embedding_second_name': 'gcc840',

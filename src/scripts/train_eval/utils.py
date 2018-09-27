@@ -130,14 +130,6 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         x1_mask = _pad(x1_mask)
                         x2_mask = _pad(x2_mask)
 
-                        if config['dump_elmo']:
-                            np.save(os.path.join(DATA_DIR, 'elmo_dump_our_x1_elmo.npy'), x1_elmo)
-                            np.save(os.path.join(DATA_DIR, 'elmo_dump_our_x2_elmo.npy'), x2_elmo)
-
-                        if config['dump_lemma']:
-                            np.save(os.path.join(DATA_DIR, 'elmo_dump_our_x1_lemma.npy'), x1_lemma)
-                            np.save(os.path.join(DATA_DIR, 'elmo_dump_our_x2_lemma.npy'), x2_lemma)
-
                         if config['use_elmo']:
                             x1_elmo = _pad(x1_elmo)
                             x2_elmo = _pad(x2_elmo)

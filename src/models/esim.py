@@ -89,8 +89,8 @@ def esim(config, data):
         # TODO(tomwesolowski): Elmo - add 50% dropout after attention layer
         # TODO(tomwesolowski): Elmo - add L2 reg. on elmo embeddings to the loss with coef. 0.001
         # TODO(tomwesolowski): Elmo - clip_gradient_norm=5.0
-        elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm")
-        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm")
+        elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm", name="p")
+        elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm", name="h")
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])
@@ -126,8 +126,8 @@ def esim(config, data):
     embed_h = bilstm_encoder(embed_h)
 
     if config['use_elmo']:
-        elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm")
-        elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="post_lstm")
+        elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm", name="p")
+        elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="post_lstm", name="h")
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
