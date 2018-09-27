@@ -7,7 +7,7 @@ baseline_configs['bilstm'] = {
     'model': 'bilstm',
     'batch_sizes': {
         'snli': {
-            'train': 32,
+            'train': 64,
             'dev': 133,
             'test': 307
         },
