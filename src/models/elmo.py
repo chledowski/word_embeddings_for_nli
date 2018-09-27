@@ -584,8 +584,6 @@ class ElmoEmbeddings(Layer):
         weighted_embeddings = self.weight_embeddings([normed_weights_exp, normed_embeddings])
         weighted_embeddings = self.add_embeddings(weighted_embeddings)
 
-        gamma = self.gammas[stage]
-        weighted_embeddings = self.gamma_multiply([gamma, weighted_embeddings])
         return weighted_embeddings
 
     def call(self, inputs, stage, name, **kwargs):
@@ -600,6 +598,9 @@ class ElmoEmbeddings(Layer):
             weighted_embeddings = self._weight_embeddings(elmo_embeddings, mask, stage)
         else:
             weighted_embeddings = Lambda(lambda x: K.sum(x, axis=1))(elmo_embeddings)
+
+        gamma = self.gammas[stage]
+        weighted_embeddings = self.gamma_multiply([gamma, weighted_embeddings])
 
         return weighted_embeddings
 
