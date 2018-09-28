@@ -62,7 +62,7 @@ def eval_model():
 
         model_name = args.model_name.split('/')[0]
 
-    with open('results/%s/retrofitting_results.json' % model_name, 'w') as f:
+    with open('results/%s/retrofitting_results.json' % args.model_name, 'w') as f:
         json.dump(results_dict, f)
 
 
