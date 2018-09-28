@@ -63,7 +63,7 @@ def esim(config, data):
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBhp')
 
     if config['use_elmo']:
-        elmo_embed = ElmoEmbeddings(config)
+        elmo_embed = ElmoEmbeddings(config, all_stages=['pre_lstm', 'post_lstm'])
         # premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
         # hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
         premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
@@ -109,9 +109,14 @@ def esim(config, data):
     embed_p = Dropout(config["dropout"])(embed_p)
     embed_h = Dropout(config["dropout"])(embed_h)
 
+    if config['cudnn']:
+        lstm_layer = CuDNNLSTM
+    else:
+        lstm_layer = LSTM
+
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
-        CuDNNLSTM(
+        lstm_layer(
             units=config["embedding_dim"],
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
             kernel_initializer=Orthogonal(seed=config["seed"]),
@@ -221,7 +226,7 @@ def esim(config, data):
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
-        CuDNNLSTM(
+        lstm_layer(
             units=300,
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
             kernel_initializer=Orthogonal(seed=config["seed"]),

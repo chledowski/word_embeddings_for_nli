@@ -137,6 +137,7 @@ baseline_configs['esim'] = {
     },
     'centering': False,
     'clip_gradient_norm': 10.0,
+    'cudnn': True,
     'dataset': 'snli',
     'dropout': 0.5,
     'early_stopping': True,
