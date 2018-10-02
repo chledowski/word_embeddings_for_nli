@@ -45,7 +45,7 @@ def bilstm(config, data):
     hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis_mask_input')
 
     if config['use_elmo']:
-        elmo_embed = ElmoEmbeddings(config)
+        elmo_embed = ElmoEmbeddings(config, all_stages=['pre_lstm'])
         premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
         hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32',
                                       name='hypothesis_elmo_input')

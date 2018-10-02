@@ -406,7 +406,7 @@ class NLIData(Data):
 
     def num_examples(self, part):
         return int(self.get_dataset(part).num_examples * (
-            self.config['train_on_fraction'] if part == 'train' else 1.0
+            self.config.get('train_on_fraction', 1.0) if part == 'train' else 1.0
         ))
 
     def total_num_examples(self, part):
@@ -436,7 +436,7 @@ class NLIData(Data):
                 add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map")) # This is because there is bug in Fuel :( Cannot concatenate tuple and list
 
         if not raw_text:
-            if self.config['use_elmo']:
+            if 'use_config' in self.config and self.config['use_elmo']:
                 stream = FixedMapping(stream,
                                       functools.partial(digitize_elmo, self.batcher),
                                       add_sources=('sentence1_elmo', 'sentence2_elmo'))

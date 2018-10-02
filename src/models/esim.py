@@ -63,7 +63,7 @@ def esim(config, data):
     KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBhp')
 
     if config['use_elmo']:
-        elmo_embed = ElmoEmbeddings(config)
+        elmo_embed = ElmoEmbeddings(config, all_stages=['pre_lstm', 'post_lstm'])
         # premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
         # hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
         premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
@@ -109,23 +109,29 @@ def esim(config, data):
     embed_p = Dropout(config["dropout"])(embed_p)
     embed_h = Dropout(config["dropout"])(embed_h)
 
+    if config['cudnn']:
+        lstm_layer = CuDNNLSTM
+    else:
+        lstm_layer = LSTM
+
     # 2, Encoder words with its surrounding context
     bilstm_encoder = Bidirectional(
-        CuDNNLSTM(
+        lstm_layer(
             units=config["embedding_dim"],
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
             kernel_initializer=Orthogonal(seed=config["seed"]),
             recurrent_initializer=Orthogonal(seed=config["seed"]),
             recurrent_regularizer=l2(config["l2_weight_regularization"]),
             bias_regularizer=l2(config["l2_weight_regularization"]),
-            return_sequences=True)
+            return_sequences=True),
+        name='bilstm'
     )
 
     # FIX(tomwesolowski): Remove dropout
     embed_p = bilstm_encoder(embed_p)
     embed_h = bilstm_encoder(embed_h)
 
-    if config['use_elmo']:
+    if config['use_elmo'] and config['elmo_after_lstm']:
         elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm", name="p")
         elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="post_lstm", name="h")
 
@@ -138,10 +144,6 @@ def esim(config, data):
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
     Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
-
-    if config['use_elmo']:
-        # TODO(tomwesolowski): Double check if properly implemented.
-        Eph = Dropout(config["dropout"])(Eph)
 
     # # FIX(tomwesolowski): Add attention lambda to words in relation
     if config['useatrick'] or config['fullkim']:
@@ -197,6 +199,11 @@ def esim(config, data):
     PremAlign = Concatenate()(prem_knowledge_vector + prem_i_vector)
     HypoAlign = Concatenate()(hypo_knowledge_vector + hypo_i_vector)
 
+    if config['use_elmo']:
+        # TODO(tomwesolowski): Double check if properly implemented.
+        PremAlign = Dropout(config["dropout"])(PremAlign)
+        HypoAlign = Dropout(config["dropout"])(HypoAlign)
+
     translate = TimeDistributed(
         Dense(config["embedding_dim"],
               # FIX(tomwesolowski): Remove regularizers
@@ -221,7 +228,7 @@ def esim(config, data):
 
     # 5, Final biLSTM < Encoder + Softmax Classifier
     bilstm_decoder = Bidirectional(
-        CuDNNLSTM(
+        lstm_layer(
             units=300,
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
             kernel_initializer=Orthogonal(seed=config["seed"]),
@@ -283,7 +290,7 @@ def esim(config, data):
                   kernel_regularizer=l2(config["l2_weight_regularization"]),
                   bias_regularizer=l2(config["l2_weight_regularization"]),
                   # FIX(tomwesolowski): Add tanh activation
-                  activation='tanh',
+                  activation='relu' if config['use_elmo'] else 'tanh',
                   name='dense300_' + config["dataset"])(Final)
     Final = Dropout(config["dropout"])(Final)
     Final = Dense(3,
@@ -304,15 +311,15 @@ def esim(config, data):
 
     model = Model(inputs=model_input, outputs=Final)
 
-    def elmo_loss(y_true, y_pred):
-        elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
-        return (K.categorical_crossentropy(y_true, y_pred) +
-                config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
+    # def elmo_loss(y_true, y_pred):
+    #     elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
+    #     return (K.categorical_crossentropy(y_true, y_pred) +
+    #             config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
 
-    if config['use_elmo']:
-        loss = elmo_loss
-    else:
-        loss = 'categorical_crossentropy'
+    # if config['use_elmo']:
+    #     loss = elmo_loss
+    # else:
+    loss = 'categorical_crossentropy'
 
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"],
