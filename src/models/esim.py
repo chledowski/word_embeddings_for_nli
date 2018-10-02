@@ -132,7 +132,7 @@ def esim(config, data):
     embed_p = bilstm_encoder(embed_p)
     embed_h = bilstm_encoder(embed_h)
 
-    if config['use_elmo']:
+    if config['use_elmo'] and config['elmo_after_lstm']:
         elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm", name="p")
         elmo_after_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="post_lstm", name="h")
 
@@ -144,10 +144,6 @@ def esim(config, data):
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
     Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
-
-    if config['use_elmo']:
-        # TODO(tomwesolowski): Double check if properly implemented.
-        Eph = Dropout(config["dropout"])(Eph)
 
     # # FIX(tomwesolowski): Add attention lambda to words in relation
     if config['useatrick'] or config['fullkim']:
@@ -202,6 +198,11 @@ def esim(config, data):
 
     PremAlign = Concatenate()(prem_knowledge_vector + prem_i_vector)
     HypoAlign = Concatenate()(hypo_knowledge_vector + hypo_i_vector)
+
+    if config['use_elmo']:
+        # TODO(tomwesolowski): Double check if properly implemented.
+        PremAlign = Dropout(config["dropout"])(PremAlign)
+        HypoAlign = Dropout(config["dropout"])(HypoAlign)
 
     translate = TimeDistributed(
         Dense(config["embedding_dim"],
