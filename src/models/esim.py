@@ -289,7 +289,7 @@ def esim(config, data):
                   kernel_regularizer=l2(config["l2_weight_regularization"]),
                   bias_regularizer=l2(config["l2_weight_regularization"]),
                   # FIX(tomwesolowski): Add tanh activation
-                  activation='tanh',
+                  activation='relu' if config['use_elmo'] else 'tanh',
                   name='dense300_' + config["dataset"])(Final)
     Final = Dropout(config["dropout"])(Final)
     Final = Dense(3,
@@ -310,15 +310,15 @@ def esim(config, data):
 
     model = Model(inputs=model_input, outputs=Final)
 
-    def elmo_loss(y_true, y_pred):
-        elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
-        return (K.categorical_crossentropy(y_true, y_pred) +
-                config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
+    # def elmo_loss(y_true, y_pred):
+    #     elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
+    #     return (K.categorical_crossentropy(y_true, y_pred) +
+    #             config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
 
-    if config['use_elmo']:
-        loss = elmo_loss
-    else:
-        loss = 'categorical_crossentropy'
+    # if config['use_elmo']:
+    #     loss = elmo_loss
+    # else:
+    loss = 'categorical_crossentropy'
 
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"],
