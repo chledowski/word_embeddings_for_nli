@@ -436,7 +436,7 @@ class NLIData(Data):
                 add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map")) # This is because there is bug in Fuel :( Cannot concatenate tuple and list
 
         if not raw_text:
-            if 'use_config' in self.config and self.config['use_elmo']:
+            if 'use_elmo' in self.config and self.config['use_elmo']:
                 stream = FixedMapping(stream,
                                       functools.partial(digitize_elmo, self.batcher),
                                       add_sources=('sentence1_elmo', 'sentence2_elmo'))
