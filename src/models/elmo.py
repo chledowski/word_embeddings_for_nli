@@ -13,11 +13,13 @@ from keras.layers.recurrent import LSTM, LSTMCell
 from keras.layers.embeddings import Embedding
 from keras.layers import Add, Subtract, Dense, Dropout, Input, TimeDistributed, Lambda, Bidirectional, \
     Dot, Permute, Multiply, Concatenate, Activation, LSTM
+from keras.regularizers import l2
 
 from src import DATA_DIR
 from src.models.elmo_lstm import LSTMCellWithClippingAndProjection, LSTMWithClippingAndProjection
 
 DTYPE = 'float32'
+
 
 class ElmoEmbeddings(Layer):
     def __init__(self, config, all_stages=[], **kwargs):
@@ -179,14 +181,14 @@ class ElmoEmbeddings(Layer):
                     name='{}_ELMo_W'.format(stage),
                     shape=(self.num_layers + 1,),
                     initializer='zeros',
-                    # TODO(tomwesolowski): Add regularizer.
+                    regularizer=l2(self.config['l2_elmo_regularization']),
                     trainable=True,
                 )
             self.gammas[stage] = self.add_weight(
                 name='{}_ELMo_gamma'.format(stage),
                 shape=(1,),
                 initializer='ones',
-                regularizer=None,
+                regularizer=l2(self.config['l2_elmo_regularization']),
                 trainable=True,
             )
 
