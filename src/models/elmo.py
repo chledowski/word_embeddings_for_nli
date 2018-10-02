@@ -144,7 +144,6 @@ class ElmoEmbeddings(Layer):
         with tf.variable_scope('', custom_getter=self._custom_getter):
             self.embed = Embedding(self.vocab_size + 1,
                                    self.embedding_dim,
-                                   input_length=self.config["sentence_max_length"],
                                    trainable=False,
                                    embeddings_initializer=self._load_embedding_weights,
                                    mask_zero=True)

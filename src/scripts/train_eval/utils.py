@@ -121,18 +121,20 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         else:
                             x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
 
-                        def _pad(x):
-                            return pad_sequences(x, maxlen=config['sentence_max_length'],
+                        def _pad(x, length):
+                            return pad_sequences(x, maxlen=length,
                                                   padding='post', truncating='post')
 
-                        x1 = _pad(x1)
-                        x2 = _pad(x2)
-                        x1_mask = _pad(x1_mask)
-                        x2_mask = _pad(x2_mask)
+                        x1_length = np.max(np.sum(x1_mask, axis=1)).astype(np.int32)
+                        x2_length = np.max(np.sum(x2_mask, axis=1)).astype(np.int32)
+                        x1 = _pad(x1, x1_length)
+                        x2 = _pad(x2, x2_length)
+                        x1_mask = _pad(x1_mask, x1_length)
+                        x2_mask = _pad(x2_mask, x2_length)
 
                         if config['use_elmo']:
-                            x1_elmo = _pad(x1_elmo)
-                            x2_elmo = _pad(x2_elmo)
+                            x1_elmo = _pad(x1_elmo, x1_length)
+                            x2_elmo = _pad(x2_elmo, x2_length)
 
                         model_input = [x1, x1_mask, x2, x2_mask]
 

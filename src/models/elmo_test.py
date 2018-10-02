@@ -36,13 +36,13 @@ def build_elmo_model(config, data):
 
     elmo_embed = ElmoEmbeddings(config)
 
-    premise = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise')
-    premise_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_mask_input')
-    hypothesis = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis')
-    hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis_mask_input')
+    premise = Input(shape=(None,), dtype='int32', name='premise')
+    premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
+    hypothesis = Input(shape=(None,), dtype='int32', name='hypothesis')
+    hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
 
-    premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
-    hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32',
+    premise_elmo_input = Input(shape=(None,), dtype='int32', name='premise_elmo_input')
+    hypothesis_elmo_input = Input(shape=(None,), dtype='int32',
                                   name='hypothesis_elmo_input')
 
     premise_mask = Lambda(lambda x: K.cast(x, 'float32'))(premise_mask_input)

@@ -40,7 +40,6 @@ def esim(config, data):
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
-                      input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],
                       name='embedding',
                       mask_zero=False)
@@ -56,19 +55,19 @@ def esim(config, data):
     logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
     # 1, Embedding the input and project the embeddings
-    premise = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise')
-    premise_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_mask_input')
-    hypothesis = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis')
-    hypothesis_mask_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='hypothesis_mask_input')
-    KBph = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBph')
-    KBhp = Input(shape=(config["sentence_max_length"], config["sentence_max_length"], 5), dtype='float32', name='KBhp')
+    premise = Input(shape=(None,), dtype='int32', name='premise')
+    premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
+    hypothesis = Input(shape=(None,), dtype='int32', name='hypothesis')
+    hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
+    KBph = Input(shape=(None, None, 5), dtype='float32', name='KBph')
+    KBhp = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
 
     if config['use_elmo']:
         elmo_embed = ElmoEmbeddings(config, all_stages=['pre_lstm', 'post_lstm'])
-        # premise_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
-        # hypothesis_placeholder = K.placeholder(shape=(None, config["sentence_max_length"]), dtype='int32')
-        premise_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32', name='premise_elmo_input')
-        hypothesis_elmo_input = Input(shape=(config["sentence_max_length"],), dtype='int32',
+        # premise_placeholder = K.placeholder(shape=(None, None), dtype='int32')
+        # hypothesis_placeholder = K.placeholder(shape=(None, None), dtype='int32')
+        premise_elmo_input = Input(shape=(None,), dtype='int32', name='premise_elmo_input')
+        hypothesis_elmo_input = Input(shape=(None,), dtype='int32',
                                       name='hypothesis_elmo_input')
 
     premise_mask = Lambda(lambda x: K.cast(x, 'float32'))(premise_mask_input)
@@ -99,7 +98,6 @@ def esim(config, data):
     if config['knowledge_after_lstm'] in ['dot', 'euc']:
         embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
                                   weights=[embedding_second_matrix],
-                                  input_length=config["sentence_max_length"],
                                   trainable=config["train_embeddings"],
                                   mask_zero=False)
         embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
