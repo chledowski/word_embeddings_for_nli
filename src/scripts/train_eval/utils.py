@@ -107,8 +107,8 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         if self.force_reset:
                             self.force_reset = False
                             break
-                        if len(batch) not in [7, 9]:
-                            raise ValueError("Expected 7 or 9 elements in batch. Got %d" % len(batch))
+                        if len(batch) not in [5, 7, 9]:
+                            raise ValueError("Expected 5 or 7 or 9 elements in batch. Got %d" % len(batch))
 
                         use_external_knowledge = (
                                 config['useitrick'] or
@@ -117,9 +117,15 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                                 config['fullkim'])
 
                         if config['use_elmo']:
-                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y, x1_elmo, x2_elmo = batch
+                            if use_external_knowledge:
+                                x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y, x1_elmo, x2_elmo = batch
+                            else:
+                                x1, x1_mask, x2, x2_mask, y, x1_elmo, x2_elmo = batch
                         else:
-                            x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
+                            if use_external_knowledge:
+                                x1, x1_mask, x1_lemma, x2, x2_mask, x2_lemma, y = batch
+                            else:
+                                x1, x1_mask, x2, x2_mask, y = batch
 
                         def _pad(x, length):
                             return pad_sequences(x, maxlen=length,

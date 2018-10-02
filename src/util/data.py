@@ -134,7 +134,7 @@ class Data(object):
     def get_dataset_path(self, part):
         return os.path.join(self._path, self.part_map[part])
 
-    def get_dataset(self, part):
+    def get_dataset(self, part, add_lemmatized=True):
         if not part in self._dataset_cache:
             part_path = self.get_dataset_path(part)
             if self._layout == 'lambada' and part == 'train':
@@ -142,10 +142,14 @@ class Data(object):
             elif self._layout == 'squad':
                 self._dataset_cache[part] = SQuADDataset(part_path, ('all',))
             elif self._layout in ['snli', 'mnli', 'breaking']:
+                if add_lemmatized:
+                    sources = ('sentence1', 'sentence1_lemmatized',
+                               'sentence2', 'sentence2_lemmatized',
+                               'label',)
+                else:
+                    sources = ('sentence1', 'sentence2', 'label',)
                 self._dataset_cache[part] = H5PYDataset(h5py.File(part_path, "r"), \
-                    ('all',), sources=('sentence1', 'sentence1_lemmatized',
-                                       'sentence2', 'sentence2_lemmatized',
-                                       'label',), load_in_memory=True)
+                    ('all',), sources=sources, load_in_memory=True)
             else:
                 self._dataset_cache[part] = TextDataset(part_path)
         return self._dataset_cache[part]
@@ -225,7 +229,10 @@ def retrieve_and_pad_snli(retrieval, example):
 
 
 def digitize_elmo(batcher, data):
-    s1, s1_lemma, s2, s2_lemma, label = data
+    if len(data) == 5:
+        s1, s1_lemma, s2, s2_lemma, label = data
+    else:
+        s1, s2, label = data
     return [batcher.batch_sentences(s1),
             batcher.batch_sentences(s2)]
 
@@ -245,7 +252,12 @@ def surround_sentence_lemma(vocab, source_data):
 
 
 def shuffle_like_kim(batch_size, rng, batch):
-    source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer = batch
+    contains_lemma = len(batch) == 5
+
+    if contains_lemma:
+        source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer = batch
+    else:
+        source_buffer, target_buffer, label_buffer = batch
 
     # sort by target buffer
     tlen = numpy.array([len(t) for t in target_buffer])
@@ -265,17 +277,22 @@ def shuffle_like_kim(batch_size, rng, batch):
 
     _sbuf = [source_buffer[i] for i in tidx]
     _tbuf = [target_buffer[i] for i in tidx]
-    _slbuf = [source_lemma_buffer[i] for i in tidx]
-    _tlbuf = [target_lemma_buffer[i] for i in tidx]
+    if contains_lemma:
+        _slbuf = [source_lemma_buffer[i] for i in tidx]
+        _tlbuf = [target_lemma_buffer[i] for i in tidx]
     _lbuf = [label_buffer[i] for i in tidx]
 
     source_buffer = _sbuf
     target_buffer = _tbuf
-    source_lemma_buffer = _slbuf
-    target_lemma_buffer = _tlbuf
+    if contains_lemma:
+        source_lemma_buffer = _slbuf
+        target_lemma_buffer = _tlbuf
     label_buffer = _lbuf
 
-    return [source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer]
+    if contains_lemma:
+        return [source_buffer, source_lemma_buffer, target_buffer, target_lemma_buffer, label_buffer]
+    else:
+        return [source_buffer, target_buffer, label_buffer]
 
 
 
@@ -406,14 +423,21 @@ class NLIData(Data):
 
     def num_examples(self, part):
         return int(self.get_dataset(part).num_examples * (
-            self.config.get('train_on_fraction', 1.0) if part == 'train' else 1.0
+            self.config['train_on_fraction'] if part == 'train' else 1.0
         ))
 
     def total_num_examples(self, part):
         return self.get_dataset(part).num_examples
 
     def get_stream(self, part, batch_size, shuffle, rng, raw_text=False):
-        d = self.get_dataset(part)
+        use_external_knowledge = (
+            self.config['useitrick'] or
+            self.config['useatrick'] or
+            self.config['usectrick'] or
+            self.config['fullkim']
+        )
+
+        d = self.get_dataset(part, add_lemmatized=use_external_knowledge)
         # print(("Dataset with {} examples".format(self.num_examples(part))))
         it = SequentialExampleScheme(
             examples=rng.choice(
@@ -436,7 +460,7 @@ class NLIData(Data):
                 add_sources=("defs", "def_mask", "sentence1_def_map", "sentence2_def_map")) # This is because there is bug in Fuel :( Cannot concatenate tuple and list
 
         if not raw_text:
-            if 'use_elmo' in self.config and self.config['use_elmo']:
+            if self.config['use_elmo']:
                 stream = FixedMapping(stream,
                                       functools.partial(digitize_elmo, self.batcher),
                                       add_sources=('sentence1_elmo', 'sentence2_elmo'))
@@ -444,11 +468,11 @@ class NLIData(Data):
                                        which_sources=('sentence1', 'sentence2'))
             stream = SourcewiseMapping(stream, functools.partial(surround_sentence, self.vocab),
                                        which_sources=('sentence1', 'sentence2'))
-            stream = SourcewiseMapping(stream, functools.partial(surround_sentence_lemma, self.vocab),
-                                       which_sources=('sentence1_lemmatized', 'sentence2_lemmatized'))
+            if use_external_knowledge:
+                stream = SourcewiseMapping(stream, functools.partial(surround_sentence_lemma, self.vocab),
+                                           which_sources=('sentence1_lemmatized', 'sentence2_lemmatized'))
 
         stream = Padding(stream, mask_sources=('sentence1', 'sentence2'))  # Increases amount of outputs by x2
 
         return stream
-
 
