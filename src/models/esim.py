@@ -42,6 +42,7 @@ def esim(config, data):
                       weights=[embedding_matrix],
                       input_length=config["sentence_max_length"],
                       trainable=config["train_embeddings"],
+                      name='embedding',
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
@@ -109,7 +110,7 @@ def esim(config, data):
     embed_p = Dropout(config["dropout"])(embed_p)
     embed_h = Dropout(config["dropout"])(embed_h)
 
-    if config['cudnn']:
+    if 'cudnn' not in config or config['cudnn']:
         lstm_layer = CuDNNLSTM
     else:
         lstm_layer = LSTM
@@ -123,7 +124,8 @@ def esim(config, data):
             recurrent_initializer=Orthogonal(seed=config["seed"]),
             recurrent_regularizer=l2(config["l2_weight_regularization"]),
             bias_regularizer=l2(config["l2_weight_regularization"]),
-            return_sequences=True)
+            return_sequences=True),
+        name='bilstm'
     )
 
     # FIX(tomwesolowski): Remove dropout
@@ -136,7 +138,6 @@ def esim(config, data):
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
-
     embed_p = Multiply()([embed_p, premise_mask_exp])
     embed_h = Multiply()([embed_h, hypothesis_mask_exp])
 
