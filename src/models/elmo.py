@@ -123,21 +123,6 @@ class ElmoEmbeddings(Layer):
         for weight in self.lstms['forward'][0].get_weights():
             print(weight.shape)
 
-    # def load_all_weights(self):
-    #     embedding_weights = self._load_embedding_weights()
-    #     self.embed.set_weights([embedding_weights])
-    #
-    #     with h5py.File(self.weight_file, 'r') as fin:
-    #         for i_layer in range(self.num_layers):
-    #             for i_dir, direction in enumerate(['forward', 'backward']):
-    #                 prefix = 'RNN_%d/RNN/MultiRNNCell/Cell%d/LSTMCell/' % (i_layer, i_dir)
-    #                 self.lstms[direction][i_layer].set_weights([
-    #                     fin[prefix + 'W_0'][:self.embedding_dim],  # kernel
-    #                     fin[prefix + 'W_0'][self.embedding_dim:],  # recurrent kernel
-    #                     fin[prefix + 'W_P_0'][...],  # projection
-    #                     fin[prefix + 'B'][...]  # bias
-    #                 ])
-
     def build(self, input_shapes):
         self.sublayers = []
 

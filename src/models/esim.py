@@ -81,8 +81,8 @@ def esim(config, data):
     a_lambda = config['a_lambda']
     KBatt = Lambda(lambda x: a_lambda * K.cast(K.greater(K.sum(x, axis=-1), 0.), K.floatx()))(KBph)
 
-    embed_p = embed(premise)  # [batchsize, Psize, Embedsize]
-    embed_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
+    embed_orig_p = embed(premise)  # [batchsize, Psize, Embedsize]
+    embed_orig_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     if config['use_elmo']:
         # TODO(tomwesolowski): Elmo - add L2 regularization with coef. 0.0001 to all layers
@@ -92,8 +92,11 @@ def esim(config, data):
         elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm", name="p")
         elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp], stage="pre_lstm", name="h")
 
-        embed_p = Concatenate(axis=2)([embed_p, elmo_p])
-        embed_h = Concatenate(axis=2)([embed_h, elmo_h])
+        embed_p = Concatenate(axis=2)([embed_orig_p, elmo_p])
+        embed_h = Concatenate(axis=2)([embed_orig_h, elmo_h])
+    else:
+        embed_p = embed_orig_p
+        embed_h = embed_orig_h
 
     if config['knowledge_after_lstm'] in ['dot', 'euc']:
         embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
@@ -129,6 +132,13 @@ def esim(config, data):
     # FIX(tomwesolowski): Remove dropout
     embed_p = bilstm_encoder(embed_p)
     embed_h = bilstm_encoder(embed_h)
+
+    if config['residual_embedding']:
+        residual_embeds = Add(name='residual_embeds')
+        embed_orig_p_twice = Concatenate(axis=2)([embed_orig_p, embed_orig_p])
+        embed_orig_h_twice = Concatenate(axis=2)([embed_orig_h, embed_orig_h])
+        embed_p = residual_embeds([embed_p, embed_orig_p_twice])
+        embed_h = residual_embeds([embed_h, embed_orig_h_twice])
 
     if config['use_elmo'] and config['elmo_after_lstm']:
         elmo_after_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="post_lstm", name="p")
