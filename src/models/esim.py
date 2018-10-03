@@ -41,6 +41,7 @@ def esim(config, data):
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
                       trainable=config["train_embeddings"],
+                      name='embedding',
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
@@ -107,7 +108,7 @@ def esim(config, data):
     embed_p = Dropout(config["dropout"])(embed_p)
     embed_h = Dropout(config["dropout"])(embed_h)
 
-    if config['cudnn']:
+    if 'cudnn' not in config or config['cudnn']:
         lstm_layer = CuDNNLSTM
     else:
         lstm_layer = LSTM
@@ -135,7 +136,6 @@ def esim(config, data):
 
         embed_p = Concatenate(axis=2)([embed_p, elmo_after_p])
         embed_h = Concatenate(axis=2)([embed_h, elmo_after_h])
-
     embed_p = Multiply()([embed_p, premise_mask_exp])
     embed_h = Multiply()([embed_h, hypothesis_mask_exp])
 

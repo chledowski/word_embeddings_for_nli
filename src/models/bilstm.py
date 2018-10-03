@@ -12,6 +12,7 @@ import keras.backend as K
 
 from keras import optimizers
 from keras.layers import Concatenate, Dense, Input, Dropout, TimeDistributed, Bidirectional, Lambda
+from keras.layers import Concatenate, Dense, Input, Dropout, TimeDistributed, Bidirectional, Lambda, CuDNNLSTM
 from keras.layers.embeddings import Embedding
 from keras.layers.normalization import BatchNormalization
 from keras.layers.recurrent import LSTM
@@ -70,7 +71,7 @@ def bilstm(config, data):
         embed_h = Concatenate(axis=2)([embed_h, elmo_h])
 
     bilstm_layer = Bidirectional(
-        LSTM(units=config["embedding_dim"]), merge_mode='concat')
+        CuDNNLSTM(units=config["embedding_dim"]), merge_mode='concat')
 
     prem = bilstm_layer(embed_p)
     hypo = bilstm_layer(embed_h)

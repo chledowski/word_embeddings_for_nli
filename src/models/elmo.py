@@ -33,6 +33,7 @@ class ElmoEmbeddings(Layer):
             self.options = json.load(fin)
 
         self._elmo_embeddings = dict()
+
         self.all_stages = all_stages
         self.num_layers = 2
         self.lstm_dim = self.options['lstm']['dim']
@@ -311,113 +312,5 @@ class ElmoEmbeddings(Layer):
         weighted_embeddings = self.gamma_multiply([gamma, weighted_embeddings])
 
         return weighted_embeddings
-
-    # def weight_layers(self, name, lm_embeddings, l2_coef=None,
-    #                   use_top_only=False, do_layer_norm=False):
-    #     '''
-    #     Weight the layers of a biLM with trainable scalar weights to
-    #     compute ELMo representations.
-    #     For each output layer, this returns two ops.  The first computes
-    #         a layer specific weighted average of the biLM layers, and
-    #         the second the l2 regularizer loss term.
-    #     The regularization terms are also add to tf.GraphKeys.REGULARIZATION_LOSSES
-    #     Input:
-    #         name = a string prefix used for the trainable variable names
-    #         bilm_ops = the tensorflow ops returned to compute internal
-    #             representations from a biLM.  This is the return value
-    #             from BidirectionalLanguageModel(...)(ids_placeholder)
-    #         l2_coef: the l2 regularization coefficient $\lambda$.
-    #             Pass None or 0.0 for no regularization.
-    #         use_top_only: if True, then only use the top layer.
-    #         do_layer_norm: if True, then apply layer normalization to each biLM
-    #             layer before normalizing
-    #     Output:
-    #         {
-    #             'weighted_op': op to compute weighted average for output,
-    #             'regularization_op': op to compute regularization term
-    #         }
-    #     '''
-    #     # lm_embeddings = lm_embeddings_and_mask[0]
-    #     # mask = lm_embeddings_and_mask[1]
-    #     print("lm_embeddings", K.int_shape(lm_embeddings))
-    #     # print("mask", K.int_shape(mask))
-    #
-    #     def _l2_regularizer(weights):
-    #         if l2_coef is not None:
-    #             return l2_coef * tf.reduce_sum(tf.square(weights))
-    #         else:
-    #             return tf.constant(0.0)
-    #
-    #     n_lm_layers = int(lm_embeddings.get_shape()[1]) # 3
-    #     lm_dim = int(lm_embeddings.get_shape()[3]) # 1024
-    #
-    #     with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-    #         with tf.control_dependencies([lm_embeddings]):
-    #             # Cast the mask and broadcast for layer use.
-    #             # mask_float = tf.cast(mask, 'float32', name='mask_float')
-    #             # broadcast_mask = tf.expand_dims(mask_float, axis=-1, name='broadcast_mask')
-    #
-    #             def _do_ln(x):
-    #                 # do layer normalization excluding the mask
-    #                 broadcast_mask  #  [-1, maxlen, 1]
-    #                 x_masked = x * broadcast_mask
-    #                 N = tf.reduce_sum(mask_float) * lm_dim # ??
-    #                 mean = tf.reduce_sum(x_masked) / N
-    #                 variance = tf.reduce_sum(((x_masked - mean) * broadcast_mask) ** 2
-    #                                          ) / N
-    #                 return tf.nn.batch_normalization(
-    #                     x, mean, variance, None, None, 1E-12
-    #                 )
-    #
-    #             if use_top_only:
-    #                 layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
-    #                 # just the top layer
-    #                 sum_pieces = tf.squeeze(layers[-1], squeeze_dims=1)
-    #                 # no regularization
-    #                 reg = 0.0
-    #             else:
-    #                 W = self.add_weight(
-    #                     name='{}_ELMo_W'.format(name),
-    #                     shape=(n_lm_layers,),
-    #                     initializer='zeros',
-    #                     regularizer=_l2_regularizer,
-    #                     trainable=True,
-    #                 )
-    #                 # get the regularizer
-    #                 reg = self._losses[-1]
-    #
-    #                 # normalize the weights
-    #                 normed_weights = tf.split(
-    #                     tf.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
-    #                 )
-    #                 # split LM layers
-    #                 layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
-    #
-    #                 # compute the weighted, normalized LM activations
-    #                 pieces = []
-    #                 for w, t in zip(normed_weights, layers):
-    #                     if do_layer_norm:
-    #                         pieces.append(w * _do_ln(tf.squeeze(t, squeeze_dims=1)))
-    #                     else:
-    #                         pieces.append(w * tf.squeeze(t, squeeze_dims=1))
-    #                 sum_pieces = tf.add_n(pieces)
-    #
-    #
-    #             # scale the weighted sum by gamma
-    #             gamma = self.add_weight(
-    #                 name='{}_ELMo_gamma'.format(name),
-    #                 shape=(1,),
-    #                 initializer='ones',
-    #                 regularizer=None,
-    #                 trainable=True,
-    #             )
-    #             weighted_lm_layers = sum_pieces * gamma
-    #
-    #             print(K.int_shape(weighted_lm_layers))
-    #
-    #             ret = {'weighted_op': weighted_lm_layers, 'regularization_op': reg}
-    #
-    #     return ret
-
 
 
