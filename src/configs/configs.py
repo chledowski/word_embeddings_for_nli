@@ -144,6 +144,7 @@ baseline_configs['esim'] = {
     'early_stopping': True,
     'elmo_dir': 'elmo',
     'elmo_use_weighted_embeddings': True,
+    'elmo_use_layer_normalization': True,
     'elmo_after_lstm': True,
     'embedding_dim': 300,
     'embedding_name': 'gcc840',

@@ -279,9 +279,15 @@ class ElmoEmbeddings(Layer):
             means.append(mean)
             variances.append(variance)
 
-        return tf.nn.batch_normalization(
-            all_embeddings, tf.stack(means, axis=1), tf.stack(variances, axis=1), None, None, 1E-12
-        )
+        # TODO(tomwesolowski): double check
+        means = tf.stack(means, axis=1)
+        variances = tf.stack(variances, axis=1)
+        all_embeddings -= means
+        all_embeddings /= (np.sqrt(variances) + 1e-12)
+        return all_embeddings
+        # return tf.nn.batch_normalization(
+        #     all_embeddings, means, variances, None, None, 1E-12
+        # )
 
     def _weight_embeddings(self, embeddings, mask, stage):
         normed_weights = self.norm_weights(self.embeddings_weights[stage])
