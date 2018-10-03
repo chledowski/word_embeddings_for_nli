@@ -282,7 +282,7 @@ class ElmoEmbeddings(Layer):
         # TODO(tomwesolowski): double check
         means = tf.stack(means, axis=1)
         variances = tf.stack(variances, axis=1)
-        all_embeddings -= means
+        all_embeddings = (all_embeddings - means) * tf.expand_dims(mask, axis=1)
         all_embeddings /= (tf.sqrt(variances) + 1e-12)
         return all_embeddings
         # return tf.nn.batch_normalization(
