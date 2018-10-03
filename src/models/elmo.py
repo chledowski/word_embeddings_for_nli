@@ -283,7 +283,7 @@ class ElmoEmbeddings(Layer):
         means = tf.stack(means, axis=1)
         variances = tf.stack(variances, axis=1)
         all_embeddings -= means
-        all_embeddings /= (np.sqrt(variances) + 1e-12)
+        all_embeddings /= (tf.sqrt(variances) + 1e-12)
         return all_embeddings
         # return tf.nn.batch_normalization(
         #     all_embeddings, means, variances, None, None, 1E-12
