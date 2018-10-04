@@ -264,30 +264,26 @@ class ElmoEmbeddings(Layer):
         # embeddings: [-1, num_layers+1, maxlen, 2*proj_dim]
         # mask: [-1, maxlen, 1]
 
-        separate_embeddings = tf.split(all_embeddings, self.num_layers + 1, axis=1)
-        means = []
-        variances = []
+        mask = tf.expand_dims(mask, 1)  # [-1, 1, maxlen, 1]
+        mask = tf.tile(mask, [1, self.num_layers+1, 1, self.projection_dim*2])
 
-        for x in separate_embeddings:
-            x = tf.squeeze(x, axis=1)
-            x_masked = x * mask  # [-1, maxlen, 1024]
-            num_mask = tf.reduce_sum(mask, axis=[1, 2])  # [-1]
-            mean = tf.reduce_sum(x_masked, axis=[1, 2]) / num_mask  # [-1]
-            mean = K.expand_dims(K.expand_dims(mean))  # [-1, 1, 1]
-            variance = tf.reduce_sum(((x_masked - mean) * mask) ** 2, axis=[1, 2]) / num_mask
-            variance = K.expand_dims(K.expand_dims(variance))  # [-1, 1, 1]
-            means.append(mean)
-            variances.append(variance)
+        assert K.int_shape(mask) == K.int_shape(all_embeddings)
 
-        # TODO(tomwesolowski): double check
-        means = tf.stack(means, axis=1)
-        variances = tf.stack(variances, axis=1)
-        all_embeddings = (all_embeddings - means) * tf.expand_dims(mask, axis=1)
-        all_embeddings /= (tf.sqrt(variances) + 1e-12)
-        return all_embeddings
-        # return tf.nn.batch_normalization(
-        #     all_embeddings, means, variances, None, None, 1E-12
-        # )
+        axes_to_normalize = [-2, -1]
+        num_non_masked = tf.reduce_sum(mask,
+                                       axis=axes_to_normalize,
+                                       keep_dims=True)  # [-1, 3, 1, 1]
+        mean = tf.reduce_sum(all_embeddings * mask,
+                             axis=axes_to_normalize,
+                             keep_dims=True) / num_non_masked  # [-1, 3, 1, 1]
+
+        all_embeddings = (all_embeddings - mean) * mask  # mean normalized
+
+        variance = tf.reduce_sum(all_embeddings**2,
+                                 axis=axes_to_normalize,
+                                 keep_dims=True) / num_non_masked  # [-1, 3, 1, 1]
+
+        return all_embeddings / (tf.sqrt(variance) + 1e-12)
 
     def _weight_embeddings(self, embeddings, mask, stage):
         normed_weights = self.norm_weights(self.embeddings_weights[stage])

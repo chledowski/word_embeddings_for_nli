@@ -6,24 +6,25 @@ https://github.com/coetaur0/ESIM
 
 import numpy as np
 
-from keras.initializers import RandomNormal
+
+def compute_mean_and_variance(array, axis, mask):
+    if array.shape != mask.shape:
+        raise ValueError("array and mask should have the same shape")
+
+    num_non_masked = np.sum(mask, axis=axis, keepdims=True)
+    mean = np.sum(array * mask, axis=axis, keepdims=True) / num_non_masked
+    variance = np.sum(((array - mean) ** 2) * mask, axis=axis, keepdims=True) / num_non_masked
+    return mean, variance
 
 
-def layer_normalization(array, mask=None, axis=-1):
+def normalize_layer(array, axis, mask):
     """
     :param array:
-    :param mask: mask to zero out array values. must have the same number of dimensions as array.
+    :param mask: mask to zero out array values. must have the same shape as array.
     :param axis: axes to normalize over
     :return: normalized array
     """
-    if mask is None:
-        mask = np.ones(array.shape)
-    if type(axis) is int:
-        axis = (axis, )
-
-    num_non_masked = np.sum(mask, axis=axis, keepdims=True)
-    array_mean = np.sum(array, axis=axis, keepdims=True) / num_non_masked
-    array_var = np.sum((array - array_mean)**2 * mask, keepdims=True) / num_non_masked
+    array_mean, array_var = compute_mean_and_variance(array, axis=axis, mask=mask)
     return ((array - array_mean) * mask) / np.sqrt(array_var + 1e-12)
 
 
@@ -38,14 +39,6 @@ def softmax(logits, axis=1):
     logits -= np.max(logits, axis=-1, keepdims=True)
     return np.exp(logits) / np.sum(np.exp(logits), axis=-1, keepdims=True)
 
-
-class ScaledRandomNormal(RandomNormal):
-    def __init__(self, mean=0., stddev=0.05, scale=1.0, seed=None):
-        super(ScaledRandomNormal, self).__init__(mean=mean, stddev=stddev, seed=seed)
-        self.scale = scale
-
-    def __call__(self, shape, dtype=None):
-        return self.scale * super(ScaledRandomNormal, self).__call__(shape, dtype=dtype)
 
 
 #

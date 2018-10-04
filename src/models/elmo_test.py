@@ -24,6 +24,7 @@ from src import DATA_DIR
 from src.configs.configs import baseline_configs
 from src.models import build_model
 from src.models.elmo import ElmoEmbeddings
+from src.models.utils import compute_mean_and_variance, normalize_layer, padarray, softmax
 from src.util.vegab import main, MetaSaver, AutomaticNamer
 from src.util.training_loop import baseline_training_loop
 from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
@@ -50,13 +51,6 @@ def get_latest_version_number():
     return latest_number
 
 
-def padarray(array, expected_shape):
-    pad_width = []
-    for dim, expected_dim in zip(array.shape, expected_shape):
-        pad_width.append((0, expected_dim - dim))
-    return np.pad(array, tuple(pad_width), mode='constant')
-
-
 def build_elmo_extractor(config, data):
     elmo_embed = ElmoEmbeddings(config, all_stages=["pre_lstm"])
 
@@ -75,7 +69,7 @@ def build_elmo_extractor(config, data):
 
     identity = Lambda(lambda x: x)
 
-    model_output = [identity(premise_elmo_input), embeddings_p, elmo_p]
+    model_output = [identity(premise_elmo_input), identity(premise_mask_input), embeddings_p, elmo_p]
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -84,17 +78,7 @@ def build_elmo_extractor(config, data):
     return model
 
 
-def test_elmo():
-    config = baseline_configs['esim']
-
-    num_batches = 2
-    batch_size = 32
-
-    config['use_elmo'] = True
-    config['use_multiprocessing'] = False
-    config['batch_sizes']['snli']['train'] = 32
-    config['seed'] = 1234
-
+def build_model_and_stream(config):
     seed(config["seed"])
     set_random_seed(config["seed"])
     rng = RandomState(config["seed"])
@@ -107,24 +91,34 @@ def test_elmo():
             x1, x1_mask, x2, x2_mask, x1_elmo, x2_elmo = input
             yield [x1, x1_mask, x1_elmo], output
 
+    return model, modified_stream(streams["snli"]["train"])
+
+
+def get_model_output(config, model, stream):
     inputs = []
+    masks = []
     embeddings = []
     weighted_embeddings = []
 
-    for step in range(num_batches):
+    for step in range(config['num_batches']):
         output = model.predict_generator(
-            generator=modified_stream(streams["snli"]["train"]),
+            generator=stream,
             steps=1,
             use_multiprocessing=False,
             verbose=True
         )
         inputs.append(output[0])  # [batch_size, sentence_len]
-        embeddings.append(output[1]) # [batch_size, 3, sentence_len, elmo_dim]
-        weighted_embeddings.append(output[2]) # [batch_size, sentence_len, elmo_dim]
+        masks.append(output[1])  # [batch_size, sentence_len]
+        embeddings.append(output[2])  # [batch_size, 3, sentence_len, elmo_dim]
+        weighted_embeddings.append(output[3])  # [batch_size, sentence_len, elmo_dim]
         print("input shape:", inputs[-1].shape)
         print("embeddings shape:", embeddings[-1].shape)
         print("weighted_embeddings shape:", weighted_embeddings[-1].shape)
 
+    return inputs, masks, embeddings, weighted_embeddings
+
+
+def pad_outputs(config, inputs, masks, embeddings, weighted_embeddings):
     max_sentence_len = 0
     elmo_dim = 0
 
@@ -141,15 +135,23 @@ def test_elmo():
     print("elmo_dim", elmo_dim)
 
     padded_inputs = np.concatenate(
-        [padarray(input, [batch_size, max_sentence_len]) for input in inputs]
+        [padarray(input, [config['batch_size'], max_sentence_len]) for input in inputs]
+    )
+    padded_masks = np.concatenate(
+        [padarray(mask, [config['batch_size'], max_sentence_len]) for mask in masks]
     )
     padded_embeddings = np.concatenate(
-        [padarray(emb, [batch_size, 3, max_sentence_len, elmo_dim]) for emb in embeddings]
+        [padarray(emb, [config['batch_size'], 3, max_sentence_len, elmo_dim]) for emb in embeddings]
     )
     padded_weighted_embeddings = np.concatenate(
-        [padarray(emb, [batch_size, max_sentence_len, elmo_dim]) for emb in weighted_embeddings]
+        [padarray(emb, [config['batch_size'], max_sentence_len, elmo_dim]) for emb in weighted_embeddings]
     )
+    padded_masks_expanded = np.expand_dims(np.expand_dims(padded_masks, axis=-1), axis=1)
+    padded_masks_expanded = np.tile(padded_masks_expanded, (1, 3, 1, elmo_dim))
+    return padded_inputs, padded_masks_expanded, padded_embeddings, padded_weighted_embeddings
 
+
+def save_to_file(padded_inputs, padded_embeddings, padded_weighted_embeddings):
     # saving to file
     latest_version_number = get_latest_version_number()
 
@@ -161,11 +163,84 @@ def test_elmo():
         DATA_DIR, 'elmo/elmo_our_weighted_embeddings_%d.npy' % (latest_version_number + 1))
 
     for path, array in zip(
-        [inputs_path, embeddings_path, weighted_embeddings_path],
-        [padded_inputs, padded_embeddings, padded_weighted_embeddings]
+            [inputs_path, embeddings_path, weighted_embeddings_path],
+            [padded_inputs, padded_embeddings, padded_weighted_embeddings]
     ):
         np.save(path, array)
         print("Saved to: %s" % path)
+
+
+def prepare_config():
+    config = dict(baseline_configs['esim'])
+
+    num_batches = 2
+    batch_size = 2
+
+    config['use_elmo'] = True
+    config['use_multiprocessing'] = False
+    config['num_batches'] = num_batches
+    config['batch_size'] = batch_size
+    config['batch_sizes']['snli']['train'] = batch_size
+    config['seed'] = 1234
+    config['elmo_use_layer_normalization'] = True
+    config['elmo_initial_embeddings_weights'] = [0.5, 0.2, 0.3]
+    config['elmo_initial_gamma'] = [0.5]
+    return config
+
+
+def test_elmo():
+    config = prepare_config()
+
+    model, stream = build_model_and_stream(config)
+    inputs, masks, embeddings, weighted_embeddings = get_model_output(config, model, stream)
+    inputs, masks, embeddings, weighted_embeddings = \
+        pad_outputs(config, inputs, masks, embeddings, weighted_embeddings)
+
+    num_samples = embeddings.shape[0]
+    num_elmo_layers = embeddings.shape[1]
+
+    # normalization test
+
+    if config['elmo_use_layer_normalization']:
+        expected_embeddings = normalize_layer(
+            array=embeddings,
+            axis=(-2, -1),
+            mask=masks,
+        )
+    else:
+        expected_embeddings = embeddings
+
+    if not np.allclose(embeddings, expected_embeddings, atol=1e-5):
+        for sample_id in range(num_samples):
+            for layer_id in range(num_elmo_layers):
+                real = embeddings[sample_id][layer_id]
+                expected = expected_embeddings[sample_id][layer_id]
+                mask = masks[sample_id][0]
+                print("Layer", layer_id, "mean/var real",
+                      compute_mean_and_variance(real, mask=mask, axis=(-2, -1)))
+                print("Layer", layer_id, "mean/var expected",
+                      compute_mean_and_variance(expected, mask=mask, axis=(-2, -1)))
+        assert False
+
+    # weighting test
+
+    softmax_weights = softmax(config['elmo_initial_embeddings_weights'])
+    expanded_weights = np.reshape(softmax_weights, [1, 3, 1, 1])
+    expected_embeddings = np.sum(expected_embeddings * expanded_weights, axis=1)
+    expected_embeddings = config['elmo_initial_gamma'] * expected_embeddings
+
+    if not np.allclose(weighted_embeddings, expected_embeddings, atol=1e-5):
+        real_embeddings = np.squeeze(weighted_embeddings)
+        expected_embeddings = np.squeeze(expected_embeddings)
+        real_norm = np.linalg.norm(real_embeddings, axis=1)
+        expected_norm = np.linalg.norm(expected_embeddings, axis=1)
+        print("Norms", real_norm, expected_norm)
+        print("Diff avgs", np.mean(real_embeddings - expected_embeddings, axis=1))
+        print("Cos. distances",
+              np.sum(real_embeddings * expected_embeddings, axis=1) / (real_norm * expected_norm))
+        assert False
+
+    save_to_file(inputs, embeddings, weighted_embeddings)
 
 
 if __name__ == "__main__":
