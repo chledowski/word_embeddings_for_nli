@@ -137,7 +137,7 @@ baseline_configs['esim'] = {
         }
     },
     'centering': False,
-    'clip_gradient_norm': 5.0,
+    'clip_gradient_norm': 10.0,
     'cudnn': True,
     'dataset': 'snli',
     'dropout': 0.5,
@@ -156,7 +156,7 @@ baseline_configs['esim'] = {
     'knowledge_after_lstm': 'none',
     'learning_rate': 0.0004,
     'l2_elmo_regularization': 0.001,
-    'l2_weight_regularization': 0.0001,
+    'l2_weight_regularization': 0.0, # for elmo
     'lr_schedule': '[[1000, 0.0004]]',
     'lr_schedule_type': 'reduce_on_plateau',
     'model': 'esim',

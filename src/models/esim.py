@@ -138,8 +138,8 @@ def esim(config, data):
             # x[0]: [-1, sen_len, 2*dim]
             # x[1]: [-1, sen_len, 2*dim]
             def _residual_embeds_mod_dropout(x):
-                prob = tf.random_uniform(shape=K.int_shape(x[0])[:2])
-                prob = tf.expand_dims(prob)
+                prob = tf.random_uniform(shape=tf.shape(x[0])[:2])
+                prob = tf.expand_dims(prob, -1)
                 return prob * x[0] + (1. - prob) * x[1]
 
             residual_embeds = Lambda(_residual_embeds_mod_dropout,
