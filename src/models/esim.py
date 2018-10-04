@@ -130,11 +130,22 @@ def esim(config, data):
     )
 
     # FIX(tomwesolowski): Remove dropout
-    embed_p = bilstm_encoder(embed_p)
+    embed_p = bilstm_encoder(embed_p)  # [-1, sen_len, 2*dim]
     embed_h = bilstm_encoder(embed_h)
 
     if config['residual_embedding']:
-        residual_embeds = Add(name='residual_embeds')
+        if config['residual_embedding_mod_drop']:
+            # x[0]: [-1, sen_len, 2*dim]
+            # x[1]: [-1, sen_len, 2*dim]
+            def _residual_embeds_mod_dropout(x):
+                prob = tf.random_uniform(shape=K.int_shape(x[0])[:2])
+                prob = tf.expand_dims(prob)
+                return prob * x[0] + (1. - prob) * x[1]
+
+            residual_embeds = Lambda(_residual_embeds_mod_dropout,
+                                     name='residual_embeds')
+        else:
+            residual_embeds = Add(name='residual_embeds')
         embed_orig_p_twice = Concatenate(axis=2)([embed_orig_p, embed_orig_p])
         embed_orig_h_twice = Concatenate(axis=2)([embed_orig_h, embed_orig_h])
         embed_p = residual_embeds([embed_p, embed_orig_p_twice])
