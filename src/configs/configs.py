@@ -256,5 +256,6 @@ baseline_configs['esim-elmo'] = {
     'useatrick': 0,
     'useitrick': 0,
     'usectrick': 0,
+    'validation_steps': -1,
     'whitening': False
 }

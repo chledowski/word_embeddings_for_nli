@@ -92,9 +92,11 @@ def esim(config, data):
         # TODO(tomwesolowski): Elmo - add L2 reg. on elmo embeddings to the loss with coef. 0.001
         # TODO(tomwesolowski): Elmo - clip_gradient_norm=5.0
         elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp])
+        elmo_p = Dropout(config["dropout"])(elmo_p)
         weighted_elmo_p = elmo_pre_weight(elmo_p)
 
         elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp])
+        elmo_h = Dropout(config["dropout"])(elmo_h)
         weighted_elmo_h = elmo_post_weight(elmo_h)
 
         embed_p = Concatenate(axis=2)([embed_orig_p, weighted_elmo_p])
