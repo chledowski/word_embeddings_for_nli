@@ -173,7 +173,7 @@ def save_to_file(padded_inputs, padded_embeddings, padded_weighted_embeddings):
 
 
 def prepare_config():
-    config = dict(baseline_configs['esim'])
+    config = dict(baseline_configs['esim-elmo'])
 
     num_batches = 2
     batch_size = 2

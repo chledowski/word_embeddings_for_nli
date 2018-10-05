@@ -65,7 +65,7 @@ do
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         mkdir -p $RESULTS_DIR
 
-        python src/scripts/train_eval/train.py esim ${RESULTS_DIR} \
+        python src/scripts/train_eval/train.py esim-elmo ${RESULTS_DIR} \
             --train_on_fraction=${FRACS[$i]} \
             ${ELMO_FLAGS[$i]}
     fi

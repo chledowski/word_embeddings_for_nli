@@ -185,7 +185,7 @@ baseline_configs['esim'] = {
     'whitening': False
 }
 
-baseline_configs['snli_rotator'] = {
+baseline_configs['esim-elmo'] = {
     'D': 0,
     'batch_sizes': {
         'snli': {
@@ -210,7 +210,16 @@ baseline_configs['snli_rotator'] = {
             'train': True,
         }
     },
+    'centering': False,
+    'clip_gradient_norm': 5.0,
+    'cudnn': True,
     'dataset': 'snli',
+    'dropout': 0.5,
+    'early_stopping': True,
+    'elmo_dir': 'elmo',
+    'elmo_use_weighted_embeddings': True,
+    'elmo_use_layer_normalization': True,
+    'elmo_after_lstm': True,
     'embedding_dim': 300,
     'embedding_name': 'gcc840',
     'embedding_second_name': 'gcc840',
@@ -220,8 +229,8 @@ baseline_configs['snli_rotator'] = {
     'intersection_of_embedding_dicts': False,
     'knowledge_after_lstm': 'none',
     'learning_rate': 0.0004,
-    'l2_elmo_regularization': 0.0,
-    'l2_weight_regularization': 0.0,
+    'l2_elmo_regularization': 0.001,
+    'l2_weight_regularization': 0.0001,
     'lr_schedule': '[[1000, 0.0004]]',
     'lr_schedule_type': 'reduce_on_plateau',
     'model': 'esim',
@@ -233,6 +242,8 @@ baseline_configs['snli_rotator'] = {
     'optimizer': 'adam',
     'pair_features_pkl_path': 'pair_features.pkl',
     'pair_features_txt_path': 'kim_data/pair_features.txt',
+    'residual_embedding': False,
+    'residual_embedding_mod_drop': False,
     'save_best_model': True,
     'save_every_epoch': False,
     'save_model': False,
@@ -241,7 +252,7 @@ baseline_configs['snli_rotator'] = {
     'steps_per_epoch_scale': 1.0,
     'train_embeddings': False,
     'train_on_fraction': 1.0,
-    'use_elmo': False,
+    'use_elmo': True,
     'useatrick': 0,
     'useitrick': 0,
     'usectrick': 0,
