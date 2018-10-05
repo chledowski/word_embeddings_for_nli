@@ -22,7 +22,7 @@ DTYPE = 'float32'
 
 
 class ElmoEmbeddings(Layer):
-    def __init__(self, config, all_stages=[], **kwargs):
+    def __init__(self, config, **kwargs):
         super(ElmoEmbeddings, self).__init__(**kwargs)
 
         self.config = config
@@ -32,9 +32,8 @@ class ElmoEmbeddings(Layer):
         with open(options_file, 'r') as fin:
             self.options = json.load(fin)
 
-        self._elmo_embeddings = dict()
+        self._elmo_embeddings = None
 
-        self.all_stages = all_stages
         self.num_layers = 2
         self.lstm_dim = self.options['lstm']['dim']
         self.projection_dim = self.options['lstm']['projection_dim']
@@ -42,17 +41,13 @@ class ElmoEmbeddings(Layer):
         self.cell_clip = self.options['lstm'].get('cell_clip')
         self.proj_clip = self.options['lstm'].get('proj_clip')
         self.use_skip_connections = self.options['lstm']['use_skip_connections']
-        self.use_weighted_embeddings = self.config.get('elmo_use_weighted_embeddings', True)
+
         self.use_layer_normalization = self.config.get('elmo_use_layer_normalization', True)
 
         print("Elmo layer normalization:", self.use_layer_normalization)
 
         self.embedding_weight_file = os.path.join(self.elmo_dir, 'elmo_token_embeddings.hdf5')
         self.weight_file = os.path.join(self.elmo_dir, 'lm_weights.hdf5')
-
-        self.initial_embeddings_weights = np.array(
-            self.config.get('elmo_initial_embeddings_weights', np.zeros(self.num_layers + 1)))
-        self.initial_gamma = np.array(self.config.get('elmo_initial_gamma', [1]))
 
         with h5py.File(self.embedding_weight_file, 'r') as fin:
             self.vocab_size, self.embedding_dim = fin['embedding'].shape
@@ -66,11 +61,8 @@ class ElmoEmbeddings(Layer):
             trainables.extend(sublayer.trainable_weights)
         return trainables
 
-    def get_embeddings(self, stage, name):
-        dict_name = '%s_%s' % (stage, name)
-        if dict_name not in self._elmo_embeddings:
-            raise ValueError('Unknown stage: %s' % stage)
-        return self._elmo_embeddings[dict_name]
+    def get_embeddings(self):
+        return self._elmo_embeddings
 
     @property
     def non_trainable_weights(self):
@@ -87,18 +79,15 @@ class ElmoEmbeddings(Layer):
 
     def compute_output_shape(self, input_shapes):
         output_dim = 2*(self.projection_dim or self.lstm_dim)
-        return input_shapes[0] + (output_dim,)
+        return (self.num_layers,) + input_shapes[0] + (output_dim,)  # [layers, num_words, dim]
 
     def _custom_getter(self, getter, name, *args, **kwargs):
         print("_custom_getter:", name)
         kwargs['trainable'] = False
-        # kwargs['initializer'] = self._pretrained_initializer(
-        #     name, self.weight_file, self.embedding_weight_file
-        # )
         return getter(name, *args, **kwargs)
 
     def _load_embedding_weights(self, shape):
-        print("loading embeddings...")
+        print("loading ELMo weights...")
         with h5py.File(self.embedding_weight_file, 'r') as fin:
             # Have added a special 0 index for padding not present
             # in the original model.
@@ -172,42 +161,16 @@ class ElmoEmbeddings(Layer):
                     self.lstms[direction].append(lstm)
                     self.sublayers.append(lstm)
 
-        self.embeddings_weights = {}
-        self.gammas = {}
-
-        for stage in self.all_stages:
-            if self.use_weighted_embeddings:
-                self.embeddings_weights[stage] = self.add_weight(
-                    name='{}_ELMo_W'.format(stage),
-                    shape=(self.num_layers + 1,),
-                    initializer=self._embedding_weights_initializer,
-                    regularizer=l2(self.config['l2_elmo_regularization']),
-                    trainable=True,
-                )
-            self.gammas[stage] = self.add_weight(
-                name='{}_ELMo_gamma'.format(stage),
-                shape=(1,),
-                initializer=self._gamma_initializer,
-                regularizer=l2(self.config['l2_elmo_regularization']),
-                trainable=True,
-            )
-
         self.residual_connection = Lambda(lambda x: x[0] + x[1])
         self.concat_layers = Concatenate(name='concat_layers', axis=1)
         self.expand_forwards = []
         self.expand_backwards = []
         self.concat_directions = []
 
-        self.norm_weights = Lambda(
-            lambda weights: tf.nn.softmax(weights))
-
         self.expand_normed_weights = Lambda(
             lambda x: K.expand_dims(K.expand_dims(K.expand_dims(x)), axis=0))
 
         self.normalize_embeddings = Lambda(lambda x: self._normalize_embeddings(x[0], x[1]))
-        self.weight_embeddings = Multiply()
-        self.add_embeddings = Lambda(lambda x: K.sum(x, axis=1))
-        self.gamma_multiply = Lambda(lambda x: x[0] * x[1])
 
         self.reverse_sequence = Lambda(lambda x: x[:, ::-1, :])
         self.mask_sequence = Lambda(lambda x: x[0] * x[1])
@@ -227,7 +190,7 @@ class ElmoEmbeddings(Layer):
 
         self.built = True
 
-    def _get_embeddings(self, inputs, mask):
+    def _compute_embeddings(self, inputs, mask):
         input_embeddings = inputs
         input_embeddings = self.embed(input_embeddings)
 
@@ -285,30 +248,111 @@ class ElmoEmbeddings(Layer):
 
         return all_embeddings / (tf.sqrt(variance) + 1e-12)
 
-    def _weight_embeddings(self, embeddings, mask, stage):
+    def call(self, inputs, **kwargs):
+        # TODO(chledows): add charcnn and finetuning.
+        # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
+        embeddings, mask = inputs
+
+        elmo_embeddings = self._compute_embeddings(embeddings, mask)
+
+        if self.use_layer_normalization:
+            elmo_embeddings = self.normalize_embeddings([elmo_embeddings, mask])
+
+        self._elmo_embeddings = elmo_embeddings
+
+        return elmo_embeddings
+
+
+class WeightElmoEmbeddings(Layer):
+    def __init__(self, config, all_stages=[], **kwargs):
+        super(WeightElmoEmbeddings, self).__init__(**kwargs)
+
+        self.config = config
+        self.all_stages = all_stages
+        self.num_layers = 2
+
+        self.use_weighted_embeddings = self.config.get('elmo_use_weighted_embeddings', True)
+
+        self.initial_embeddings_weights = np.array(
+            self.config.get('elmo_initial_embeddings_weights', np.zeros(self.num_layers + 1)))
+        self.initial_gamma = np.array(self.config.get('elmo_initial_gamma', [1]))
+
+    @property
+    def trainable_weights(self):
+        if not self.trainable:
+            return []
+        return self._trainable_weights
+
+    @property
+    def non_trainable_weights(self):
+        if not self.trainable:
+            nontrainables = list(self._trainable_weights + self._non_trainable_weights)
+        else:
+            nontrainables = list(self._non_trainable_weights)
+        return nontrainables
+
+    def compute_output_shape(self, input_shapes):
+        return input_shapes[1:]
+
+    def _embedding_weights_initializer(self, shape):
+        assert shape == self.initial_embeddings_weights.shape
+        return K.variable(self.initial_embeddings_weights, dtype=DTYPE)
+
+    def _gamma_initializer(self, shape):
+        assert shape == self.initial_gamma.shape
+        return K.variable(self.initial_gamma, dtype=DTYPE)
+
+    def _print_weights_shapes(self):
+        for weight in self.lstms['forward'][0].get_weights():
+            print(weight.shape)
+
+    def build(self, input_shapes):
+        self.embeddings_weights = {}
+        self.gammas = {}
+
+        for stage in self.all_stages:
+            if self.use_weighted_embeddings:
+                self.embeddings_weights[stage] = self.add_weight(
+                    name='{}_ELMo_W'.format(stage),
+                    shape=(self.num_layers + 1,),
+                    initializer=self._embedding_weights_initializer,
+                    regularizer=l2(self.config['l2_elmo_regularization']),
+                    trainable=True,
+                )
+            self.gammas[stage] = self.add_weight(
+                name='{}_ELMo_gamma'.format(stage),
+                shape=(1,),
+                initializer=self._gamma_initializer,
+                regularizer=l2(self.config['l2_elmo_regularization']),
+                trainable=True,
+            )
+
+        self.norm_weights = Lambda(
+            lambda weights: tf.nn.softmax(weights))
+
+        self.expand_normed_weights = Lambda(
+            lambda x: K.expand_dims(K.expand_dims(K.expand_dims(x)), axis=0))
+
+        self.weight_embeddings = Lambda(lambda x: K.sum(x[0] * x[1], axis=1))
+        self.gamma_multiply = Lambda(lambda x: x[0] * x[1])
+
+        self.built = True
+
+    def _weight_embeddings(self, embeddings, stage):
         normed_weights = self.norm_weights(self.embeddings_weights[stage])
         # [-1, -1, layers, 1]
         normed_weights_exp = self.expand_normed_weights(normed_weights)
 
         weighted_embeddings = self.weight_embeddings([normed_weights_exp, embeddings])
-        weighted_embeddings = self.add_embeddings(weighted_embeddings)
 
         return weighted_embeddings
 
-    def call(self, inputs, stage, name, **kwargs):
+    def call(self, elmo_embeddings, stage, **kwargs):
         # TODO(chledows): add charcnn and finetuning.
         # TODO(tomwesolowski): After it's done, check if embeddings are the same as in dumped embeddings file.
-        embeddings, mask = inputs
-
-        elmo_embeddings = self._get_embeddings(embeddings, mask)
-
-        if self.use_layer_normalization:
-            elmo_embeddings = self.normalize_embeddings([elmo_embeddings, mask])
-
-        self._elmo_embeddings['%s_%s' % (stage, name)] = elmo_embeddings
 
         if self.use_weighted_embeddings:
-            weighted_embeddings = self._weight_embeddings(elmo_embeddings, mask, stage)
+            weighted_embeddings = self._weight_embeddings(elmo_embeddings, stage)
         else:
             weighted_embeddings = Lambda(lambda x: K.sum(x, axis=1))(elmo_embeddings)
 
@@ -316,5 +360,4 @@ class ElmoEmbeddings(Layer):
         weighted_embeddings = self.gamma_multiply([gamma, weighted_embeddings])
 
         return weighted_embeddings
-
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Trains a simple baseline on SNLI
-Run like: python src/scripts/train_esim.py cc840 results/test_run
+ELMO normalization & weighting test
+Dumps elmo embeddings to compare them with bilm-tf-elmo embeddings
+in notebook (notebooks/elmo_test)
 """
 
 import glob
@@ -23,7 +24,7 @@ from tensorflow import set_random_seed
 from src import DATA_DIR
 from src.configs.configs import baseline_configs
 from src.models import build_model
-from src.models.elmo import ElmoEmbeddings
+from src.models.elmo import ElmoEmbeddings, WeightElmoEmbeddings
 from src.models.utils import compute_mean_and_variance, normalize_layer, padarray, softmax
 from src.util.vegab import main, MetaSaver, AutomaticNamer
 from src.util.training_loop import baseline_training_loop
@@ -52,7 +53,8 @@ def get_latest_version_number():
 
 
 def build_elmo_extractor(config, data):
-    elmo_embed = ElmoEmbeddings(config, all_stages=["pre_lstm"])
+    elmo_embed = ElmoEmbeddings(config)
+    elmo_weight = WeightElmoEmbeddings(config, all_stages=["pre_lstm"])
 
     premise = Input(shape=(None,), dtype='int32', name='premise')
     premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
@@ -62,14 +64,14 @@ def build_elmo_extractor(config, data):
     # [-1, Psize, 1]
     premise_mask_exp = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask)
 
-    elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp], stage="pre_lstm", name='p')
-    embeddings_p = elmo_embed.get_embeddings(stage='pre_lstm', name='p')
+    elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp])
+    weighted_elmo_p = elmo_weight(elmo_p, stage="pre_lstm")
 
     model_input = [premise, premise_mask_input, premise_elmo_input]
 
     identity = Lambda(lambda x: x)
 
-    model_output = [identity(premise_elmo_input), identity(premise_mask_input), embeddings_p, elmo_p]
+    model_output = [identity(premise_elmo_input), identity(premise_mask_input), elmo_p, weighted_elmo_p]
 
     model = Model(inputs=model_input, outputs=model_output)
 
@@ -240,7 +242,8 @@ def test_elmo():
               np.sum(real_embeddings * expected_embeddings, axis=1) / (real_norm * expected_norm))
         assert False
 
-    save_to_file(inputs, embeddings, weighted_embeddings)
+    if not config['elmo_use_layer_normalization'] :
+        save_to_file(inputs, embeddings, weighted_embeddings)
 
 
 if __name__ == "__main__":
