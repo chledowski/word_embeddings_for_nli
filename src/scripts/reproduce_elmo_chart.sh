@@ -44,15 +44,15 @@ declare -a NAMES=(
     "esim_elmo_comparison_elmo"
 )
 
-declare -a ELMO_FLAGS=(
-    "--no_use_elmo"
-    "--use_elmo --clip_gradient_norm=5.0 --l2_weight_regularization=0.0001"
+declare -a MODELS=(
+    "esim"
+    "esim-elmo"
 
-    "--no_use_elmo"
-    "--use_elmo --clip_gradient_norm=5.0 --l2_weight_regularization=0.0001"
+    "esim"
+    "esim-elmo"
 
-    "--no_use_elmo"
-    "--use_elmo --clip_gradient_norm=5.0 --l2_weight_regularization=0.0001"
+    "esim"
+    "esim-elmo"
 )
 
 for (( i=${START_FROM}; i<${#NAMES[@]}; i++ ));
@@ -65,8 +65,7 @@ do
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
         mkdir -p $RESULTS_DIR
 
-        python src/scripts/train_eval/train.py esim-elmo ${RESULTS_DIR} \
-            --train_on_fraction=${FRACS[$i]} \
-            ${ELMO_FLAGS[$i]}
+        python src/scripts/train_eval/train.py ${MODELS[$i]} ${RESULTS_DIR} \
+            --train_on_fraction=${FRACS[$i]}
     fi
 done
