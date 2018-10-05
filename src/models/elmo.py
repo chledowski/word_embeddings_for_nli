@@ -314,7 +314,7 @@ class WeightElmoEmbeddings(Layer):
             name='ELMo_gamma',
             shape=(1,),
             initializer=self._gamma_initializer,
-            regularizer=l2(self.config['l2_elmo_regularization']),
+            # regularizer=l2(self.config['l2_elmo_regularization']),
             trainable=True,
         )
 
