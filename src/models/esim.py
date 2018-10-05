@@ -64,7 +64,8 @@ def esim(config, data):
 
     if config['use_elmo']:
         elmo_embed = ElmoEmbeddings(config)
-        elmo_weight = WeightElmoEmbeddings(config, all_stages=['pre_lstm', 'post_lstm'])
+        elmo_pre_weight = WeightElmoEmbeddings(config)
+        elmo_post_weight = WeightElmoEmbeddings(config)
                                            # premise_placeholder = K.placeholder(shape=(None, None), dtype='int32')
         # hypothesis_placeholder = K.placeholder(shape=(None, None), dtype='int32')
         premise_elmo_input = Input(shape=(None,), dtype='int32', name='premise_elmo_input')
@@ -91,10 +92,10 @@ def esim(config, data):
         # TODO(tomwesolowski): Elmo - add L2 reg. on elmo embeddings to the loss with coef. 0.001
         # TODO(tomwesolowski): Elmo - clip_gradient_norm=5.0
         elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp])
-        weighted_elmo_p = elmo_weight(elmo_p, stage="pre_lstm")
+        weighted_elmo_p = elmo_pre_weight(elmo_p)
 
         elmo_h = elmo_embed([hypothesis_elmo_input, hypothesis_mask_exp])
-        weighted_elmo_h = elmo_weight(elmo_h, stage="pre_lstm")
+        weighted_elmo_h = elmo_post_weight(elmo_h)
 
         embed_p = Concatenate(axis=2)([embed_orig_p, weighted_elmo_p])
         embed_h = Concatenate(axis=2)([embed_orig_h, weighted_elmo_h])
@@ -156,8 +157,8 @@ def esim(config, data):
         embed_h = residual_embeds([embed_h, embed_orig_h_twice])
 
     if config['use_elmo'] and config['elmo_after_lstm']:
-        weighted_elmo_post_p = elmo_weight(elmo_p, stage="post_lstm")
-        weighted_elmo_post_h = elmo_weight(elmo_h, stage="post_lstm")
+        weighted_elmo_post_p = elmo_post_weight(elmo_p)
+        weighted_elmo_post_h = elmo_post_weight(elmo_h)
 
         embed_p = Concatenate(axis=2)([embed_p, weighted_elmo_post_p])
         embed_h = Concatenate(axis=2)([embed_h, weighted_elmo_post_h])

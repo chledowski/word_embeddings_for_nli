@@ -54,7 +54,7 @@ def get_latest_version_number():
 
 def build_elmo_extractor(config, data):
     elmo_embed = ElmoEmbeddings(config)
-    elmo_weight = WeightElmoEmbeddings(config, all_stages=["pre_lstm"])
+    elmo_weight = WeightElmoEmbeddings(config)
 
     premise = Input(shape=(None,), dtype='int32', name='premise')
     premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
@@ -65,7 +65,7 @@ def build_elmo_extractor(config, data):
     premise_mask_exp = Lambda(lambda x: K.expand_dims(x, axis=-1))(premise_mask)
 
     elmo_p = elmo_embed([premise_elmo_input, premise_mask_exp])
-    weighted_elmo_p = elmo_weight(elmo_p, stage="pre_lstm")
+    weighted_elmo_p = elmo_weight(elmo_p)
 
     model_input = [premise, premise_mask_input, premise_elmo_input]
 
