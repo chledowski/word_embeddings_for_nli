@@ -173,7 +173,7 @@ baseline_configs['esim'] = {
     'save_best_model': True,
     'save_every_epoch': False,
     'save_model': False,
-    'seed': 2,
+    'seed': 9,
     'sentence_max_length': 90,
     'steps_per_epoch_scale': 1.0,
     'train_embeddings': False,
