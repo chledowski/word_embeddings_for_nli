@@ -12,11 +12,11 @@ from src.util.vocab import Vocabulary
 import tensorflow as tf
 
 
-def prepare_kb(config, features, x1_lemma, x2_lemma):
+def prepare_kb(config, features, x1_lemma, x2_lemma, x1_length, x2_length):
     batch_size = x1_lemma.shape[0]
     # print("KB batch_size: %d" % batch_size)
-    kb_x = np.zeros((batch_size, config['sentence_max_length'], config['sentence_max_length'], 5)).astype('float32')
-    kb_y = np.zeros((batch_size, config['sentence_max_length'], config['sentence_max_length'], 5)).astype('float32')
+    kb_x = np.zeros((batch_size, x1_length, x2_length, 5)).astype('float32')
+    kb_y = np.zeros((batch_size, x2_length, x1_length, 5)).astype('float32')
 
     total_misses = 0
     total_hits = 0
@@ -24,9 +24,9 @@ def prepare_kb(config, features, x1_lemma, x2_lemma):
 
     def fill_kb(batch_id, words1, words2, kb):
         hits, misses = 0, 0
-        for i1 in range(min(len(words1), config['sentence_max_length'])):
+        for i1 in range(len(words1)):
             w1 = words1[i1].decode()
-            for i2 in range(min(len(words2), config['sentence_max_length'])):
+            for i2 in range(len(words2)):
                 w2 = words2[i2].decode()
                 if w1 in features and w2 in features[w1]:
                     kb[batch_id][i1][i2] = features[w1][w2]
@@ -145,7 +145,8 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
                         model_input = [x1, x1_mask, x2, x2_mask]
 
                         if use_external_knowledge:
-                            kb_x, kb_y, _, _ = prepare_kb(config, features, x1_lemma, x2_lemma)
+                            kb_x, kb_y, _, _ = prepare_kb(
+                                config, features, x1_lemma, x2_lemma, x1_length, x2_length)
                             model_input += [kb_x, kb_y]
 
                         if config['use_elmo']:
