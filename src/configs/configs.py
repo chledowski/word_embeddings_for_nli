@@ -220,6 +220,7 @@ baseline_configs['esim-elmo'] = {
     'elmo_use_weighted_embeddings': True,
     'elmo_use_layer_normalization': True,
     'elmo_after_lstm': True,
+    'elmo_stateful': False,
     'embedding_dim': 300,
     'embedding_name': 'gcc840',
     'embedding_second_name': 'gcc840',

@@ -41,6 +41,7 @@ class ElmoEmbeddings(Layer):
         self.cell_clip = self.options['lstm'].get('cell_clip')
         self.proj_clip = self.options['lstm'].get('proj_clip')
         self.use_skip_connections = self.options['lstm']['use_skip_connections']
+        self.elmo_stateful = self.config.get('elmo_stateful', False)
 
         self.use_layer_normalization = self.config.get('elmo_use_layer_normalization', True)
 
@@ -156,6 +157,7 @@ class ElmoEmbeddings(Layer):
                             proj_clip=self.proj_clip,
                             go_backwards=direction == 'backward',
                             unit_forget_bias=False,
+                            stateful=self.stateful,
                             trainable=False
                     )
                     self.lstms[direction].append(lstm)
@@ -199,7 +201,9 @@ class ElmoEmbeddings(Layer):
             input = input_embeddings
             elmo_embeddings[direction] = [input]
             for i in range(self.num_layers):
-                output = self.lstms[direction][i](input, mask=mask)  # [-1, maxlen, projection_dim]
+                output = self.lstms[direction][i](
+                    input,
+                    mask=mask)  # [-1, maxlen, projection_dim]
                 if direction == 'backward':
                     output = self.reverse_sequence(output)
                 if i > 0 and self.use_skip_connections:
