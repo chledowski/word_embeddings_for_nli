@@ -66,6 +66,6 @@ do
         mkdir -p $RESULTS_DIR
 
         python src/scripts/train_eval/train.py ${MODELS[$i]} ${RESULTS_DIR} \
-            --train_on_fraction=${FRACS[$i]}
+            --train_on_fraction=${FRACS[$i]} --seed=9
     fi
 done

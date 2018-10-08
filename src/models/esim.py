@@ -26,8 +26,6 @@ from src import DATA_DIR
 from src.util.prepare_embedding import prep_embedding_matrix
 from src.models.elmo import ElmoEmbeddings, WeightElmoEmbeddings
 from src.models.keras_utils import ScaledRandomNormal
-from src.models.bilm.elmo import weight_layers
-from src.models.bilm.model import BidirectionalLanguageModel
 
 logger = logging.getLogger(__name__)
 

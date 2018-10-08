@@ -29,9 +29,9 @@ from fuel.streams import DataStream
 from fuel.transformers import (
     Mapping, Batch, Padding, AgnosticSourcewiseTransformer,
     FilterSources, Transformer, Unpack)
+from typing import List
 
 from src import DATA_DIR
-from src.models.bilm.data import TokenBatcher
 from src.util.vocab import Vocabulary
 
 #from dictlearn.datasets import TextDataset, SQuADDataset, PutTextTransfomer
@@ -94,6 +94,125 @@ class RandomSpanScheme(IterationScheme):
     def __next__(self):
         start = self._rng.randint(0, self._dataset_size - self._span_size)
         return slice(start, start + self._span_size)
+
+
+class BiLMVocabulary(object):
+    '''
+    A token vocabulary.  Holds a map from token to ids and provides
+    a method for encoding text to a sequence of ids.
+    '''
+    def __init__(self, filename, validate_file=False):
+        '''
+        filename = the vocabulary file.  It is a flat text file with one
+            (normalized) token per line.  In addition, the file should also
+            contain the special tokens <S>, </S>, <UNK> (case sensitive).
+        '''
+        self._id_to_word = []
+        self._word_to_id = {}
+        self._unk = -1
+        self._bos = -1
+        self._eos = -1
+
+        with open(filename, "rb") as f:
+            idx = 0
+            for line in f:
+                word_name = line.strip()
+                if word_name == b'<S>':
+                    self._bos = idx
+                elif word_name == b'</S>':
+                    self._eos = idx
+                elif word_name == b'<UNK>':
+                    self._unk = idx
+                if word_name == '!!!MAXTERMID':
+                    continue
+
+                self._id_to_word.append(word_name)
+                self._word_to_id[word_name] = idx
+                idx += 1
+
+        # check to ensure file has special tokens
+        if validate_file:
+            if self._bos == -1 or self._eos == -1 or self._unk == -1:
+                raise ValueError("Ensure the vocabulary file has "
+                                 "<S>, </S>, <UNK> tokens")
+
+    @property
+    def bos(self):
+        return self._bos
+
+    @property
+    def eos(self):
+        return self._eos
+
+    @property
+    def unk(self):
+        return self._unk
+
+    @property
+    def size(self):
+        return len(self._id_to_word)
+
+    def word_to_id(self, word):
+        if word in self._word_to_id:
+            return self._word_to_id[word]
+        return self.unk
+
+    def id_to_word(self, cur_id):
+        return self._id_to_word[cur_id]
+
+    def decode(self, cur_ids):
+        """Convert a list of ids to a sentence, with space inserted."""
+        return ' '.join([self.id_to_word(cur_id).decode() for cur_id in cur_ids])
+
+    def encode(self, sentence, reverse=False, split=True):
+        """Convert a sentence to a list of ids, with special tokens added.
+        Sentence is a single string with tokens separated by whitespace.
+
+        If reverse, then the sentence is assumed to be reversed, and
+            this method will swap the BOS/EOS tokens appropriately."""
+
+        if split:
+            word_ids = [
+                self.word_to_id(cur_word) for cur_word in sentence.split()
+            ]
+        else:
+            word_ids = [self.word_to_id(cur_word) for cur_word in sentence]
+
+        if reverse:
+            return numpy.array([self.eos] + word_ids + [self.bos], dtype=numpy.int32)
+        else:
+            return numpy.array([self.bos] + word_ids + [self.eos], dtype=numpy.int32)
+
+
+class TokenBatcher(object):
+    '''
+    Batch sentences of tokenized text into token id matrices.
+    '''
+    def __init__(self, lm_vocab_file: str):
+        '''
+        lm_vocab_file = the language model vocabulary file (one line per
+            token)
+        '''
+        self._lm_vocab = BiLMVocabulary(lm_vocab_file)
+
+    def batch_sentences(self, sentences: List[List[str]]):
+        '''
+        Batch the sentences as character ids
+        Each sentence is a list of tokens without <s> or </s>, e.g.
+        [['The', 'first', 'sentence', '.'], ['Second', '.']]
+        '''
+        n_sentences = len(sentences)
+        max_length = max(len(sentence) for sentence in sentences) + 2
+
+        X_ids = numpy.zeros((n_sentences, max_length), dtype=numpy.int64)
+
+        for k, sent in enumerate(sentences):
+            length = len(sent) + 2
+            ids_without_mask = self._lm_vocab.encode(sent, split=False)
+            # add one so that 0 is the mask value
+            X_ids[k, :length] = ids_without_mask + 1
+
+        return X_ids
 
 
 class Data(object):
