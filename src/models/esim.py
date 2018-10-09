@@ -137,18 +137,17 @@ def esim(config, data):
 
     if config['residual_embedding']:
         if config['residual_embedding_type'] == 'add':
-            def _add_and_rotate(x):
-                contextual, residual, ortho_matrix = x
+            def _add_and_rotate(x, ortho_matrix):
+                contextual, residual = x
                 residual = K.dot(residual, K.constant(ortho_matrix, dtype='float32'))
                 residual = Concatenate()([residual, residual])
                 return Add()([contextual, residual])
-            residual_connection = Lambda(_add_and_rotate, name='residual_embeds')
-            embed_p = residual_connection([embed_p, embed_second_p, ortho_matrix])
-            embed_h = residual_connection([embed_h, embed_second_h, ortho_matrix])
+            residual_connection = Lambda(_add_and_rotate, name='residual_embeds',
+                                         arguments={
+                                             'ortho_matrix': ortho_matrix
+                                         })
         elif config['residual_embedding_type'] == 'concat':
             residual_connection = Concatenate(name='residual_embeds')
-            embed_p = residual_connection([embed_p, embed_second_p])
-            embed_h = residual_connection([embed_h, embed_second_h])
         elif config['residual_embedding_type'] == 'mod_drop':
             # x[0]: [-1, sen_len, 2*dim]
             # x[1]: [-1, sen_len, 2*dim]
@@ -162,7 +161,8 @@ def esim(config, data):
         else:
             raise ValueError("Unknown residual conn. type:", config['residual_embedding_type'])
 
-
+        embed_p = residual_connection([embed_p, embed_second_p])
+        embed_h = residual_connection([embed_h, embed_second_h])
 
     if config['use_elmo'] and config['elmo_after_lstm']:
         weighted_elmo_post_p = elmo_post_weight(elmo_p)
