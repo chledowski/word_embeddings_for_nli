@@ -169,7 +169,7 @@ baseline_configs['esim'] = {
     'pair_features_pkl_path': 'pair_features.pkl',
     'pair_features_txt_path': 'kim_data/pair_features.txt',
     'residual_embedding': False,
-    'residual_embedding_mod_drop': False,
+    'residual_embedding_type': 'none',
     'save_best_model': True,
     'save_every_epoch': False,
     'save_model': False,

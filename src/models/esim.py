@@ -23,7 +23,7 @@ from keras.regularizers import l2
 
 
 from src import DATA_DIR
-from src.util.prepare_embedding import prep_embedding_matrix
+from src.util.prepare_embedding import ortho_weight, prep_embedding_matrix
 from src.models.elmo import ElmoEmbeddings, WeightElmoEmbeddings
 from src.models.keras_utils import ScaledRandomNormal
 
@@ -34,6 +34,7 @@ def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
+    ortho_matrix = K.variable(value=ortho_weight(config["embedding_dim"]))
     embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
@@ -44,11 +45,12 @@ def esim(config, data):
 
     if config["embedding_second_name"] != config["embedding_name"]:
         embedding_second_matrix = prep_embedding_matrix(config, data, config["embedding_second_name"])
+        embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
+                                 weights=[embedding_second_matrix],
+                                 trainable=config["train_embeddings"],
+                                 mask_zero=False)
     else:
-        embedding_second_matrix = embedding_matrix
-
-    max_norm_second = np.max(np.sum(embedding_second_matrix ** 2, axis=-1), axis=-1)
-    # print("max_norm_second: ", max_norm_second)
+        embed_second = embed
 
     logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
@@ -64,7 +66,7 @@ def esim(config, data):
         elmo_embed = ElmoEmbeddings(config)
         elmo_pre_weight = WeightElmoEmbeddings(config)
         elmo_post_weight = WeightElmoEmbeddings(config)
-                                           # premise_placeholder = K.placeholder(shape=(None, None), dtype='int32')
+        # premise_placeholder = K.placeholder(shape=(None, None), dtype='int32')
         # hypothesis_placeholder = K.placeholder(shape=(None, None), dtype='int32')
         premise_elmo_input = Input(shape=(None,), dtype='int32', name='premise_elmo_input')
         hypothesis_elmo_input = Input(shape=(None,), dtype='int32',
@@ -84,6 +86,9 @@ def esim(config, data):
     embed_orig_p = embed(premise)  # [batchsize, Psize, Embedsize]
     embed_orig_h = embed(hypothesis)  # [batchsize, Hsize, Embedsize]
 
+    embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
+    embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
+
     if config['use_elmo']:
         # TODO(tomwesolowski): Elmo - add L2 regularization with coef. 0.0001 to all layers
         # TODO(tomwesolowski): Elmo - add 50% dropout after attention layer
@@ -102,14 +107,6 @@ def esim(config, data):
     else:
         embed_p = embed_orig_p
         embed_h = embed_orig_h
-
-    if config['knowledge_after_lstm'] in ['dot', 'euc']:
-        embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
-                                  weights=[embedding_second_matrix],
-                                  trainable=config["train_embeddings"],
-                                  mask_zero=False)
-        embed_second_p = embed_second(premise)  # [batchsize, Psize, Embedsize]
-        embed_second_h = embed_second(hypothesis)  # [batchsize, Hsize, Embedsize]
 
     # TODO(tomwesolowski): Elmo - change to variational dropout
     # FIX(tomwesolowski): Add dropout
@@ -139,22 +136,30 @@ def esim(config, data):
     embed_h = bilstm_encoder(embed_h)
 
     if config['residual_embedding']:
-        if config['residual_embedding_mod_drop']:
+        if config['residual_embedding_type'] == 'add':
+            def _add_and_rotate(x):
+                contextual, residual = x
+                residual = K.dot(residual, ortho_matrix)
+                residual = Concatenate()([residual, residual])
+                return Add()([contextual, residual])
+            residual_connection = Lambda(_add_and_rotate, name='residual_embeds')
+        elif config['residual_embedding_type'] == 'concat':
+            residual_connection = Concatenate(name='residual_embeds')
+        elif config['residual_embedding_type'] == 'mod_drop':
             # x[0]: [-1, sen_len, 2*dim]
             # x[1]: [-1, sen_len, 2*dim]
-            def _residual_embeds_mod_dropout(x):
-                prob = tf.random_uniform(shape=tf.shape(x[0])[:2])
-                prob = tf.expand_dims(prob, -1)
-                return prob * x[0] + (1. - prob) * x[1]
-
-            residual_embeds = Lambda(_residual_embeds_mod_dropout,
-                                     name='residual_embeds')
+            # def _residual_embeds_mod_dropout(x):
+            #     prob = tf.random_uniform(shape=tf.shape(x[0])[:2])
+            #     prob = tf.expand_dims(prob, -1)
+            #     return prob * x[0] + (1. - prob) * x[1]
+            # residual_connection = Lambda(_residual_embeds_mod_dropout,
+            #                          name='residual_embeds')
+            pass
         else:
-            residual_embeds = Add(name='residual_embeds')
-        embed_orig_p_twice = Concatenate(axis=2)([embed_orig_p, embed_orig_p])
-        embed_orig_h_twice = Concatenate(axis=2)([embed_orig_h, embed_orig_h])
-        embed_p = residual_embeds([embed_p, embed_orig_p_twice])
-        embed_h = residual_embeds([embed_h, embed_orig_h_twice])
+            raise ValueError("Unknown residual conn. type:", config['residual_embedding_type'])
+
+        embed_p = residual_connection([embed_p, embed_second_p])
+        embed_h = residual_connection([embed_h, embed_second_h])
 
     if config['use_elmo'] and config['elmo_after_lstm']:
         weighted_elmo_post_p = elmo_post_weight(elmo_p)
@@ -196,14 +201,14 @@ def esim(config, data):
     if config['knowledge_after_lstm'] in ['dot', 'euc']:
         if config['knowledge_after_lstm'] == 'dot':
             Dph = Dot(axes=(2, 2))([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
-        elif config['knowledge_after_lstm'] == 'euc':
-            def l2_pairwise_distance(AB):
-                A, B = AB
-                r = K.sum(A * A, 2, keepdims=True)
-                s = K.sum(B * B, 2, keepdims=True)
-                return r - 2 * Dot(axes=(2, 2))([A, B]) + K.permute_dimensions(s, (0, 2, 1))
-            Dph = Lambda(l2_pairwise_distance)([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
-            Dph = Lambda(lambda x: 1 - x / (2*max_norm_second))(Dph)
+        # elif config['knowledge_after_lstm'] == 'euc':
+        #     def l2_pairwise_distance(AB):
+        #         A, B = AB
+        #         r = K.sum(A * A, 2, keepdims=True)
+        #         s = K.sum(B * B, 2, keepdims=True)
+        #         return r - 2 * Dot(axes=(2, 2))([A, B]) + K.permute_dimensions(s, (0, 2, 1))
+        #     Dph = Lambda(l2_pairwise_distance)([embed_second_p, embed_second_h])  # [batch_size, Psize, Hsize]
+        #     Dph = Lambda(lambda x: 1 - x / (2*max_norm_second))(Dph)
 
         Dhp = Permute((2, 1))(Dph)  # [batch_size, Hsize, Psize]
         i_1 = Lambda(lambda x: K.sum(x[0] * x[1], axis=-1, keepdims=True))([Ep_soft, Dph])  # [batch_size, Psize, 1]

@@ -201,8 +201,6 @@ def load_model_and_data(config, model_name, layer_name, epoch):
     weights_path = os.path.join(DATA_DIR, 'results', model_name, f'model_{epoch:02d}.h5')
     model.load_weights(weights_path)
 
-
-
     lstm_model = Model(inputs=model.input,
                        outputs=[model.get_layer(layer_name).get_output_at(i) for i in range(2)])
 
