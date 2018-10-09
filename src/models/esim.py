@@ -34,7 +34,7 @@ def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
-    ortho_matrix = K.variable(value=ortho_weight(config["embedding_dim"]))
+    ortho_matrix = ortho_weight(config["embedding_dim"])
     embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
@@ -138,10 +138,10 @@ def esim(config, data):
     if config['residual_embedding']:
         if config['residual_embedding_type'] == 'add':
             def _add_and_rotate(x):
-                contextual, residual = x
-                residual = K.dot(residual, ortho_matrix)
+                contextual, residual, ortho_matrix = x
+                residual = K.dot(residual, K.constant(ortho_matrix, dtype='float32'))
                 residual = Concatenate()([residual, residual])
-                return Add()([contextual, residual])
+                return Add()([contextual, residual, ortho_matrix])
             residual_connection = Lambda(_add_and_rotate, name='residual_embeds')
         elif config['residual_embedding_type'] == 'concat':
             residual_connection = Concatenate(name='residual_embeds')
