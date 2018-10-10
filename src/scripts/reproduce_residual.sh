@@ -45,8 +45,8 @@ do
         python src/scripts/train_eval/train.py $MODEL $RESULTS_DIR \
             --embedding_name="gcc840" \
             --embedding_second_name=${NAMES[$i]} \
-            --residual_embedding \
-            --residual_embedding_type=${CONNECTION[$i]} \
+            --residual_embedding.active \
+            --residual_embedding.type=${CONNECTION[$i]} \
             --dataset=${DATASET} \
             --seed=${SEED} \
 
