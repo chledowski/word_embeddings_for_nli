@@ -12,7 +12,7 @@ MODULO=$4
 START_FROM=$5
 
 SEED=9
-FRACTION=0.1
+FRACTION=$6
 
 printf "${GREEN}Dataset = ${DATASET}${NC}\n"
 

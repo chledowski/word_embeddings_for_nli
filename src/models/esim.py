@@ -150,6 +150,24 @@ def esim(config, data):
             residual_connection = Concatenate(name='residual_embeds')
         elif config['residual_embedding']['type'] == 'mod_drop':
             def _drop_mod(embeddings, normalize):
+                def _mod_drop_train(contextual, residual):
+                    keep_configs = K.constant([[0, 1], [1, 0], [1, 1]])
+
+                    # [batch_size, sen_length]
+                    selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
+
+                    # [batch_size, sen_length, 2, 1]
+                    keep = K.expand_dims(K.gather(keep_configs, selectors))
+
+                    # [batch_size, sen_length, 2, 2*emb_dim]
+                    stacked_embeddings = K.stack([contextual, residual], axis=2)
+
+                    # [batch_size, sen_length, 2*emb_dim]
+                    return K.sum(keep * stacked_embeddings, axis=2)
+
+                def _mod_drop_test(contextual, residual):
+                    return Add()([contextual, residual])
+
                 contextual, residual = embeddings
                 # contextual: [batch, sen_length, 2*emb_dim]
                 # residual: [batch, sen_length, emb_dim]
@@ -158,24 +176,14 @@ def esim(config, data):
                 if normalize:
                     # [batch_size, sen_length, 1]
                     contextual_norm = tf.norm(contextual, keepdims=True)
-
                     # [batch_size, sen_length, 2*emb_dim]
                     unit_residual = K.l2_normalize(residual, axis=-1)
                     residual = unit_residual * contextual_norm
 
-                keep_configs = K.constant([[0, 1], [1, 0], [1, 1]])
+                return K.switch(K.learning_phase(),
+                                _mod_drop_train(contextual, residual),
+                                _mod_drop_test(contextual, residual))
 
-                # [batch_size, sen_length]
-                selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
-
-                # [batch_size, sen_length, 2, 1]
-                keep = K.expand_dims(K.gather(keep_configs, selectors))
-
-                # [batch_size, sen_length, 2, 2*emb_dim]
-                stacked_embeddings = K.stack([contextual, residual], axis=2)
-
-                # [batch_size, sen_length, 2*emb_dim]
-                return K.sum(keep * stacked_embeddings, axis=2)
             residual_connection = Lambda(_drop_mod,
                                          name='residual_embeds',
                                          arguments={
