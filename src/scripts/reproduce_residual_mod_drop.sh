@@ -40,7 +40,7 @@ declare -a NORMALIZE=(
 for (( i=${START_FROM}; i<${#NAMES[@]}; i++ ));
 do
     if [[ $(($i % $MODULO)) == $(($RUN_MODULO)) ]]; then
-        NAME="${MODEL}_${DATASET}_${CONNECTION[$i]}_${NAMES[$i]}_mgr"
+        NAME="${MODEL}_${DATASET}_${CONNECTION[$i]}_${NAMES[$i]}_frac${FRACTION}_mgr"
         RESULTS_DIR="results/${NAME}"
 
         printf "${GREEN}Running $NAME...${NC}\n"
