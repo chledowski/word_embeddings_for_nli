@@ -135,8 +135,8 @@ def esim(config, data):
     embed_p = bilstm_encoder(embed_p)  # [-1, sen_len, 2*dim]
     embed_h = bilstm_encoder(embed_h)
 
-    if config['residual_embedding']:
-        if config['residual_embedding_type'] == 'add':
+    if config['residual_embedding']['active']:
+        if config['residual_embedding']['type'] == 'add':
             def _add_and_rotate(x, ortho_matrix):
                 contextual, residual = x
                 residual = K.dot(residual, K.constant(ortho_matrix, dtype='float32'))
@@ -146,36 +146,43 @@ def esim(config, data):
                                          arguments={
                                              'ortho_matrix': ortho_matrix
                                          })
-        elif config['residual_embedding_type'] == 'concat':
+        elif config['residual_embedding']['type'] == 'concat':
             residual_connection = Concatenate(name='residual_embeds')
-        elif config['residual_embedding_type'] == 'mod_drop':
-            def _drop_mod(embeddings):
+        elif config['residual_embedding']['type'] == 'mod_drop':
+            def _drop_mod(embeddings, normalize):
                 contextual, residual = embeddings
                 # contextual: [batch, sen_length, 2*emb_dim]
                 # residual: [batch, sen_length, emb_dim]
                 residual = Concatenate()([residual, residual])
 
+                if normalize:
+                    # [batch_size, sen_length, 1]
+                    contextual_norm = tf.norm(contextual, keepdims=True)
+
+                    # [batch_size, sen_length, 2*emb_dim]
+                    unit_residual = K.l2_normalize(residual, axis=-1)
+                    residual = unit_residual * contextual_norm
+
                 keep_configs = K.constant([[0, 1], [1, 0], [1, 1]])
 
                 # [batch_size, sen_length]
                 selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
-                print("selectors", K.int_shape(selectors))
 
                 # [batch_size, sen_length, 2, 1]
                 keep = K.expand_dims(K.gather(keep_configs, selectors))
-                print("keep", K.int_shape(keep))
 
                 # [batch_size, sen_length, 2, 2*emb_dim]
                 stacked_embeddings = K.stack([contextual, residual], axis=2)
-                print("stacked embeddings", K.int_shape(stacked_embeddings))
 
                 # [batch_size, sen_length, 2*emb_dim]
-                joint_embeddings = K.sum(keep * stacked_embeddings, axis=2)
-                print("result", K.int_shape(joint_embeddings))
-                return joint_embeddings
-            residual_connection = Lambda(_drop_mod, name='residual_embeds')
+                return K.sum(keep * stacked_embeddings, axis=2)
+            residual_connection = Lambda(_drop_mod,
+                                         name='residual_embeds',
+                                         arguments={
+                                             'normalize': config['residual_embedding']['normalize']
+                                         })
         else:
-            raise ValueError("Unknown residual conn. type:", config['residual_embedding_type'])
+            raise ValueError("Unknown residual conn. type:", config['residual_embedding']['type'])
 
         embed_p = residual_connection([embed_p, embed_second_p])
         embed_h = residual_connection([embed_h, embed_second_h])
