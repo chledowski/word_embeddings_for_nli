@@ -153,6 +153,10 @@ def esim(config, data):
                 def _mod_drop_train(contextual, residual):
                     keep_configs = K.constant([[0, 1], [1, 0], [1, 1]])
 
+                    # scale by 1.0 / keep_prob
+                    keep_configs_probs = K.mean(keep_configs, axis=0, keepdims=True)
+                    keep_configs = 1.0 / keep_configs_probs
+
                     # [batch_size, sen_length]
                     selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
 
