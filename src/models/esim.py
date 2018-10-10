@@ -135,7 +135,7 @@ def esim(config, data):
     embed_p = bilstm_encoder(embed_p)  # [-1, sen_len, 2*dim]
     embed_h = bilstm_encoder(embed_h)
 
-    if config['residual_embedding']['active']:
+    if config.get('residual_embedding', {}).get('active', False):
         if config['residual_embedding']['type'] == 'add':
             def _add_and_rotate(x, ortho_matrix):
                 contextual, residual = x

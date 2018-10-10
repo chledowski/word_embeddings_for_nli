@@ -57,6 +57,7 @@ def prep_embedding_matrix(config, data, embedding_name):
             embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
             found_word_indices = []
             found_word_ids = []
+            notfound_words = []
             for i in trange(data.vocab.size()):
                 word_lower = data.vocab.id_to_word(i)
                 if word_lower in embedding_word_to_id:
@@ -66,6 +67,12 @@ def prep_embedding_matrix(config, data, embedding_name):
                     embedding_matrix[i] = embedding_matrix_all[embedding_word_to_id[word_lower]]
                 else:
                     num_notfound += 1
+                    notfound_words.append(word_lower)
+
+            dumps_dir = os.path.join(DATA_DIR, 'dumps')
+            os.makedirs(dumps_dir, exist_ok=True)
+            np.save(os.path.join(dumps_dir, 'missing_words.npy'),
+                    np.array(notfound_words))
 
         else:
             embedding_matrix = []
