@@ -3,6 +3,7 @@
 Simple model definitions
 """
 
+import gc
 import h5py
 import numpy as np
 import os
@@ -99,6 +100,8 @@ def prep_embedding_matrix(config, data, embedding_name):
     embedding_matrix[0, :] = 0
     if config["normalize"]:
         embedding_matrix = normalize_embeddings(embedding_matrix)
+
+    gc.collect()
 
     # print("Emb matrix norm", np.linalg.norm(embedding_matrix))
     return embedding_matrix

@@ -95,7 +95,8 @@ def create_lr_schedule(config, model, dataset_size, batch_size, save_path):
     n_epochs = config["n_epochs"]
 
     if learning_rate_schedule_type == "reduce_on_plateau":
-        return ReduceLROnPlateau(monitor='val_acc', patience=1, factor=0.5, mode='max', verbose=1)
+        return ReduceLROnPlateau(monitor='val_acc', patience=config.get('lr_patience', 1),
+                                 factor=0.5, mode='max', verbose=1)
     elif learning_rate_schedule_type == "list_of_lists":
         def lr_schedule(epoch, logs):
             for e, v in learning_rate_schedule:
@@ -191,7 +192,7 @@ def baseline_training_loop(model, dataset, streams,
     callbacks.append(LambdaCallback(on_epoch_end=print_logs))
 
     if early_stopping == True:
-        callbacks.append(EarlyStopping(monitor='val_acc', patience=7))
+        callbacks.append(EarlyStopping(monitor='val_acc', patience=config.get('patience', 7)))
 
     def save_history(epoch, logs):
         history_path = os.path.join(save_path, "history.csv")
