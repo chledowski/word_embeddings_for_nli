@@ -175,10 +175,10 @@ def esim(config, data):
 
                 if normalize:
                     # [batch_size, sen_length, 1]
-                    contextual_norm = tf.norm(contextual, keepdims=True)
+                    residual_norm = tf.norm(residual, keepdims=True)
                     # [batch_size, sen_length, 2*emb_dim]
-                    unit_residual = K.l2_normalize(residual, axis=-1)
-                    residual = unit_residual * contextual_norm
+                    unit_contextual = K.l2_normalize(contextual, axis=-1)
+                    contextual = unit_contextual * residual_norm
 
                 return K.switch(K.learning_phase(),
                                 _mod_drop_train(contextual, residual),
