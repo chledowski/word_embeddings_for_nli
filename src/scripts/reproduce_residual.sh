@@ -15,17 +15,21 @@ SEED=9
 printf "${GREEN}Dataset = ${DATASET}${NC}\n"
 
 declare -a NAMES=(
-    "gcc840" # add
-    "gcc840" # concat
-    "gcc840_snli_gcc840_fq_12_q" # add
-    "gcc840_snli_gcc840_fq_12_q" # concat
+#    "gcc840" # add
+#    "gcc840" # concat
+#    "gcc840_snli_gcc840_fq_12_q" # add
+#    "gcc840_snli_gcc840_fq_12_q" # concat
+    "gcc840" # mod_drop
+    "gcc840_snli_gcc840_fq_12_q" # mod_drop
 )
 
 declare -a CONNECTION=(
-    "add" # add
-    "concat" # concat
-    "add" # add
-    "concat" # concat
+#    "add" # add
+#    "concat" # concat
+#    "add" # add
+#    "concat" # concat
+    "mod_drop"
+    "mod_drop"
 )
 
 for (( i=0; i<${#NAMES[@]}; i++ ));

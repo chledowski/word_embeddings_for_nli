@@ -149,15 +149,31 @@ def esim(config, data):
         elif config['residual_embedding_type'] == 'concat':
             residual_connection = Concatenate(name='residual_embeds')
         elif config['residual_embedding_type'] == 'mod_drop':
-            # x[0]: [-1, sen_len, 2*dim]
-            # x[1]: [-1, sen_len, 2*dim]
-            # def _residual_embeds_mod_dropout(x):
-            #     prob = tf.random_uniform(shape=tf.shape(x[0])[:2])
-            #     prob = tf.expand_dims(prob, -1)
-            #     return prob * x[0] + (1. - prob) * x[1]
-            # residual_connection = Lambda(_residual_embeds_mod_dropout,
-            #                          name='residual_embeds')
-            pass
+            def _drop_mod(embeddings):
+                contextual, residual = embeddings
+                # contextual: [batch, sen_length, 2*emb_dim]
+                # residual: [batch, sen_length, emb_dim]
+                residual = Concatenate()([residual, residual])
+
+                keep_configs = K.constant([[0, 1], [1, 0], [1, 1]])
+
+                # [batch_size, sen_length]
+                selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
+                print("selectors", K.int_shape(selectors))
+
+                # [batch_size, sen_length, 2, 1]
+                keep = K.expand_dims(K.gather(keep_configs, selectors))
+                print("keep", K.int_shape(keep))
+
+                # [batch_size, sen_length, 2, 2*emb_dim]
+                stacked_embeddings = K.stack([contextual, residual], axis=2)
+                print("stacked embeddings", K.int_shape(stacked_embeddings))
+
+                # [batch_size, sen_length, 2*emb_dim]
+                joint_embeddings = K.sum(keep * stacked_embeddings, axis=2)
+                print("result", K.int_shape(joint_embeddings))
+                return joint_embeddings
+            residual_connection = Lambda(_drop_mod, name='residual_embeds')
         else:
             raise ValueError("Unknown residual conn. type:", config['residual_embedding_type'])
 
