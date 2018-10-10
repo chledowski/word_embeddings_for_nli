@@ -181,7 +181,7 @@ def esim(config, data):
 
                 if normalize:
                     # [batch_size, sen_length, 1]
-                    residual_norm = tf.norm(residual, keepdims=True)
+                    residual_norm = tf.norm(residual, axis=-1, keepdims=True)
                     # [batch_size, sen_length, 2*emb_dim]
                     unit_contextual = K.l2_normalize(contextual, axis=-1)
                     contextual = unit_contextual * residual_norm
