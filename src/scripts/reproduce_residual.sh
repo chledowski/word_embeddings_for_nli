@@ -9,30 +9,31 @@ MODEL=$1 # esim, esim-kim, esim-elmo
 DATASET=$2 # dataset name {SNLI, MNLI}
 RUN_MODULO=$3
 MODULO=$4
+START_FROM=$5
 
 SEED=9
 
 printf "${GREEN}Dataset = ${DATASET}${NC}\n"
 
 declare -a NAMES=(
-#    "gcc840" # add
-#    "gcc840" # concat
-#    "gcc840_snli_gcc840_fq_12_q" # add
-#    "gcc840_snli_gcc840_fq_12_q" # concat
+    "gcc840" # add
+    "gcc840" # concat
+    "gcc840_snli_gcc840_fq_12_q" # add
+    "gcc840_snli_gcc840_fq_12_q" # concat
     "gcc840" # mod_drop
     "gcc840_snli_gcc840_fq_12_q" # mod_drop
 )
 
 declare -a CONNECTION=(
-#    "add" # add
-#    "concat" # concat
-#    "add" # add
-#    "concat" # concat
+    "add" # add
+    "concat" # concat
+    "add" # add
+    "concat" # concat
     "mod_drop"
     "mod_drop"
 )
 
-for (( i=0; i<${#NAMES[@]}; i++ ));
+for (( i=${START_FROM}; i<${#NAMES[@]}; i++ ));
 do
     if [[ $(($i % $MODULO)) == $(($RUN_MODULO)) ]]; then
         NAME="${MODEL}_${DATASET}_${CONNECTION[$i]}_${NAMES[$i]}_mgr"
