@@ -7,6 +7,7 @@ Run like: python src/scripts/train_esim.py cc840 results/test_run
 
 import argparse
 import json
+import logging
 import os
 import deepdish as dd
 
@@ -19,6 +20,7 @@ from numpy.random import RandomState
 import numpy as np
 from tensorflow import set_random_seed
 
+logger = logging.getLogger(__name__)
 
 def eval_model():
     results_dict = {}

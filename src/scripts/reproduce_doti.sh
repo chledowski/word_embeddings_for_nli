@@ -94,16 +94,16 @@ do
 
         printf "${GREEN}Running $NAME...${NC}\n"
         printf "${GREEN}Results dir: $RESULTS_DIR${NC}\n"
-        mkdir -p $RESULTS_DIR
-        python src/scripts/train_eval/train.py ${MODELS[$i]} $RESULTS_DIR \
-            --embedding_name="gcc840" \
-            --embedding_second_name=${EMBEDDINGS[$i]} \
-            --dataset=${DATASET} \
-            --seed=${SEED} \
-            --i_lambda=${I_LAMBDA[$i]} \
-            --a_lambda=${ATTENTION_LAMBDA[$i]} \
-            --train_on_fraction=${FRACS[$i]} \
-            ${PARAMS[i]}
+#        mkdir -p $RESULTS_DIR
+#        python src/scripts/train_eval/train.py ${MODELS[$i]} $RESULTS_DIR \
+#            --embedding_name="gcc840" \
+#            --embedding_second_name=${EMBEDDINGS[$i]} \
+#            --dataset=${DATASET} \
+#            --seed=${SEED} \
+#            --i_lambda=${I_LAMBDA[$i]} \
+#            --a_lambda=${ATTENTION_LAMBDA[$i]} \
+#            --train_on_fraction=${FRACS[$i]} \
+#            ${PARAMS[i]}
 
         python src/scripts/train_eval/evaluate.py --model-name="${NAME}"
     fi

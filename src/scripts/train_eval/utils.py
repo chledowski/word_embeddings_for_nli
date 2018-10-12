@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import os
 import pickle as pkl
@@ -10,6 +11,8 @@ from src.util.data import NLIData
 from src.util.vocab import Vocabulary
 
 import tensorflow as tf
+
+logger = logging.getLogger(__name__)
 
 
 def prepare_kb(config, features, x1_lemma, x2_lemma, x1_length, x2_length):
@@ -174,6 +177,8 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
 
 def compute_metrics(config, model, datasets, streams, eval_streams, default_batch_size=1):
     metrics = {}
+    datasets = np.array(datasets.items())
+
     for dataset_name, dataset in datasets.items():
         for stream_name in eval_streams:
             if stream_name not in streams[dataset_name]:
@@ -182,11 +187,19 @@ def compute_metrics(config, model, datasets, streams, eval_streams, default_batc
             num_examples = dataset.num_examples(stream_name)
             dataset_batch_sizes = config["batch_sizes"].get(dataset_name, {})
             stream_batch_size = dataset_batch_sizes.get(stream_name, default_batch_size)
+
+            if num_examples % stream_batch_size > 0:
+                logger.warning("num_examples %d is not divisible by batch_size %d!" % (
+                    num_examples, stream_batch_size
+                ))
+
             metrics["%s_%s" % (dataset_name, stream_name)] = model.evaluate_generator(
                 generator=stream,
                 steps=num_examples / stream_batch_size,
-                verbose=1
+                verbose=1,
+                use_multiprocessing=False
             )
+
     return metrics
 
 # def display_instances(config, model, datasets, streams):
