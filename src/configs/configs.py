@@ -321,8 +321,6 @@ baseline_configs['esim-kim'] = {
     'optimizer': 'adam',
     'pair_features_pkl_path': 'pair_features.pkl',
     'pair_features_txt_path': 'kim_data/pair_features.txt',
-    'residual_embedding': False,
-    'residual_embedding_mod_drop': False,
     'save_best_model': True,
     'save_every_epoch': False,
     'save_model': False,

@@ -21,9 +21,9 @@ declare -a FRACS=(
     "0.01"
     "0.01"
     "0.01"
-    "0.1"
-    "0.1"
-    "0.1"
+#    "0.1"
+#    "0.1"
+#    "0.1"
 )
 
 declare -a EMBEDDINGS=(
@@ -75,11 +75,11 @@ declare -a ATTENTION_LAMBDA=(
 )
 
 declare -a I_LAMBDA=(
-    "0.1"
-    "0.1"
+    "5"
+    "5"
     "1"
-    "0.1"
-    "0.1"
+    "5"
+    "5"
     "1"
     "0.1"
     "0.1"
