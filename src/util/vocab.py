@@ -114,6 +114,7 @@ class Vocabulary(object):
             pass
             # raise ValueError("special token not found in the vocabulary")
 
+        logger.info("Vocab loaded from:", path_or_data)
         for attr in list(self.SPECIAL_TOKEN_MAP.values()):
             print(attr, getattr(self, attr))
 
