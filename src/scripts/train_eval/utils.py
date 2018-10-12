@@ -177,8 +177,6 @@ def build_data_and_streams(config, rng, datasets_to_load=[], default_batch_size=
 
 def compute_metrics(config, model, datasets, streams, eval_streams, default_batch_size=1):
     metrics = {}
-    datasets = np.array(datasets.items())
-
     for dataset_name, dataset in datasets.items():
         for stream_name in eval_streams:
             if stream_name not in streams[dataset_name]:
