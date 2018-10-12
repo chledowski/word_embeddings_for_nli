@@ -55,12 +55,15 @@ def esim(config, data):
     logger.info('Using {} embedding'.format(config["embedding_second_name"]))
 
     # 1, Embedding the input and project the embeddings
-    premise = Input(shape=(None,), dtype='int32', name='premise')
+    premise_input = Input(shape=(None,), dtype='int32', name='premise')
     premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
-    hypothesis = Input(shape=(None,), dtype='int32', name='hypothesis')
+    hypothesis_input = Input(shape=(None,), dtype='int32', name='hypothesis')
     hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
     KBph = Input(shape=(None, None, 5), dtype='float32', name='KBph')
     KBhp = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
+
+    premise = Lambda(lambda x: x, name='premise_out')(premise_input)
+    hypothesis = Lambda(lambda x: x, name='hypothesis_out')(hypothesis_input)
 
     if config['use_elmo']:
         elmo_embed = ElmoEmbeddings(config)
@@ -212,7 +215,7 @@ def esim(config, data):
 
     # 3, Score each words and calc score matrix Eph.
     F_p, F_h = embed_p, embed_h
-    Eph = Dot(axes=(2, 2))([F_p, F_h])  # [batch_size, Psize, Hsize]
+    Eph = Dot(axes=(2, 2), name='attention_matrix')([F_p, F_h])  # [batch_size, Psize, Hsize]
 
     # # FIX(tomwesolowski): Add attention lambda to words in relation
     if config['useatrick'] or config['fullkim']:
@@ -370,7 +373,8 @@ def esim(config, data):
                   activation='softmax',
                   name='judge300_' + config["dataset"])(Final)
 
-    model_input = [premise, premise_mask_input, hypothesis, hypothesis_mask_input]
+    model_input = [premise_input, premise_mask_input,
+                   hypothesis_input, hypothesis_mask_input]
 
     if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
         model_input += [KBph, KBhp]

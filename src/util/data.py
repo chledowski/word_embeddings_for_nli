@@ -530,7 +530,7 @@ class NLIData(Data):
         if not self._vocab:
             # print("Loading vocab from " + os.path.join(self.vocab_dir, "vocab.txt"))
             self._vocab = Vocabulary(
-                os.path.join(self.vocab_dir, "vocab.txt"))
+                os.path.join(self.vocab_dir, "vocab_all.txt"))
         return self._vocab
 
     @property
