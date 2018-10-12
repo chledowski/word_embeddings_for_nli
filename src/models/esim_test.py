@@ -33,7 +33,9 @@ matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
 
 
-def build_model_and_stream(config):
+def save_model_attention():
+    config = prepare_config('esim')
+
     seed(config["seed"])
     set_random_seed(config["seed"])
     rng = RandomState(config["seed"])
@@ -47,49 +49,86 @@ def build_model_and_stream(config):
         esim_model.get_layer('attention_matrix').output
     ])
 
-    return model, streams["snli"]["train"]
+    for stream_name in ['train', 'dev', 'test']:
+        premises, hypothesis, attention = [], [], []
+
+        for step in range(config['num_batches']):
+            output = model.predict_generator(
+                generator=streams["snli"][stream_name],
+                steps=1,
+                use_multiprocessing=False,
+                verbose=True
+            )
+            premises.append(output[0])  # [batch_size, sentence_len]
+            hypothesis.append(output[1])  # [batch_size, sentence_len]
+            attention.append(output[2])  # [batch_size, p_size, h_size]
+
+        premises_path = os.path.join(
+            DATA_DIR, 'dumps/attention_%s_premises.npy' % stream_name)
+        hypothesis_path = os.path.join(
+            DATA_DIR, 'dumps/attention_%s_hypothesis.npy' % stream_name)
+        attention_path = os.path.join(
+            DATA_DIR, 'dumps/attention_%s.npy' % stream_name)
+
+        for path, array in zip(
+                [premises_path, hypothesis_path, attention_path],
+                [premises, hypothesis, attention]
+        ):
+            np.save(path, array)
+            print("Saved to: %s" % path)
 
 
-def get_model_output(config, model, stream):
-    premises = []
-    hypothesis = []
-    attention = []
+def save_knowledge_matrix():
+    config = prepare_config('esim-kim')
 
-    for step in range(config['num_batches']):
-        output = model.predict_generator(
-            generator=stream,
-            steps=1,
-            use_multiprocessing=False,
-            verbose=True
-        )
-        premises.append(output[0])  # [batch_size, sentence_len]
-        hypothesis.append(output[1])  # [batch_size, sentence_len]
-        attention.append(output[2])  # [batch_size, p_size, h_size]
-        print("premises shape:", premises[-1].shape)
-        print("hypothesis shape:", hypothesis[-1].shape)
-        print("attention shape:", attention[-1].shape)
+    seed(config["seed"])
+    set_random_seed(config["seed"])
+    rng = RandomState(config["seed"])
 
-    return premises, hypothesis, attention
+    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=[config["dataset"]])
+    esim_model = build_model(config, datasets[config["dataset"]])
+
+    model = Model(inputs=esim_model.inputs, outputs=[
+        esim_model.get_layer('premise_out').output,
+        esim_model.get_layer('hypothesis_out').output,
+        esim_model.get_layer('kbph_out').output,
+        esim_model.get_layer('kbhp_out').output,
+    ])
+
+    for stream_name in ['train', 'dev', 'test']:
+        premises, hypothesis, kbph, kbhp = [], [], [], []
+
+        for step in range(config['num_batches']):
+            output = model.predict_generator(
+                generator=streams["snli"][stream_name],
+                steps=1,
+                use_multiprocessing=False,
+                verbose=True
+            )
+            premises.append(output[0])  # [batch_size, sentence_len]
+            hypothesis.append(output[1])  # [batch_size, sentence_len]
+            kbph.append(output[2])  # [batch_size, p_size, h_size]
+            kbhp.append(output[3])  # [batch_size, p_size, h_size]
+
+        premises_path = os.path.join(
+            DATA_DIR, 'dumps/knowledge_matrix_%s_premises.npy' % stream_name)
+        hypothesis_path = os.path.join(
+            DATA_DIR, 'dumps/knowledge_matrix_%s_hypothesis.npy' % stream_name)
+        kbph_path = os.path.join(
+            DATA_DIR, 'dumps/knowledge_matrix_%s_kbph.npy' % stream_name)
+        kbhp_path = os.path.join(
+            DATA_DIR, 'dumps/knowledge_matrix_%s_kbhp.npy' % stream_name)
+
+        for path, array in zip(
+                [premises_path, hypothesis_path, kbph_path, kbhp_path],
+                [premises, hypothesis, kbph, kbhp]
+        ):
+            np.save(path, array)
+            print("Saved to: %s" % path)
 
 
-def save_to_file(premises,  hypothesis, attention):
-    premises_path = os.path.join(
-        DATA_DIR, 'dumps/attention_premises.npy')
-    hypothesis_path = os.path.join(
-        DATA_DIR, 'dumps/attention_hypothesis.npy')
-    attention_path = os.path.join(
-        DATA_DIR, 'dumps/attention.npy')
-
-    for path, array in zip(
-            [premises_path, hypothesis_path, attention_path],
-            [premises,  hypothesis, attention]
-    ):
-        np.save(path, array)
-        print("Saved to: %s" % path)
-
-
-def prepare_config():
-    config = dict(baseline_configs['esim'])
+def prepare_config(name):
+    config = dict(baseline_configs[name])
 
     num_batches = 1
     batch_size = 5
@@ -98,14 +137,15 @@ def prepare_config():
     config['num_batches'] = num_batches
     config['batch_size'] = batch_size
     config['batch_sizes']['snli']['train'] = batch_size
+    config['batch_sizes']['snli']['dev'] = batch_size
+    config['batch_sizes']['snli']['test'] = batch_size
     config['seed'] = 12345
     return config
 
 
 def test_esim():
-    config = prepare_config()
-    model, stream = build_model_and_stream(config)
-    save_to_file(*get_model_output(config, model, stream))
+    save_knowledge_matrix()
+    # save_model_attention()
 
 
 if __name__ == "__main__":

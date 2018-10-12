@@ -59,8 +59,11 @@ def esim(config, data):
     premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
     hypothesis_input = Input(shape=(None,), dtype='int32', name='hypothesis')
     hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
-    KBph = Input(shape=(None, None, 5), dtype='float32', name='KBph')
-    KBhp = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
+    KBph_input = Input(shape=(None, None, 5), dtype='float32', name='KBph')
+    KBhp_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
+
+    KBph = Lambda(lambda x: x, name='kbph_out')(KBph_input)
+    KBhp = Lambda(lambda x: x, name='kbhp_out')(KBhp_input)
 
     premise = Lambda(lambda x: x, name='premise_out')(premise_input)
     hypothesis = Lambda(lambda x: x, name='hypothesis_out')(hypothesis_input)
@@ -377,21 +380,13 @@ def esim(config, data):
                    hypothesis_input, hypothesis_mask_input]
 
     if config['useitrick'] or config['useatrick'] or config['usectrick'] or config['fullkim']:
-        model_input += [KBph, KBhp]
+        model_input += [KBph_input, KBhp_input]
 
     if config['use_elmo']:
         model_input += [premise_elmo_input, hypothesis_elmo_input]
 
     model = Model(inputs=model_input, outputs=Final)
 
-    # def elmo_loss(y_true, y_pred):
-    #     elmo_embeddings = Concatenate()([elmo_p, elmo_h, elmo_after_p, elmo_after_h])
-    #     return (K.categorical_crossentropy(y_true, y_pred) +
-    #             config['l2_elmo_regularization'] * K.sum(elmo_embeddings ** 2))
-
-    # if config['use_elmo']:
-    #     loss = elmo_loss
-    # else:
     loss = 'categorical_crossentropy'
 
     if config["optimizer"] == 'rmsprop':
