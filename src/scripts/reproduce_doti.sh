@@ -16,14 +16,16 @@ printf "${GREEN}Dataset = ${DATASET}${NC}\n"
 
 declare -a FRACS=(
     "0.001"
+    "0.001" # 1
     "0.001"
-    "0.001"
+    "0.01" # 3
     "0.01"
-    "0.01"
-    "0.01"
+    "0.01" # 5
     "0.1"
+    "0.1" # 7
     "0.1"
-    "0.1"
+    "1.0" # 9
+    "1.0"
 )
 
 declare -a EMBEDDINGS=(
@@ -33,6 +35,8 @@ declare -a EMBEDDINGS=(
     "gcc840"
     "gcc840_snli_gcc840_fq_12_q"
     "gcc840"
+    "gcc840"
+    "gcc840_snli_gcc840_fq_12_q"
     "gcc840"
     "gcc840_snli_gcc840_fq_12_q"
     "gcc840"
@@ -48,6 +52,8 @@ declare -a PARAMS=(
     "--knowledge_after_lstm=dot"
     "--knowledge_after_lstm=dot"
     "--knowledge_after_lstm=none"
+    "--knowledge_after_lstm=dot"
+    "--knowledge_after_lstm=dot"
 )
 
 declare -a MODELS=(
@@ -60,6 +66,8 @@ declare -a MODELS=(
     "esim"
     "esim"
     "esim-kim"
+    "esim"
+    "esim"
 )
 
 declare -a ATTENTION_LAMBDA=(
@@ -72,18 +80,22 @@ declare -a ATTENTION_LAMBDA=(
     "0"
     "0"
     "2"
+    "0"
+    "0"
 )
 
 declare -a I_LAMBDA=(
     "5"
     "5"
-    "1"
-    "5"
-    "5"
-    "1"
+    "1" # kim
     "0.1"
     "0.1"
-    "1"
+    "1" # kim
+    "0.1"
+    "0.1"
+    "1" # kim
+    "0.1"
+    "0.1"
 )
 
 for (( i=${START_FROM}; i<${#FRACS[@]}; i++ ));
