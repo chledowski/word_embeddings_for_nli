@@ -49,10 +49,13 @@ if [ ! -f ${TRAIN_PATH} ]; then
         FILEPATHS="${DATASET_DIRS[$i]}/*dev_*token.txt"
         cat ${FILEPATHS} >> ${TMP_DEV_PATH}
 
-        FILEPATHS="${DATASET_DIRS[$i]}/*test_token.txt"
-        if [ ! -z "$FILEPATHS" ]; then
-            cat ${FILEPATHS} >> ${TMP_TEST_PATH}
-        fi
+        for FILEPATH in ${DATASET_DIRS[$i]}/*test_token.txt
+        do
+            echo $FILEPATH
+            if [ -f $FILEPATH ]; then
+                cat ${FILEPATH} >> ${TMP_TEST_PATH}
+            fi
+        done
     done
 
     # 2. make them unique
