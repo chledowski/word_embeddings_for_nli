@@ -70,7 +70,7 @@ fi
 # 5. fine-tune model
 NUM_TRAIN_TOKENS=$(wc -w ${TRAIN_PATH} | awk '{print $1}')
 
-if [[ ${FINETUNE} = 1 ]]; then
+if [[ ${FINE_TUNE} = 1 ]]; then
     python ${SOURCE_DIR}/models/bilmtf/bin/restart.py \
         --save_dir=${CHECKPOINT_DIR} \
         --vocab_file=${VOCAB_PATH} \
