@@ -5,6 +5,8 @@ import h5py
 import json
 import re
 
+from tqdm import trange
+
 from .data import UnicodeCharsVocabulary, Batcher
 
 DTYPE = 'float32'
@@ -627,7 +629,7 @@ def dump_token_embeddings(vocab_file, options_file, weight_file, outfile):
     config = tf.ConfigProto(allow_soft_placement=True)
     with tf.Session(config=config) as sess:
         sess.run(tf.global_variables_initializer())
-        for k in range(n_tokens):
+        for k in trange(n_tokens):
             token = vocab.id_to_word(k)
             char_ids = batcher.batch_sentences([[token]])[0, 1, :].reshape(
                 1, 1, -1)

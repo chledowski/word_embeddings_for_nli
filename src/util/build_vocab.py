@@ -26,15 +26,14 @@ def main():
             with h5py.File(f_name) as h5_file:
                 text.extend(h5_file['text'][:])
         else:
-            with open(f_name) as file_:
+            with open(f_name, "rb") as file_:
                 def data():
                     for line in file_:
                         for word in line.strip().split():
                             yield word
                 text.extend(data())
         logging.info("{} words".format(len(text)))
-    text = [t.astype(str) for t in text]
-    print (text[:20])
+    print(text[:20])
     vocab = Vocabulary.build(text, args.top_k)
     vocab.save(args.vocab)
 

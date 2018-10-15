@@ -54,7 +54,7 @@ def prep_embedding_matrix(config, data, embedding_path=None):
             source_matrix = f['embedding']
 
             source_vocab_ids = []
-            for i in range(data.vocab.size()):
+            for i in trange(data.vocab.size()):
                 word = data.vocab.id_to_word(i)
                 if word in source_word_to_id:
                     source_vocab_ids.append((source_word_to_id[word], i))
@@ -66,7 +66,7 @@ def prep_embedding_matrix(config, data, embedding_path=None):
 
             logger.info("Found {} words from dictionary in embedding file. "
                         "Missing {} words.".format(
-                    len(vocab_ids), data.vocab.size() - len(vocab_ids)))
+                            len(vocab_ids), data.vocab.size() - len(vocab_ids)))
 
             if config["D"] != 0:
                 target_matrix = remove_mean_and_d_components(

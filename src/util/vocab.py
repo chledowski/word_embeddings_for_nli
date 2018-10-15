@@ -114,9 +114,10 @@ class Vocabulary(object):
             pass
             # raise ValueError("special token not found in the vocabulary")
 
-        logger.info("Vocab loaded from: %s" % path_or_data)
+        if isinstance(path_or_data, str):
+            logger.info("Vocab loaded from: %s" % path_or_data)
         for attr in list(self.SPECIAL_TOKEN_MAP.values()):
-            print(attr, getattr(self, attr))
+            logger.info("%s %d" % (attr, getattr(self, attr)))
 
     def size(self):
         return len(self._id_to_word)
@@ -167,7 +168,7 @@ class Vocabulary(object):
         else:
             counter = Counter(filename_or_words)
             for word in list(counter.keys()):
-                if ' ' in word:
+                if b' ' in word:
                     logger.error("can't have tokens with spaces, skip {}".format(word))
                     del counter[word]
         # It was not immediately clear to me
@@ -197,5 +198,5 @@ class Vocabulary(object):
     def save(self, filename):
         with open(filename, 'w') as f:
             for word, freq in zip(self._id_to_word, self._id_to_freq):
-                word = standardize_string(word)
+                word = standardize_string(word.decode())
                 print(word, freq, file=f)

@@ -33,7 +33,8 @@ logger = logging.getLogger(__name__)
 
 def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
-    logger.info('Using {} embedding'.format(config["embedding_name"]))
+    logger.info('Using {} as first embedding'.format(config["embedding_name"]))
+    logger.info('Using {} as second embedding'.format(config["embedding_second_name"]))
 
     ortho_matrix = ortho_weight(config["embedding_dim"])
     embedding_matrix = prep_embedding_matrix(config, data,
@@ -55,7 +56,7 @@ def esim(config, data):
     else:
         embed_second = embed
 
-    logger.info('Using {} embedding'.format(config["embedding_second_name"]))
+
 
     # 1, Embedding the input and project the embeddings
     premise_input = Input(shape=(None,), dtype='int32', name='premise')
@@ -75,8 +76,6 @@ def esim(config, data):
         elmo_embed = ElmoEmbeddings(config)
         elmo_pre_weight = WeightElmoEmbeddings(config)
         elmo_post_weight = WeightElmoEmbeddings(config)
-        # premise_placeholder = K.placeholder(shape=(None, None), dtype='int32')
-        # hypothesis_placeholder = K.placeholder(shape=(None, None), dtype='int32')
         premise_elmo_input = Input(shape=(None,), dtype='int32', name='premise_elmo_input')
         hypothesis_elmo_input = Input(shape=(None,), dtype='int32',
                                       name='hypothesis_elmo_input')
