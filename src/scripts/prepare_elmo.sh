@@ -10,6 +10,10 @@ d) produces token embeddings
 set -x
 set -e
 
+LM_BATCH_SIZE=256
+FINE_TUNE=1
+TEST_PERPLEXITY=1
+
 ELMO_DIR=${DATA_DIR}/elmo
 SNLI_DIR=${DATA_DIR}/snli
 MNLI_DIR=${DATA_DIR}/mnli
@@ -66,20 +70,31 @@ fi
 # 5. fine-tune model
 NUM_TRAIN_TOKENS=$(wc -w ${TRAIN_PATH} | awk '{print $1}')
 
-#python ${SOURCE_DIR}/models/bilmtf/bin/restart.py \
-#    --save_dir=${CHECKPOINT_DIR} \
-#    --vocab_file=${VOCAB_PATH} \
-#    --train_prefix=${MERGED_DATASETS_PATH} \
-#    --n_gpus=1 \
-#    --batch_size=256 \
-#    --n_train_tokens=${NUM_TRAIN_TOKENS} \
-#    --n_epochs=3
+if [[ ${FINETUNE} = 1 ]]; then
+    python ${SOURCE_DIR}/models/bilmtf/bin/restart.py \
+        --save_dir=${CHECKPOINT_DIR} \
+        --vocab_file=${VOCAB_PATH} \
+        --train_prefix=${TRAIN_PATH} \
+        --n_gpus=1 \
+        --batch_size=${LM_BATCH_SIZE} \
+        --n_train_tokens=${NUM_TRAIN_TOKENS} \
+        --n_epochs=3
+fi
 
-# 6. dump weights
+if [[ ${TEST_PERPLEXITY} = 1 ]]; then
+    # 6. test perplexity
+    python ${SOURCE_DIR}/models/bilmtf/bin/run_test.py \
+        --save_dir=${CHECKPOINT_DIR} \
+        --vocab_file=${VOCAB_PATH} \
+        --test_prefix=${DEV_PATH} \
+        --batch_size=${LM_BATCH_SIZE}
+fi
+
+# 7. dump weights
 python ${SOURCE_DIR}/models/bilmtf/bin/dump_weights.py \
     --save_dir=${CHECKPOINT_DIR} \
     --outfile="${ELMO_DIR}/lm_weights.hdf5"
 
-# 7. dump embeddings
+# 8. dump embeddings
 python ${SOURCE_DIR}/models/bilmtf/bin/dump_tokens.py \
     --save_dir=${ELMO_DIR}

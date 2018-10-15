@@ -1,8 +1,8 @@
 
 import argparse
 
-from bilm.training import test, load_options_latest_checkpoint, load_vocab
-from bilm.data import LMDataset, BidirectionalLMDataset
+from src.models.bilmtf.bilm.training import test, load_options_latest_checkpoint, load_vocab
+from src.models.bilmtf.bilm.data import LMDataset, BidirectionalLMDataset
 
 def main(args):
     options, ckpt_file = load_options_latest_checkpoint(args.save_dir)
