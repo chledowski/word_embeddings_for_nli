@@ -1,0 +1,7 @@
+<pad> 0
+<unk> 0
+<bos> 0
+<eos> 0
+<bod> 0
+<eod> 0
+something 0

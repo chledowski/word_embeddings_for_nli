@@ -4,6 +4,7 @@ Simple model definitions
 """
 
 import h5py
+import logging
 import numpy as np
 import os
 
@@ -11,6 +12,7 @@ from src import DATA_DIR
 from src.util import remove_mean_and_d_components, normalize_embeddings
 from tqdm import trange
 
+logger = logging.getLogger(__name__)
 
 def ortho_weight(ndim):
     """
@@ -38,60 +40,39 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
     return W.astype('float32')
 
 
-def prep_embedding_matrix(config, data, embedding_name):
-    if config["embedding_name"] == "random_uniform":
-        if config["norm_weight"]:
-            embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
-        else:
-            embedding_matrix = np.random.uniform(-0.1, 0.1, (data.vocab.size(), config["embedding_dim"]))
+def prep_embedding_matrix(config, data, embedding_path=None):
+    if config["norm_weight"]:
+        target_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
     else:
-        embedding_file = h5py.File(os.path.join(DATA_DIR, 'embeddings', embedding_name + ".h5"), 'r')
-        embedding_words = embedding_file['words_flatten'][0].split('\n')
-        embedding_words = [word.encode() for word in embedding_words]
-        embedding_word_to_id = dict(list(zip(embedding_words, list(range(len(embedding_words))))))  # word -> id
-        embedding_matrix_all = embedding_file[list(embedding_file.keys())[0]][:]
-        num_found = 0
-        num_notfound = 0
+        target_matrix = np.random.uniform(
+                -0.1, 0.1, (data.vocab.size(), config["embedding_dim"]))
 
-        if config["norm_weight"]:
-            embedding_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
-            found_word_indices = []
-            found_word_ids = []
-            for i in trange(data.vocab.size()):
-                word_lower = data.vocab.id_to_word(i)
-                if word_lower in embedding_word_to_id:
-                    num_found += 1
-                    found_word_indices.append(i)
-                    found_word_ids.append(embedding_word_to_id[word_lower])
-                    embedding_matrix[i] = embedding_matrix_all[embedding_word_to_id[word_lower]]
-                else:
-                    num_notfound += 1
+    if embedding_path:
+        with h5py.File(embedding_path, 'r') as f:
+            source_words = [w.encode() for w in f['words_flatten'][0].split('\n')]
+            source_word_to_id = dict(zip(source_words, list(range(len(source_words)))))
+            source_matrix = f['embedding']
 
-        else:
-            embedding_matrix = []
-            for i in trange(data.vocab.size()):
-                word_lower = data.vocab.id_to_word(i)
-                if word_lower in embedding_word_to_id:
-                    num_found += 1
-                    embedding_matrix.append(embedding_matrix_all[embedding_word_to_id[word_lower]])
-                else:
-                    num_notfound += 1
-                    embedding_matrix.append(np.random.uniform(-0.1, 0.1, (embedding_matrix_all.shape[1],)))
-            embedding_matrix = np.array(embedding_matrix)
+            source_vocab_ids = []
+            for i in range(data.vocab.size()):
+                word = data.vocab.id_to_word(i)
+                if word in source_word_to_id:
+                    source_vocab_ids.append((source_word_to_id[word], i))
 
-        print("Found {} words in the dictionary. Missing {} words.".format(num_found, num_notfound))
+            source_vocab_ids.sort()
+            source_ids, vocab_ids = map(list, zip(*source_vocab_ids))
 
-        if config["D"] != 0:
-            embedding_matrix = remove_mean_and_d_components(embedding_matrix, config["D"],
-                                                            partial_whitening=config["whitening"])
+            target_matrix[vocab_ids] = source_matrix[source_ids]
 
-        del embedding_words, embedding_matrix_all
-        embedding_file.close()
+            logger.info("Found {} words from dictionary in embedding file. "
+                        "Missing {} words.".format(
+                    len(vocab_ids), data.vocab.size() - len(vocab_ids)))
 
+            if config["D"] != 0:
+                target_matrix = remove_mean_and_d_components(
+                    target_matrix, config["D"], partial_whitening=config["whitening"])
 
-    embedding_matrix[0, :] = 0
+    target_matrix[0, :] = 0
     if config["normalize"]:
-        embedding_matrix = normalize_embeddings(embedding_matrix)
-
-    # print("Emb matrix norm", np.linalg.norm(embedding_matrix))
-    return embedding_matrix
+        target_matrix = normalize_embeddings(target_matrix)
+    return target_matrix

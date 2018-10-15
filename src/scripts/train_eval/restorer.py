@@ -40,6 +40,7 @@ from src import DATA_DIR
 from src.configs.configs import baseline_configs
 from src.models import build_model
 from src.scripts.train_eval.utils import build_data_and_streams
+from src.util.paths import get_embedding_path
 from src.util.prepare_embedding import prep_embedding_matrix, norm_weight
 
 logger = logging.getLogger(__name__)
@@ -180,7 +181,8 @@ def load_test_model_and_data(config):
     datasets, streams = build_data_and_streams(config, rng, datasets_to_load=["snli"])
     data = datasets[config["dataset"]]
     stream = streams["snli"]["train"]
-    glove_embeddings_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
+    glove_embeddings_matrix = prep_embedding_matrix(
+        config, data, get_embedding_path(config["embedding_name"]))
     model = RotatorModel(config, glove_embeddings_matrix)
     return model, data, stream, glove_embeddings_matrix
 
@@ -190,7 +192,8 @@ def load_model_and_data(config, model_name, layer_name, epoch):
 
     datasets, streams = build_data_and_streams(config, rng, datasets_to_load=["snli"])
     data = datasets[config["dataset"]]
-    glove_embeddings_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
+    glove_embeddings_matrix = prep_embedding_matrix(
+        config, data, get_embedding_path(config["embedding_name"]))
 
     print("Building model...")
 

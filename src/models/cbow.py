@@ -20,6 +20,7 @@ from keras.backend.tensorflow_backend import set_session
 
 from src import DATA_DIR
 from src.util.data import NLIData
+from src.util.paths import get_embedding_path
 from src.util.prepare_embedding import prep_embedding_matrix
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,8 @@ def cbow(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
-    embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
+    embedding_matrix = prep_embedding_matrix(config, data,
+                                             get_embedding_path(config["embedding_name"]))
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],

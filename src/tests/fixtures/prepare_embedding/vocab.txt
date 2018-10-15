@@ -1,0 +1,4 @@
+<pad> 0
+to 100
+random 10
+the 1

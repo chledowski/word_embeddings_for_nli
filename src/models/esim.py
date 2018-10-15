@@ -23,6 +23,7 @@ from keras.regularizers import l2
 
 
 from src import DATA_DIR
+from src.util.paths import get_embedding_path
 from src.util.prepare_embedding import ortho_weight, prep_embedding_matrix
 from src.models.elmo import ElmoEmbeddings, WeightElmoEmbeddings
 from src.models.keras_utils import ScaledRandomNormal
@@ -35,7 +36,8 @@ def esim(config, data):
     logger.info('Using {} embedding'.format(config["embedding_name"]))
 
     ortho_matrix = ortho_weight(config["embedding_dim"])
-    embedding_matrix = prep_embedding_matrix(config, data, config["embedding_name"])
+    embedding_matrix = prep_embedding_matrix(config, data,
+                                             get_embedding_path(config["embedding_name"]))
 
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
@@ -44,7 +46,8 @@ def esim(config, data):
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
-        embedding_second_matrix = prep_embedding_matrix(config, data, config["embedding_second_name"])
+        embedding_second_matrix = prep_embedding_matrix(
+                config, data, get_embedding_path(config["embedding_second_name"]))
         embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
                                  weights=[embedding_second_matrix],
                                  trainable=config["train_embeddings"],
