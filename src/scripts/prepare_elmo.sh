@@ -90,6 +90,8 @@ if [[ ${TEST_PERPLEXITY} = 1 ]]; then
         --batch_size=${LM_BATCH_SIZE}
 fi
 
+cat ${CHECKPOINT_DIR}/options.json | tr "261" "262" > ${ELMO_DIR}/options.json
+
 # 7. dump weights
 python ${SOURCE_DIR}/models/bilmtf/bin/dump_weights.py \
     --save_dir=${CHECKPOINT_DIR} \
