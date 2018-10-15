@@ -5,6 +5,10 @@ a) collects all tokens from SNLI/MNLI
 b) create vocab for ELMO
 c) fine-tune ELMO
 d) produces token embeddings
+
+Results files of executions:
+- elmo_token_embeddings.hdf5
+- lm_weights.hdf5
 """
 
 set -x
@@ -33,9 +37,10 @@ TMP_DEV_PATH="/tmp/dev.txt"
 TMP_TEST_PATH="/tmp/test.txt"
 TMP_VOCAB_PATH="/tmp/vocab.txt"
 
+shopt -s nullglob
+
 if [ ! -f ${TRAIN_PATH} ]; then
     # 1. merge all SNLI & MNLI & Breaking tokens into one file
-    rm -f /tmp/tokens.txt
     for (( i=0; i<${#DATASET_DIRS[@]}; i++ ))
     do
         FILEPATHS="${DATASET_DIRS[$i]}/*train_token.txt"
@@ -45,7 +50,7 @@ if [ ! -f ${TRAIN_PATH} ]; then
         cat ${FILEPATHS} >> ${TMP_DEV_PATH}
 
         FILEPATHS="${DATASET_DIRS[$i]}/*test_token.txt"
-        if [ $FILEPATHS ]; then
+        if [ ! -z "$FILEPATHS" ]; then
             cat ${FILEPATHS} >> ${TMP_TEST_PATH}
         fi
     done
