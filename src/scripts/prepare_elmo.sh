@@ -20,6 +20,7 @@ MNLI_DIR=${DATA_DIR}/mnli
 
 TRAIN_PATH=${ELMO_DIR}/all_train.txt
 DEV_PATH=${ELMO_DIR}/all_dev.txt
+TEST_PATH=${ELMO_DIR}/all_test.txt
 VOCAB_PATH=${ELMO_DIR}/vocab_elmo.txt
 
 declare -a DATASET_DIRS=(
@@ -29,6 +30,7 @@ declare -a DATASET_DIRS=(
 
 TMP_TRAIN_PATH="/tmp/train.txt"
 TMP_DEV_PATH="/tmp/dev.txt"
+TMP_TEST_PATH="/tmp/test.txt"
 TMP_VOCAB_PATH="/tmp/vocab.txt"
 
 if [ ! -f ${TRAIN_PATH} ]; then
@@ -41,16 +43,22 @@ if [ ! -f ${TRAIN_PATH} ]; then
 
         FILEPATHS="${DATASET_DIRS[$i]}/*dev_*token.txt"
         cat ${FILEPATHS} >> ${TMP_DEV_PATH}
+
+        FILEPATHS="${DATASET_DIRS[$i]}/*test_token.txt"
+        if [ $FILEPATHS ]; then
+            cat ${FILEPATHS} >> ${TMP_TEST_PATH}
+        fi
     done
 
     # 2. make them unique
     cat ${TMP_TRAIN_PATH} | sort -u > ${TRAIN_PATH}
     cat ${TMP_DEV_PATH} | sort -u > ${DEV_PATH}
+    cat ${TMP_TEST_PATH} | sort -u > ${TEST_PATH}
 fi
 
 # 3. create vocab
 if [ ! -f ${VOCAB_PATH} ]; then
-    python3 ${SOURCE_DIR}/util/build_vocab.py "${TRAIN_PATH},${DEV_PATH}" ${TMP_VOCAB_PATH}
+    python3 ${SOURCE_DIR}/util/build_vocab.py "${TRAIN_PATH},${DEV_PATH},${TEST_PATH}" ${TMP_VOCAB_PATH}
     echo -e "<S>\n</S>\n<UNK>" > ${TMP_VOCAB_PATH}_prefix
     tail -n +7 ${TMP_VOCAB_PATH} > ${TMP_VOCAB_PATH}_suffix
     cat ${TMP_VOCAB_PATH}_prefix ${TMP_VOCAB_PATH}_suffix | awk '{print $1}' > ${VOCAB_PATH}
@@ -66,6 +74,8 @@ if [ ! -d ${CHECKPOINT_DIR} ]; then
     wget https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_tf_checkpoint/model.ckpt-935588.index -P ${CHECKPOINT_DIR}
     wget https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_tf_checkpoint/model.ckpt-935588.meta -P ${CHECKPOINT_DIR}
 fi
+
+cat ${CHECKPOINT_DIR}/options.json | tr "261" "262" > ${ELMO_DIR}/options.json
 
 # 5. fine-tune model
 NUM_TRAIN_TOKENS=$(wc -w ${TRAIN_PATH} | awk '{print $1}')
@@ -89,8 +99,6 @@ if [[ ${TEST_PERPLEXITY} = 1 ]]; then
         --test_prefix=${DEV_PATH} \
         --batch_size=${LM_BATCH_SIZE}
 fi
-
-cat ${CHECKPOINT_DIR}/options.json | tr "261" "262" > ${ELMO_DIR}/options.json
 
 # 7. dump weights
 python ${SOURCE_DIR}/models/bilmtf/bin/dump_weights.py \
