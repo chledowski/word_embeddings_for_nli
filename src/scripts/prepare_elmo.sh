@@ -51,7 +51,6 @@ if [ ! -f ${TRAIN_PATH} ]; then
 
         for FILEPATH in ${DATASET_DIRS[$i]}/*test_token.txt
         do
-            echo $FILEPATH
             if [ -f $FILEPATH ]; then
                 cat ${FILEPATH} >> ${TMP_TEST_PATH}
             fi
@@ -83,7 +82,7 @@ if [ ! -d ${CHECKPOINT_DIR} ]; then
     wget https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_tf_checkpoint/model.ckpt-935588.meta -P ${CHECKPOINT_DIR}
 fi
 
-cat ${CHECKPOINT_DIR}/options.json | tr "261" "262" > ${ELMO_DIR}/options.json
+cat ${CHECKPOINT_DIR}/options.json | sed "s/261/262/" > ${ELMO_DIR}/options.json
 
 # 5. fine-tune model
 NUM_TRAIN_TOKENS=$(wc -w ${TRAIN_PATH} | awk '{print $1}')
