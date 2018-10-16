@@ -47,9 +47,14 @@ def esim(config, data):
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
+        embedding_second_dim = config.get("embedding_second_dim", config["embedding_dim"])
         embedding_second_matrix = prep_embedding_matrix(
-                config, data, get_embedding_path(config["embedding_second_name"]))
-        embed_second = Embedding(data.vocab.size(), config["embedding_dim"],
+            config=config,
+            data=data,
+            embedding_path=get_embedding_path(config["embedding_second_name"]),
+            embedding_dim=embedding_second_dim)
+        embed_second = Embedding(data.vocab.size(),
+                                 embedding_second_dim,
                                  weights=[embedding_second_matrix],
                                  trainable=config["train_embeddings"],
                                  mask_zero=False)

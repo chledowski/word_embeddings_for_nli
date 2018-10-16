@@ -149,6 +149,7 @@ baseline_configs['esim'] = {
     'embedding_dim': 300,
     'embedding_name': 'gcc840',
     'embedding_second_name': 'gcc840',
+    'embedding_second_dim': 300,
     'fullkim': False,
     'a_lambda': 0.2,
     'i_lambda': 1.0,

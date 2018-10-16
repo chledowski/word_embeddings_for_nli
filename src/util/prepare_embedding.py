@@ -40,12 +40,14 @@ def norm_weight(nin, nout=None, scale=0.01, ortho=True):
     return W.astype('float32')
 
 
-def prep_embedding_matrix(config, data, embedding_path=None):
+def prep_embedding_matrix(config, data, embedding_path=None, embedding_dim=None):
+    embedding_dim = embedding_dim or config["embedding_dim"]
+
     if config["norm_weight"]:
-        target_matrix = norm_weight(data.vocab.size(), config["embedding_dim"])
+        target_matrix = norm_weight(data.vocab.size(), embedding_dim)
     else:
         target_matrix = np.random.uniform(
-                -0.1, 0.1, (data.vocab.size(), config["embedding_dim"]))
+                -0.1, 0.1, (data.vocab.size(), embedding_dim))
 
     if embedding_path:
         with h5py.File(embedding_path, 'r') as f:
