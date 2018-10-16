@@ -25,9 +25,10 @@ from src.util.embedding import export_embedding_h5, Embedding, _remove_chars
 import pickle as pickle
 from os import path
 
-from web.embeddings import fetch_conceptnet_numberbatch, fetch_LexVec, fetch_SG_GoogleNews, \
+from web.embeddings import fetch_LexVec, fetch_SG_GoogleNews, \
     fetch_HDC, fetch_PDC
 
+RAW_EMBEDDINGS_DIR = path.join(DATA_DIR, "raw", "embeddings")
 EMBEDDINGS_DIR = path.join(DATA_DIR, "raw", "embeddings")
 
 logger = logging.getLogger(__name__)
@@ -107,9 +108,11 @@ def _fetch_file(url, destination):
     if not path.exists(destination):
         logging.info("Downloading " + url + " to " + destination)
         cmd = "wget {} -O {}".format(url, destination)
-        _, _, ret = exec_command(cmd, flush_stdout=True)
+        _, _, ret = exec_command(cmd, flush_stdout=True, flush_stderr=True)
         if ret != 0:
             raise RuntimeError("Failed wget {}".format(cmd))
+        else:
+            logger.info("Downloaded to " + destination)
     else:
         logger.info("Already downloaded " + destination)
 
@@ -154,6 +157,74 @@ def load_embedding(fname, format="word2vec_bin", normalize=True,
     if lower or clean_words:
         w.standardize_words(lower=lower, clean_words=clean_words, inplace=True)
     return w
+
+
+def fetch_conceptnet_numberbatch(clean_words=False):
+    """
+    Fetches ConceptNetNumberbatch embeddings. Embeddings are normalized to unit length,
+    and the vocabulary terms are lowercase.
+
+    Parameters
+    ----------
+    clean_words: bool, default: False
+      If true will only keep alphanumeric characters and "_", "-"
+      Warning: shouldn't be applied to embeddings with non-ascii characters
+
+    Returns
+    -------
+    w: Embedding
+      Instance of Embedding class
+
+    References
+    ----------
+    Published at https://github.com/commonsense/conceptnet-numberbatch
+    Reference paper: Robert Speer, Joshua Chin, and Catherine Havasi (2017). "ConceptNet 5.5: An Open Multilingual Graph of General Knowledge." In proceedings of AAAI 2017.
+    """
+    gz_path = os.path.join(RAW_EMBEDDINGS_DIR, 'numberbatch-en-17.06.txt.gz')
+    _fetch_file(url='https://conceptnet.s3.amazonaws.com/downloads/2017/numberbatch/numberbatch-en-17.06.txt.gz',
+                destination=gz_path)
+
+    if os.system("gunzip " + gz_path) != 0:
+        raise Exception("Failed unzipping")
+
+    return load_embedding(gz_path.strip(".gz"),
+                          format='word2vec',
+                          normalize=False,
+                          clean_words=clean_words)
+
+
+def fetch_omcs(clean_words=False):
+    """
+    Fetches Commonsense Knowledge Representation embeddings.
+
+    Parameters
+    ----------
+    clean_words: bool, default: False
+      If true will only keep alphanumeric characters and "_", "-"
+      Warning: shouldn't be applied to embeddings with non-ascii characters
+
+    Returns
+    -------
+    w: Embedding
+      Instance of Embedding class
+
+    References
+    ----------
+    Published at http://ttic.uchicago.edu/~kgimpel/commonsense.html
+    """
+
+    gz_path = os.path.join(RAW_EMBEDDINGS_DIR, 'omcs.txt.gz')
+    _fetch_file(url='http://ttic.uchicago.edu/~kgimpel/comsense_resources/embeddings.txt.gz',
+                destination=gz_path)
+
+    if os.system("gunzip -k " + gz_path) != 0:
+        raise Exception("Failed unzipping")
+
+    return load_embedding(gz_path.strip(".gz"),
+                          format='glove',
+                          normalize=False,
+                          clean_words=clean_words,
+                          load_kwargs={'vocab_size': 68264, 'dim': 200})
 
 
 def fetch_glove(dim=300, corpus="gwiki6", normalize=False, lower=False, clean_words=True):
@@ -236,10 +307,10 @@ def fetch_glove(dim=300, corpus="gwiki6", normalize=False, lower=False, clean_wo
     assert corpus in download_file, "Unrecognized corpus"
     assert dim in embedding_file[corpus], "Not available dimensionality"
 
-    dest = path.join(EMBEDDINGS_DIR, embedding_file[corpus][dim])
+    dest = path.join(RAW_EMBEDDINGS_DIR, embedding_file[corpus][dim])
 
     if not os.path.exists(dest):
-        dest_zip = path.join(EMBEDDINGS_DIR, path.dirname(embedding_file[corpus][dim]) + ".zip")
+        dest_zip = path.join(RAW_EMBEDDINGS_DIR, path.dirname(embedding_file[corpus][dim]) + ".zip")
 
         if not os.path.exists(path.dirname(dest_zip)):
             os.system("mkdir -p " + path.dirname(dest_zip))
@@ -250,7 +321,7 @@ def fetch_glove(dim=300, corpus="gwiki6", normalize=False, lower=False, clean_wo
             raise Exception("Failed unzipping")
         os.system("rm " + dest_zip)
 
-    return load_embedding(path.join(EMBEDDINGS_DIR, embedding_file[corpus][dim]),
+    return load_embedding(path.join(RAW_EMBEDDINGS_DIR, embedding_file[corpus][dim]),
                           format="glove",
                           normalize=normalize,
                           lower=lower, clean_words=clean_words,
@@ -266,15 +337,18 @@ def kwargs_to_name(**obj):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
+
     parser = argparse.ArgumentParser(description='Fetching pretrained embeddings.')
-    parser.add_argument('--embeddings', nargs='+', default=['gwiki6', 'glove', 'all'], type=str, help='lr schedule')
+    parser.add_argument('--embeddings', nargs='+', default=['all'], type=str, help='lr schedule')
     args = parser.parse_args()
 
     if not os.path.exists(os.path.join(DATA_DIR, 'embeddings')):
         os.makedirs(os.path.join(DATA_DIR, 'embeddings'))
 
-    if 'all' in args.embeddings:
+    download_all = 'all' in args.embeddings
 
+    if download_all or 'gwiki6' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
             print("Fetching GloVe 6B")
             E = fetch_glove(corpus="gwiki6")
@@ -282,6 +356,7 @@ if __name__ == "__main__":
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
 
+    if download_all or 'gcc42' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
             print("Fetching GloVe 42B")
             E = fetch_glove(corpus="gcc42")
@@ -289,6 +364,7 @@ if __name__ == "__main__":
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
 
+    if download_all or 'gcc840' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
             print("Fetching GloVe 840B")
             E = fetch_glove(corpus="gcc840")
@@ -296,66 +372,44 @@ if __name__ == "__main__":
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
 
+    if download_all or 'conceptnet' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "conceptnet" + ".h5")):
             print("Fetching ConceptNet")
             E = fetch_conceptnet_numberbatch()
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "conceptnet" + ".h5"))
 
+    if download_all or 'lexvec' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "lexvec" + ".h5")):
             print("Fetching LexVec")
             E = fetch_LexVec()
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "lexvec" + ".h5"))
 
+    if download_all or 'sg_googlenews' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "sg_googlenews" + ".h5")):
             print("Fetching SG_GoogleNews")
             E = fetch_SG_GoogleNews()
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "sg_googlenews" + ".h5"))
 
+    if download_all or 'hdc' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "hdc" + ".h5")):
             print("Fetching HDC")
             E = fetch_HDC()
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "hdc" + ".h5"))
 
+    if download_all or 'pdc' in args.embeddings:
         if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "pdc" + ".h5")):
             print("Fetching PDC")
             E = fetch_PDC()
             export_embedding_h5(E.vocabulary.words, E.vectors,
                                 output=os.path.join(DATA_DIR, "embeddings", "pdc" + ".h5"))
 
-    else:
-
-        if 'glove' in args.embeddings:
-
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
-                print("Fetching GloVe 6B")
-                E = fetch_glove(corpus="gwiki6")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
-
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5")):
-                print("Fetching GloVe 42B")
-                E = fetch_glove(corpus="gcc42")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gcc42" + ".h5"))
-
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5")):
-                print("Fetching GloVe 840B")
-                E = fetch_glove(corpus="gcc840")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gcc840" + ".h5"))
-
-        elif 'gwiki6' in args.embeddings:
-
-            if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5")):
-                print("Fetching GloVe 6B")
-                E = fetch_glove(corpus="gwiki6")
-                print("Saving embeddings")
-                export_embedding_h5(E.vocabulary.words, E.vectors,
-                                    output=os.path.join(DATA_DIR, "embeddings", "gwiki6" + ".h5"))
+    if download_all or 'omcs' in args.embeddings:
+        if not os.path.exists(os.path.join(DATA_DIR, "embeddings", "omcs" + ".h5")):
+            print("Fetching OMCS")
+            E = fetch_omcs()
+            export_embedding_h5(E.vocabulary.words, E.vectors,
+                                output=os.path.join(DATA_DIR, "embeddings", "omcs" + ".h5"))

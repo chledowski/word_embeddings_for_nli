@@ -605,7 +605,7 @@ class Embedding(object):
             ignored = 0
             vectors = np.zeros(shape=(vocab_size, dim), dtype=np.float32)
             for line_no, line in tqdm.tqdm(enumerate(fin), total=vocab_size):
-                # print (line)
+                line = line.strip()
 
                 if "\ufffd" in line:  # hack to remove particular non-unicode duplicate after decoding
                     ignored += 1
