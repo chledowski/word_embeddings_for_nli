@@ -8,6 +8,7 @@ import argparse
 import jsonlines
 import os
 
+
 def build_sequence(filepath, dst_dir):
     dic = {'entailment': '0', 'neutral': '1', 'contradiction': '2'}
     filename = os.path.basename(filepath)

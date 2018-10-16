@@ -15,7 +15,6 @@ cos = CosineSimilarity(dim=1, eps=1e-6)
 
 
 def faruqui(wv_original, lexicon, n_epochs, losses, losses_2):
-
     if args.optimization == 'eiu':
 
         if 1 in args.losses:

@@ -367,6 +367,7 @@ def get_all_features():
 
     return hyponymy, hypernymy, antonymy, synonymy, co_hyponyms
 
+
 if __name__ == '__main__':
     hyponymy, hypernymy, antonymy, synonymy, co_hyponyms = get_all_features()
     s = ordered_dicts_to_set([hyponymy, hypernymy, antonymy, synonymy])

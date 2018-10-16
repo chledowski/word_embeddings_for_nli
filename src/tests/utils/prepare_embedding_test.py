@@ -25,6 +25,7 @@ class PrepareEmbeddingsTest(NlpTestCase):
 
         with open(self.TEST_FIXTURES_ROOT / self.files['config']) as f:
             self.config = json.load(f)
+
         self.vocab = Vocabulary(str(self.TEST_FIXTURES_ROOT / self.files['vocab']))
         self.source_matrix_path = self.TEST_FIXTURES_ROOT / self.files['source_matrix']
         self.data = SimpleData(self.config, self.vocab)
