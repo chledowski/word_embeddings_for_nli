@@ -1,6 +1,4 @@
 import json
-import logging
-import os
 
 from numpy.random import seed
 from numpy.random import RandomState
@@ -18,8 +16,8 @@ def prepare_environment(config):
     return rng
 
 
-def load_config(model_path):
+def load_config(config_path):
     # TODO(tomwesolowski): Add prepending DATA_DIR to all paths.
-    with open(os.path.join(model_path, 'config.json'), 'r') as f:
+    with open(config_path, 'r') as f:
         config = json.load(f)
     return config

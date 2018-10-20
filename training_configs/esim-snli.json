@@ -1,7 +1,7 @@
 {
   "seed": 9,
   "dataset": {
-    "name": "mnli",
+    "name": "snli",
     "use_lemmatized": true
   },
   "embeddings": {
@@ -15,7 +15,7 @@
   "streams": {
     "train": {
       "batch_size": 32,
-      "fraction": 1.0,
+      "fraction": 0.001,
       "shuffle": true
     },
     "dev": {

@@ -1,7 +1,7 @@
 {
   "seed": 9,
   "dataset": {
-    "name": "mnli",
+    "name": "snli",
     "use_lemmatized": true
   },
   "embeddings": {
@@ -15,7 +15,7 @@
   "streams": {
     "train": {
       "batch_size": 32,
-      "fraction": 1.0,
+      "fraction": 0.001,
       "shuffle": true
     },
     "dev": {
@@ -35,6 +35,10 @@
     }
   },
   "batch_transformers": [
+    {
+      "name": "wordnet",
+      "file": "pair_features.pkl"
+    },
     {
       "name": "indexer",
       "vocab": "default"
@@ -93,7 +97,7 @@
         }
     },
     "centering": false,
-    "clip_gradient_norm": 10.0,
+    "clip_gradient_norm": 5.0,
     "cudnn": true,
     "dataset": "mnli",
     "dropout": 0.5,
@@ -106,7 +110,7 @@
     "embedding_name": "gcc840",
     "embedding_second_name": "gcc840",
     "fullkim": false,
-    "a_lambda": 0.2,
+    "a_lambda": 20,
     "i_lambda": 1.0,
     "intersection_of_embedding_dicts": false,
     "knowledge_after_lstm": "none",
@@ -138,8 +142,8 @@
     "train_embeddings": false,
     "train_on_fraction": 1.0,
     "use_elmo": false,
-    "useatrick": 0,
-    "useitrick": 0,
+    "useatrick": 1,
+    "useitrick": 1,
     "usectrick": 0,
     "whitening": false
   }
