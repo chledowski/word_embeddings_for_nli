@@ -570,6 +570,7 @@ class NLIData(Data):
             stream = Batch(stream, iteration_scheme=ConstantScheme(20 * batch_size))
             stream = FixedMapping(stream, functools.partial(shuffle_like_kim, batch_size, rng))
             stream = Unpack(stream)
+
         stream = Batch(stream, iteration_scheme=ConstantScheme(batch_size))
 
         if self._retrieval:

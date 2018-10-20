@@ -19,8 +19,6 @@ from numpy.random import seed
 from numpy.random import RandomState
 from tensorflow import set_random_seed
 
-
-matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
 
 

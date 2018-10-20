@@ -1,0 +1,6 @@
+1 a S1
+2 ab S2
+3 abc S3
+4 abcd S4
+5 abcde S5
+6 abcdef S6

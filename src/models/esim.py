@@ -31,32 +31,26 @@ from src.models.keras_utils import ScaledRandomNormal
 logger = logging.getLogger(__name__)
 
 
-def esim(config, data):
-    logger.info('Vocab size = {}'.format(data.vocab.size()))
+def esim(config, embeddings):
     logger.info('Using {} as first embedding'.format(config["embedding_name"]))
     logger.info('Using {} as second embedding'.format(config["embedding_second_name"]))
 
     ortho_matrix = ortho_weight(config["embedding_dim"])
-    embedding_matrix = prep_embedding_matrix(config, data,
-                                             get_embedding_path(config["embedding_name"]))
 
-    embed = Embedding(data.vocab.size(), config["embedding_dim"],
-                      weights=[embedding_matrix],
-                      trainable=config["train_embeddings"],
+    main_embedding_matrix = embeddings['main'].load()
+    embed = Embedding(main_embedding_matrix.shape[0],
+                      main_embedding_matrix.shape[1],
+                      weights=[main_embedding_matrix],
+                      trainable=embeddings['main'].trainable,
                       name='embedding',
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
-        embedding_second_dim = config.get("embedding_second_dim", config["embedding_dim"])
-        embedding_second_matrix = prep_embedding_matrix(
-            config=config,
-            data=data,
-            embedding_path=get_embedding_path(config["embedding_second_name"]),
-            embedding_dim=embedding_second_dim)
-        embed_second = Embedding(data.vocab.size(),
-                                 embedding_second_dim,
-                                 weights=[embedding_second_matrix],
-                                 trainable=config["train_embeddings"],
+        residual_embedding_matrix = embeddings['residual'].load()
+        embed_second = Embedding(residual_embedding_matrix.shape[0],
+                                 residual_embedding_matrix.shape[1],
+                                 weights=[residual_embedding_matrix],
+                                 trainable=embeddings['residual'].trainable,
                                  mask_zero=False)
     else:
         embed_second = embed
@@ -64,10 +58,10 @@ def esim(config, data):
 
 
     # 1, Embedding the input and project the embeddings
-    premise_input = Input(shape=(None,), dtype='int32', name='premise')
-    premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
-    hypothesis_input = Input(shape=(None,), dtype='int32', name='hypothesis')
-    hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
+    premise_input = Input(shape=(None,), dtype='int32', name='sentence1')
+    premise_mask_input = Input(shape=(None,), dtype='int32', name='sentence1_mask')
+    hypothesis_input = Input(shape=(None,), dtype='int32', name='sentence2')
+    hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='sentence2_mask')
     KBph_input = Input(shape=(None, None, 5), dtype='float32', name='KBph')
     KBhp_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
 
@@ -381,7 +375,7 @@ def esim(config, data):
                   kernel_regularizer=l2(config["l2_weight_regularization"]),
                   bias_regularizer=l2(config["l2_weight_regularization"]),
                   activation='softmax',
-                  name='judge300_' + config["dataset"])(Final)
+                  name='prediction')(Final)
 
     model_input = [premise_input, premise_mask_input,
                    hypothesis_input, hypothesis_mask_input]
@@ -394,7 +388,9 @@ def esim(config, data):
 
     model = Model(inputs=model_input, outputs=Final)
 
-    loss = 'categorical_crossentropy'
+    loss = {
+        'prediction': 'categorical_crossentropy'
+    }
 
     if config["optimizer"] == 'rmsprop':
         model.compile(optimizer=optimizers.RMSprop(lr=config["learning_rate"],

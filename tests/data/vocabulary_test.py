@@ -1,13 +1,13 @@
 import unittest
 
-from src.tests.common.test_case import NlpTestCase
-from src.util.vocab import Vocabulary
+from tests.common.test_case import NLITestCase
+from data.vocabulary import NLIVocabulary
 
 
-class VocabTest(NlpTestCase):
+class VocabularyTest(NLITestCase):
 
     def setUp(self):
-        super(VocabTest, self).setUp()
+        super(VocabularyTest, self).setUp()
 
         self.TEST_FIXTURES_ROOT = self.FIXTURES_ROOT / "vocab"
         self.files = {
@@ -15,16 +15,16 @@ class VocabTest(NlpTestCase):
             "vocab_special": "vocab_special.txt",
         }
 
-        self.vocab = Vocabulary(
+        self.vocab = NLIVocabulary(
             str(self.TEST_FIXTURES_ROOT / self.files['vocab']))
-        self.vocab_special = Vocabulary(
+        self.vocab_special = NLIVocabulary(
             str(self.TEST_FIXTURES_ROOT / self.files['vocab_special']))
 
     def test_words(self):
         words = sorted(self.vocab.words)
         self.assertEqual(words, [b'random', b'the', b'to'])
 
-    def test_freqs(self):
+    def test_frequencies(self):
         words = self.vocab.words
         freqs = self.vocab.frequencies
         expected = {

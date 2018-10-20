@@ -1,0 +1,15 @@
+{
+  "embeddings": {
+    "test": {
+      "dim": 2,
+      "file": "three_embeddings.h5",
+      "trainable": false,
+      "vocab": "test"
+    }
+  },
+  "vocabs": {
+    "test": {
+      "file_or_data": "vocab.txt"
+    }
+  }
+}
