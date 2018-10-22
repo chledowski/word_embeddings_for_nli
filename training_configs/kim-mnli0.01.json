@@ -86,9 +86,6 @@
       "regularizer": "l2",
       "regularizer_strength": 0.0
     },
-    "residual_connection": {
-      "embedding": "main"
-    },
     "inference": {
       "similarity": "dot",
       "kim_attention_boost": 20.0

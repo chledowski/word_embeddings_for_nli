@@ -20,5 +20,5 @@ rm ${DATA_DIR}/mnli.zip
 # GloVe
 ./gdown.pl https://drive.google.com/file/d/1nnTJ-5B_19czIFVHPIVwUVXHgYGjAHFO/ ${DATA_DIR}/gcc840.zip
 mkdir -p ${DATA_DIR}/embeddings
-unzip ${DATA_DIR}/gcc840.zip -d ${DATA_DIR}/embeddings
+unzip ${DATA_DIR}/gcc840.zip -d ${DATA_DIR}/
 rm ${DATA_DIR}/gcc840.zip
