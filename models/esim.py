@@ -12,7 +12,8 @@ from keras.models import Model
 
 from modules.esim import EmbeddingLayer, EncoderLayer, ExternalKnowledgeLayer, \
     FeedForwardLayer, InferenceLayer, PoolingLayer, ProjectionLayer
-from modules.utils import get_regularizer, MaskMultiply
+from modules.residual import ResidualLayer
+from modules.utils import MaskMultiply
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +37,17 @@ class ESIM(object):
         hypothesis_knowledge_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
         hypothesis_knowledge = Lambda(lambda x: x)(hypothesis_knowledge_input)
 
-        main_embedding_layer = EmbeddingLayer.from_config(
-            config=config['embeddings']['main'],
-            embeddings=embeddings)
-
         embedded = dict()
-        embedded['main'] = {
-            'premise': main_embedding_layer(premise),
-            'hypothesis': main_embedding_layer(hypothesis)
-        }
 
-        if config['embeddings'].get('residual') is not None:
-            residual_embedding_layer = EmbeddingLayer.from_config(
-                config=config['embeddings']['residual'],
-                embeddings=embeddings)
-            embedded['residual'] = {
-                'premise': residual_embedding_layer(premise),
-                'hypothesis': residual_embedding_layer(hypothesis)
+        for emb_name, emb_config in config['embeddings'].items():
+            embedding_layer = EmbeddingLayer.from_config(
+                name=emb_name,
+                config=emb_config,
+                embeddings=embeddings
+            )
+            embedded[emb_name] = {
+                'premise': embedding_layer(premise),
+                'hypothesis': embedding_layer(hypothesis)
             }
 
         premise = Dropout(config["dropout"])(embedded['main']['premise'])
@@ -68,7 +63,17 @@ class ESIM(object):
         premise = embedded['contextual']['premise']
         hypothesis = embedded['contextual']['hypothesis']
 
-        # TODO(tomwesolowski): Add Residual connections.
+        if config.get('residual_connection') is not None:
+            residual_connection = ResidualLayer.from_config(config['residual_connection'])
+            residual_embedding = config['residual_connection']['embedding']
+            premise = residual_connection(
+                contextualized=premise,
+                residual=embedded[residual_embedding]['premise']
+            )
+            hypothesis = residual_connection(
+                contextualized=hypothesis,
+                residual=embedded[residual_embedding]['hypothesis']
+            )
 
         premise = MaskMultiply()([premise, premise_mask])
         hypothesis = MaskMultiply()([hypothesis, hypothesis_mask])

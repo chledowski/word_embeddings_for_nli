@@ -18,8 +18,12 @@ class NLIEmbedding(object):
         self._file = file
         self._rng = rng
         self._trainable = trainable
+        self._cached = None
 
     def load(self):
+        if self._cached is not None:
+            return self._cached
+
         target_matrix = norm_weight(self._rng, self._vocab.size(), self.dim)
 
         if self._file:
@@ -50,6 +54,7 @@ class NLIEmbedding(object):
         # Padding is always zero-vector.
         target_matrix[0, :] = 0
 
+        self._cached = target_matrix
         return target_matrix
 
     @property

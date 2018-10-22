@@ -1,6 +1,7 @@
 from abc import abstractmethod
 
 import keras.backend as K
+
 from keras.activations import softmax
 from keras.layers import Add, Subtract, Dense, TimeDistributed, Lambda, Bidirectional, \
     Dot, Permute, Multiply, Concatenate, CuDNNLSTM
@@ -26,9 +27,9 @@ class EmbeddingLayer(object):
         return self.model(inputs)
 
     @classmethod
-    def from_config(cls, config, embeddings):
+    def from_config(cls, config, name, embeddings):
         return cls(
-            name=config['name'],
+            name=name,
             trainable=config['trainable'],
             weights=embeddings[config['name']].load()
         )
@@ -274,74 +275,3 @@ class FeedForwardLayer(object):
             regularizer=config['regularizer'],
             regularizer_strength=config['regularizer_strength'],
         )
-
-
-class ResidualLayer(object):
-    pass
-    # TODO(tomwesolowski): Refactor
-    # if 'residual_embedding' in config and config['residual_embedding']['active']:
-    #     if config['residual_embedding']['type'] == 'add':
-    #         def _add_and_rotate(x, ortho_matrix):
-    #             contextual, residual = x
-    #             residual = K.dot(residual, K.constant(ortho_matrix, dtype='float32'))
-    #             residual = Concatenate()([residual, residual])
-    #             return Add()([contextual, residual])
-    #         residual_connection = Lambda(_add_and_rotate, name='residual_embeds',
-    #                                      arguments={
-    #                                          'ortho_matrix': ortho_matrix
-    #                                      })
-    #     elif config['residual_embedding']['type'] == 'concat':
-    #         residual_connection = Concatenate(name='residual_embeds')
-    #     elif config['residual_embedding']['type'] == 'mod_drop':
-    #         def _drop_mod(embeddings, normalize):
-    #             def _mod_drop_train(contextual, residual):
-    #                 keep_configs = K.constant([[0, 1],
-    #                                            [1, 0],
-    #                                            [1, 1]], dtype='float32')
-    #
-    #                 # scale by 1.0 / keep_prob
-    #                 keep_configs_probs = K.mean(keep_configs, axis=0, keepdims=True)
-    #                 keep_configs *= 1.0 / keep_configs_probs
-    #
-    #                 # [batch_size, sen_length]
-    #                 selectors = K.random_uniform(K.shape(contextual)[:2], 0, 3, 'int32')
-    #
-    #                 # [batch_size, sen_length, 2, 1]
-    #                 keep = K.expand_dims(K.gather(keep_configs, selectors))
-    #
-    #                 # [batch_size, sen_length, 2, 2*emb_dim]
-    #                 stacked_embeddings = K.stack([contextual, residual], axis=2)
-    #
-    #                 # [batch_size, sen_length, 2*emb_dim]
-    #                 return K.sum(keep * stacked_embeddings, axis=2)
-    #
-    #             def _mod_drop_test(contextual, residual):
-    #                 return Add()([contextual, residual])
-    #
-    #             contextual, residual = embeddings
-    #             # contextual: [batch, sen_length, 2*emb_dim]
-    #             # residual: [batch, sen_length, emb_dim]
-    #             residual = Concatenate()([residual, residual])
-    #
-    #             if normalize:
-    #                 # [batch_size, sen_length, 1]
-    #                 residual_norm = tf.norm(residual, axis=-1, keepdims=True)
-    #                 # [batch_size, sen_length, 2*emb_dim]
-    #                 unit_contextual = K.l2_normalize(contextual, axis=-1)
-    #                 contextual = unit_contextual * residual_norm
-    #
-    #             return K.switch(K.learning_phase(),
-    #                             _mod_drop_train(contextual, residual),
-    #                             _mod_drop_test(contextual, residual))
-    #
-    #         residual_connection = Lambda(_drop_mod,
-    #                                      name='residual_embeds',
-    #                                      arguments={
-    #                                          'normalize': config['residual_embedding']['normalize']
-    #                                      })
-    #     else:
-    #         raise ValueError("Unknown residual conn. type:", config['residual_embedding']['type'])
-    #
-    #     embed_p = residual_connection([embed_p, embed_second_p])
-    #     embed_h = residual_connection([embed_h, embed_second_h])
-    #
