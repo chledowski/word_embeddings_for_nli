@@ -8,8 +8,7 @@ from data.stream import NLIStream
 from data.transformers import NLITransformer
 from data.vocabulary import NLIVocabulary
 
-from models.esim import esim
-
+from models.esim import ESIM
 
 class Experiment:
 
@@ -53,6 +52,10 @@ class Experiment:
                                                         rng=rng,
                                                         vocabs=vocabs)
 
+        # 5. Build model
+        model = ESIM.from_config(config=config['model'],
+                                 embeddings=embeddings)
+
         # 3. Batch transformers
         batch_transformers = []
         for bt_config in config['batch_transformers']:
@@ -75,10 +78,6 @@ class Experiment:
                 dataset=dataset.part(name),
                 rng=rng,
                 batch_transformers=batch_transformers)
-
-        # TODO(tomwesolowski): Read from config.
-        model = esim(config=config['model'],
-                     embeddings=embeddings)
 
         return cls(
             config=config,

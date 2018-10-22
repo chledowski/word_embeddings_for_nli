@@ -146,7 +146,8 @@ class WordNetTransformer(NLITransformer):
         return [kb_x, kb_y]
 
     def _load_pair_features(self, path):
-        with open(os.path.join(DATA_DIR, path), 'rb') as f:
+        full_path = os.path.join(DATA_DIR, path)
+        with open(full_path, 'rb') as f:
             features = pickle.load(f)
-        logger.info("Loaded word-net features from: %s" % path)
+        logger.info("Loaded word-net features from: %s" % full_path)
         return features

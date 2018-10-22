@@ -31,6 +31,7 @@ from src.models.keras_utils import ScaledRandomNormal
 logger = logging.getLogger(__name__)
 
 
+
 def esim(config, data):
     logger.info('Vocab size = {}'.format(data.vocab.size()))
     logger.info('Using {} as first embedding'.format(config["embedding_name"]))

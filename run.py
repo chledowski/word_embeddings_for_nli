@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 
-if os.environ.get("NLI_DEBUG"):
+if os.environ.get("NLI_DEBUG") == 1:
     LEVEL = logging.DEBUG
 else:
     LEVEL = logging.INFO

@@ -1,0 +1,130 @@
+{
+  "seed": 9,
+  "dataset": {
+    "name": "mnli",
+    "use_lemmatized": false
+  },
+  "embeddings": {
+    "main": {
+      "dim": 300,
+      "file": "gcc840.h5",
+      "vocab": "default"
+    }
+  },
+  "streams": {
+    "train": {
+      "batch_size": 32,
+      "fraction": 0.01,
+      "shuffle": true
+    },
+    "dev": {
+      "batch_size": 133,
+      "fraction": 1.0,
+      "shuffle": false
+    },
+    "test": {
+      "batch_size": 307,
+      "fraction": 1.0,
+      "shuffle": false
+    },
+    "breaking": {
+      "batch_size": 3,
+      "fraction": 1.0,
+      "shuffle": false
+    }
+  },
+  "batch_transformers": [
+    {
+      "name": "indexer",
+      "vocab": "default"
+    },
+    {
+      "name": "padder"
+    }
+  ],
+  "vocabs": {
+    "default": {
+      "file_or_data": "vocab_all.txt",
+      "specials_check": true
+    }
+  },
+  "trainer": {
+    "clip_norm": 10.0,
+    "learning_rate": 0.0004,
+    "learning_rate_scheduler": {
+        "type": "reduce_on_plateau",
+        "factor": 0.5,
+        "mode": "max",
+        "patience": 1
+    },
+    "loss": "categorical_crossentropy",
+    "metrics": ["accuracy"],
+    "num_epochs": 50,
+    "optimizer": "adam",
+    "patience": 7,
+    "save_best": true,
+    "save_every_epoch": false
+  },
+  "model": {
+    "dropout": 0.5,
+    "read_knowledge": false,
+    "embeddings": {
+      "main": {
+        "name": "main",
+        "trainable": false
+      }
+    },
+    "encoder": {
+      "name": "input_encoder",
+      "cudnn": true,
+      "units": 300,
+      "initializer": "orthogonal",
+      "regularizer": "l2",
+      "regularizer_strength": 0.0
+    },
+    "residual_connection": {
+      "embedding": "main"
+    },
+    "inference": {
+      "similarity": "dot"
+    },
+    "external_knowledge": {
+      "name": "dot-i",
+      "ilambda": 1.0,
+      "embedding": "main"
+    },
+    "projection": {
+      "activation": "relu",
+      "regularizer": "l2",
+      "regularizer_strength": 0.0,
+      "units": 300
+    },
+    "inference_encoder": {
+      "name": "inference_encoder",
+      "cudnn": true,
+      "units": 300,
+      "initializer": "orthogonal",
+      "regularizer": "l2",
+      "regularizer_strength": 0.0
+    },
+    "pooling": {
+      "operations": ["avg", "max"]
+    },
+    "feed_forwards": [
+      {
+        "name": "ff1",
+        "units": 300,
+        "activation": "relu",
+        "regularizer": "l2",
+        "regularizer_strength": 0.0
+      },
+      {
+        "name": "logits",
+        "units": 3,
+        "activation": "softmax",
+        "regularizer": "l2",
+        "regularizer_strength": 0.0
+      }
+    ]
+  }
+}
