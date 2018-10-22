@@ -1,5 +1,7 @@
 # NLI library
 
+### Quick reproduction
+
 If you'd like to quickly reproduce our results:
 
 0. Fill working directory paths in `env.sh.default` and run:
@@ -19,3 +21,9 @@ If you'd like to quickly reproduce our results:
 4. Evaluate model
 
 `python3 run.py --command=evaluate --model-path=results/esim-doti-mnli`
+
+### Embedding retrofitting
+
+To retrofit your embedding with our method, just run:
+
+`python3 run.py --command=retrofit --in_embedding=EMBEDDING_NAME --out_embedding=NEW_EMBEDDING_NAME`
