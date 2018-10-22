@@ -18,8 +18,6 @@ def train_from_config(config, serialization_dir):
     experiment = Experiment.from_config(config, rng=rng)
     experiment.print_configs()
 
-    serialization_dir =
-
     trainer = Trainer.from_params(
         config=experiment.config['trainer'],
         model=experiment.model,
