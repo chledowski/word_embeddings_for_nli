@@ -18,7 +18,7 @@ def train_from_config(config, serialization_dir):
     experiment = Experiment.from_config(config, rng=rng)
     experiment.print_configs()
 
-    serialization_dir = os.path.join(DATA_DIR, serialization_dir)
+    serialization_dir =
 
     trainer = Trainer.from_params(
         config=experiment.config['trainer'],
@@ -38,7 +38,7 @@ def train_from_parser(parser):
     args = parser.parse_args()
 
     config = load_config(args.config)
-    serialization_dir = args.savedir
+    serialization_dir = os.path.join(DATA_DIR, args.savedir)
 
     if not os.path.exists(serialization_dir):
         os.makedirs(serialization_dir)
