@@ -36,7 +36,7 @@
   "batch_transformers": [
     {
       "name": "wordnet",
-      "file": "pair_features.pkl"
+      "file": "wordnet_features.pkl"
     },
     {
       "name": "indexer",

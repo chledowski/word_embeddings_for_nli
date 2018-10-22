@@ -8,17 +8,31 @@ if [ -z ${DATA_DIR+x} ]; then
 fi
 
 # SNLI
-./gdown.pl https://drive.google.com/file/d/1H00Lc0co_lYljXiBQtkzekATbPz7vZuU/ ${DATA_DIR}/snli.zip
-unzip ${DATA_DIR}/snli.zip -d ${DATA_DIR}/
-rm ${DATA_DIR}/snli.zip
+if [ ! -d ${DATA_DIR}/snli ]; then
+    ./gdown.pl https://drive.google.com/file/d/1H00Lc0co_lYljXiBQtkzekATbPz7vZuU/ ${DATA_DIR}/snli.zip
+    unzip ${DATA_DIR}/snli.zip -d ${DATA_DIR}/
+    rm ${DATA_DIR}/snli.zip
+fi
 
 # MNLI
-./gdown.pl https://drive.google.com/file/d/1crajBtYles_yeVdtXtcx9nfDoLLpiqB9/ ${DATA_DIR}/mnli.zip
-unzip ${DATA_DIR}/mnli.zip -d ${DATA_DIR}/
-rm ${DATA_DIR}/mnli.zip
+if [ ! -d ${DATA_DIR}/mnli ]; then
+    ./gdown.pl https://drive.google.com/file/d/1crajBtYles_yeVdtXtcx9nfDoLLpiqB9/ ${DATA_DIR}/mnli.zip
+    unzip ${DATA_DIR}/mnli.zip -d ${DATA_DIR}/
+    rm ${DATA_DIR}/mnli.zip
+fi
 
 # GloVe
-./gdown.pl https://drive.google.com/file/d/1nnTJ-5B_19czIFVHPIVwUVXHgYGjAHFO/ ${DATA_DIR}/gcc840.zip
-mkdir -p ${DATA_DIR}/embeddings
-unzip ${DATA_DIR}/gcc840.zip -d ${DATA_DIR}/
-rm ${DATA_DIR}/gcc840.zip
+if [ ! -f ${DATA_DIR}/embeddings/gcc840.h5 ]; then
+    ./gdown.pl https://drive.google.com/file/d/1nnTJ-5B_19czIFVHPIVwUVXHgYGjAHFO/ ${DATA_DIR}/gcc840.zip
+    mkdir -p ${DATA_DIR}/embeddings
+    unzip ${DATA_DIR}/gcc840.zip -d ${DATA_DIR}/
+    rm ${DATA_DIR}/gcc840.zip
+fi
+
+# WordNet features
+if [ ! -f ${DATA_DIR}/wordnet_features.pkl ]; then
+    ./gdown.pl https://drive.google.com/file/d/1oHRQapAFr1EvN7a4mWlrRMp5rUf_gFbW ${DATA_DIR}/wordnet_features.zip
+    mkdir -p ${DATA_DIR}/embeddings
+    unzip ${DATA_DIR}/wordnet_features.zip -d ${DATA_DIR}/
+    rm ${DATA_DIR}/wordnet_features.zip
+fi

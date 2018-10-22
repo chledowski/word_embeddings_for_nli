@@ -6,7 +6,7 @@ If you'd like to quickly reproduce our results:
 
 `source env.sh.default`
 
-1. Download SNLI/MNLI datasets and GloVe embeddings:
+1. Download required input files & datasets:
 
 `scripts/download.sh`
 
