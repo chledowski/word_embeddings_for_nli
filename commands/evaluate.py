@@ -21,7 +21,9 @@ def evaluate(model, stream):
 
 
 def evaluate_from_args(args):
-    config = load_config(os.path.join(args.model_path, 'config.json'))
+    model_path = os.path.join(DATA_DIR, args.model_path)
+
+    config = load_config(os.path.join(model_path, 'config.json'))
     rng = prepare_environment(config)
 
     experiment = Experiment.from_config(config, rng=rng)
@@ -30,7 +32,7 @@ def evaluate_from_args(args):
     model = Trainer.compile_model(model, config['trainer'])
 
     # Restore the best model found during validation
-    model.load_weights(os.path.join(args.model_path, "best_model.h5"))
+    model.load_weights(os.path.join(model_path, "best_model.h5"))
 
     metrics = {}
     for name in experiment.dataset.evaluation_parts:

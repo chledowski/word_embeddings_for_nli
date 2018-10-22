@@ -18,4 +18,4 @@ If you'd like to quickly reproduce our results:
 
 4. Evaluate model
 
-`python3 run.py --command=evaluate --model_path=results/esim-doti-mnli`
+`python3 run.py --command=evaluate --model-path=results/esim-doti-mnli`

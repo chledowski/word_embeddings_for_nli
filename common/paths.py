@@ -6,6 +6,4 @@ DATA_DIR = os.environ.get('DATA_DIR', None)
 
 EMBEDDINGS_DIR = os.path.join(DATA_DIR, "embeddings")
 
-CSV_DATA_DIR = os.path.join(DATA_DIR, "snli", "csv")
-
-RESULTS_DIR = os.path.join(DATA_DIR, "..", "results")
+LEXICONS_DIR = os.path.join(DATA_DIR, "lexicons")

@@ -36,3 +36,11 @@ if [ ! -f ${DATA_DIR}/wordnet_features.pkl ]; then
     unzip ${DATA_DIR}/wordnet_features.zip -d ${DATA_DIR}/
     rm ${DATA_DIR}/wordnet_features.zip
 fi
+
+# Lexicons
+if [ ! -d ${DATA_DIR}/lexicons ]; then
+    ./gdown.pl https://drive.google.com/file/d/1PlDt0xOgle1xxCY6Ury3vRQh4I2oo1xI ${DATA_DIR}/lexicons.zip
+    mkdir -p ${DATA_DIR}/lexicons
+    unzip ${DATA_DIR}/lexicons.zip -d ${DATA_DIR}/
+    rm ${DATA_DIR}/lexicons.zip
+fi
