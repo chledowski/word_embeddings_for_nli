@@ -1,4 +1,5 @@
 import copy
+import logging
 import pprint
 
 from common.paths import *
@@ -9,6 +10,9 @@ from data.transformers import NLITransformer
 from data.vocabulary import NLIVocabulary
 
 from models.esim import ESIM
+
+logger = logging.getLogger(__name__)
+
 
 class Experiment:
     """
