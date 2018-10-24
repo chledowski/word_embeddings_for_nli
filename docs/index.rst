@@ -14,6 +14,16 @@ Welcome to nli-embeddings's documentation!
    api/commands.evaluate
    api/commands.retrofit
    api/commands.train
+   api/data.dataset
+   api/data.embedding
+   api/data.stream
+   api/data.transformers
+   api/data.utils
+   api/data.vocabulary
+   api/models.esim
+   api/modules.esim
+   api/modules.residual
+   api/modules.utils
 
 
 

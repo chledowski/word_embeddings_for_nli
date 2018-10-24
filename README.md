@@ -1,4 +1,4 @@
-# NLI library
+# NLI embeddings
 
 ### Quick reproduction
 
