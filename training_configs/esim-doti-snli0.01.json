@@ -1,7 +1,7 @@
 {
   "seed": 9,
   "dataset": {
-    "name": "mnli",
+    "name": "snli",
     "use_lemmatized": false
   },
   "embeddings": {

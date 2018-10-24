@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-ESIM Model
-"""
 
 import logging
 
@@ -19,9 +14,21 @@ logger = logging.getLogger(__name__)
 
 
 class ESIM(object):
+    """
+    ESIM model implementation.
+    """
+
     @classmethod
     def from_config(cls, config, embeddings):
-        # 1, Embedding the input and project the embeddings
+        """
+        Builds ESIM model from config.
+
+        :param config: ``dict`` containing model configuration
+        :param embeddings: ``dict`` containing embedding matrices keyed by names.
+        :return: ``Model`` object.
+        """
+
+        # Prepare inputs
         premise_input = Input(shape=(None,), dtype='int32', name='sentence1')
         premise = Lambda(lambda x: x, name='premise')(premise_input)
         premise_mask_input = Input(shape=(None,), dtype='int32', name='sentence1_mask')
@@ -37,6 +44,7 @@ class ESIM(object):
         hypothesis_knowledge_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
         hypothesis_knowledge = Lambda(lambda x: x)(hypothesis_knowledge_input)
 
+        # Create embeddings layers.
         embedded = dict()
 
         for emb_name, emb_config in config['embeddings'].items():
@@ -53,6 +61,7 @@ class ESIM(object):
         premise = Dropout(config["dropout"])(embedded['main']['premise'])
         hypothesis = Dropout(config["dropout"])(embedded['main']['hypothesis'])
 
+        # Runs input encoding - Bidirectonal LSTM.
         input_encoder = EncoderLayer.from_config(config['encoder'])
 
         embedded['contextual'] = {
@@ -63,6 +72,7 @@ class ESIM(object):
         premise = embedded['contextual']['premise']
         hypothesis = embedded['contextual']['hypothesis']
 
+        # Apply residual connection when needed.
         if config.get('residual_connection') is not None:
             residual_connection = ResidualLayer.from_config(config['residual_connection'])
             residual_embedding = config['residual_connection']['embedding']
@@ -75,9 +85,11 @@ class ESIM(object):
                 residual=embedded[residual_embedding]['hypothesis']
             )
 
+        # Mask padding.
         premise = MaskMultiply()([premise, premise_mask])
         hypothesis = MaskMultiply()([hypothesis, hypothesis_mask])
 
+        # Inference layer with attention mechanism.
         inference_layer = InferenceLayer.from_config(config['inference'])
 
         (premise_knowledge_vector, hypothesis_knowledge_vector,
@@ -86,6 +98,7 @@ class ESIM(object):
             knowledge=[premise_knowledge, hypothesis_knowledge],
         )
 
+        # External knowledge layer.
         premise_external_knowledge_vector = None
         hypothesis_external_knowledge_vector = None
 
@@ -106,15 +119,14 @@ class ESIM(object):
 
         if (premise_external_knowledge_vector is not None
                 and hypothesis_external_knowledge_vector is not None):
-            premise = Concatenate()(
-                premise_knowledge_vector + [premise_external_knowledge_vector])
-            hypothesis = Concatenate()(
-                hypothesis_knowledge_vector + [hypothesis_external_knowledge_vector])
+            premise_knowledge_vector += [premise_external_knowledge_vector]
+            hypothesis_knowledge_vector += [hypothesis_external_knowledge_vector]
 
+        # Project knowledge vector to reduce dimensionality.
         projection = ProjectionLayer.from_config(config['projection'])
 
-        premise = projection(premise)  # [-1, Psize, emb_size]
-        hypothesis = projection(hypothesis)  # [-1, Hsize, emb_size]
+        premise = projection(Concatenate()(premise_knowledge_vector))
+        hypothesis = projection(Concatenate()(hypothesis_knowledge_vector))
 
         premise = Dropout(config["dropout"])(premise)
         hypothesis = Dropout(config["dropout"])(hypothesis)
@@ -124,6 +136,7 @@ class ESIM(object):
             premise = Concatenate()([premise, premise_external_knowledge_vector])
             hypothesis = Concatenate()([hypothesis, hypothesis_external_knowledge_vector])
 
+        # Run inference encoder - Bidirectonal LSTM.
         inference_encoder = EncoderLayer.from_config(config['inference_encoder'])
 
         embedded['inference'] = {
@@ -134,6 +147,7 @@ class ESIM(object):
         premise = embedded['inference']['premise']
         hypothesis = embedded['inference']['hypothesis']
 
+        # Mask padding once again.
         premise = MaskMultiply()([premise, premise_mask])
         hypothesis = MaskMultiply()([hypothesis, hypothesis_mask])
 
@@ -145,20 +159,24 @@ class ESIM(object):
 
         inference_final_vector = Dropout(config["dropout"])(inference_final_vector)
 
-        for ff_config in config['feed_forwards']:
-            ff_layer = FeedForwardLayer.from_config(ff_config)
+        # Run MLP to get final prediction.
+        num_layers = len(config['feed_forwards'])
+        for i in range(num_layers):
+            ff_layer = FeedForwardLayer.from_config(config['feed_forwards'][i])
             inference_final_vector = ff_layer(inference_final_vector)
+            if i+1 < num_layers:
+                inference_final_vector = Dropout(config["dropout"])(inference_final_vector)
 
-        prediction = inference_final_vector
-
+        # Set up model input & output
         model_input = [premise_input, premise_mask_input,
                        hypothesis_input, hypothesis_mask_input]
 
+        # TODO(tomwesolowski): Get rid of this flag.
         if config['read_knowledge']:
             model_input += [premise_knowledge_input, hypothesis_knowledge_input]
 
-        model = Model(inputs=model_input, outputs=prediction)
+        prediction = inference_final_vector
 
-        print(model.summary())
+        model = Model(inputs=model_input, outputs=prediction)
 
         return model

@@ -6,6 +6,9 @@ from data.transformers import NLITransformer, NLIBatchTransformer, NLIShuffleTra
 
 
 class NLIStream(object):
+    """
+    Iterates over dataset and applies transformers.
+    """
     def __init__(self, dataset, rng, batch_transformers,
                  fraction, batch_size, shuffle):
         self._dataset = dataset
@@ -28,6 +31,10 @@ class NLIStream(object):
 
     @property
     def num_examples(self):
+        """
+
+        :return: number of all examples in the stream.
+        """
         return int(self._fraction * self._dataset.num_examples)
 
     def _build(self):
@@ -40,16 +47,13 @@ class NLIStream(object):
         return stream
 
     def _get_fraction_scheme(self):
-        if self._fraction < 1.0:
-            # Take random subset of dataset.
-            return SequentialExampleScheme(
-                examples=self._rng.choice(
-                    a=self._dataset.num_examples,
-                    size=self.num_examples,
-                    replace=False
-                )
+        return SequentialExampleScheme(
+            examples=self._rng.choice(
+                a=self._dataset.num_examples,
+                size=self.num_examples,
+                replace=False
             )
-        return SequentialExampleScheme(self.num_examples)
+        )
 
     def __len__(self):
         """

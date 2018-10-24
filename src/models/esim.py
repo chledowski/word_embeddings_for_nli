@@ -44,7 +44,7 @@ def esim(config, data):
     embed = Embedding(data.vocab.size(), config["embedding_dim"],
                       weights=[embedding_matrix],
                       trainable=config["train_embeddings"],
-                      name='embedding',
+                      name='main',
                       mask_zero=False)
 
     if config["embedding_second_name"] != config["embedding_name"]:
@@ -65,9 +65,9 @@ def esim(config, data):
 
 
     # 1, Embedding the input and project the embeddings
-    premise_input = Input(shape=(None,), dtype='int32', name='premise')
+    premise_input = Input(shape=(None,), dtype='int32', name='sentence1')
     premise_mask_input = Input(shape=(None,), dtype='int32', name='premise_mask_input')
-    hypothesis_input = Input(shape=(None,), dtype='int32', name='hypothesis')
+    hypothesis_input = Input(shape=(None,), dtype='int32', name='sentence2')
     hypothesis_mask_input = Input(shape=(None,), dtype='int32', name='hypothesis_mask_input')
     KBph_input = Input(shape=(None, None, 5), dtype='float32', name='KBph')
     KBhp_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
@@ -75,8 +75,8 @@ def esim(config, data):
     KBph = Lambda(lambda x: x, name='kbph_out')(KBph_input)
     KBhp = Lambda(lambda x: x, name='kbhp_out')(KBhp_input)
 
-    premise = Lambda(lambda x: x, name='premise_out')(premise_input)
-    hypothesis = Lambda(lambda x: x, name='hypothesis_out')(hypothesis_input)
+    premise = Lambda(lambda x: x, name='premise')(premise_input)
+    hypothesis = Lambda(lambda x: x, name='hypothesis')(hypothesis_input)
 
     if config['use_elmo']:
         elmo_embed = ElmoEmbeddings(config)
@@ -137,12 +137,12 @@ def esim(config, data):
         lstm_layer(
             units=config["embedding_dim"],
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-            kernel_initializer=Orthogonal(seed=config["seed"]),
-            recurrent_initializer=Orthogonal(seed=config["seed"]),
+            kernel_initializer=Orthogonal(),
+            recurrent_initializer=Orthogonal(),
             recurrent_regularizer=l2(config["l2_weight_regularization"]),
             bias_regularizer=l2(config["l2_weight_regularization"]),
             return_sequences=True),
-        name='bilstm'
+        name='input_encoder'
     )
 
     # FIX(tomwesolowski): Remove dropout
@@ -295,7 +295,7 @@ def esim(config, data):
               kernel_regularizer=l2(config["l2_weight_regularization"]),
               bias_regularizer=l2(config["l2_weight_regularization"]),
               activation='relu'),
-        name='translate')
+        name='projection')
 
     PremAlign = translate(PremAlign) # [-1, Psize, emb_size]
     HypoAlign = translate(HypoAlign) # [-1, Hsize, emb_size]
@@ -314,12 +314,12 @@ def esim(config, data):
         lstm_layer(
             units=300,
             # FIX(tomwesolowski): 26.07 Add Orthogonal and set use_bias = True
-            kernel_initializer=Orthogonal(seed=config["seed"]),
-            recurrent_initializer=Orthogonal(seed=config["seed"]),
+            kernel_initializer=Orthogonal(),
+            recurrent_initializer=Orthogonal(),
             recurrent_regularizer=l2(config["l2_weight_regularization"]),
             bias_regularizer=l2(config["l2_weight_regularization"]),
             return_sequences=True),
-        name='finaldecoder')  # [-1,2*units]
+        name='inference_encoder')  # [-1,2*units]
 
     final_p = bilstm_decoder(PremAlign)  # [-1, Psize, 600]
     final_h = bilstm_decoder(HypoAlign)  # [-1, Hsize, 600]
@@ -374,7 +374,7 @@ def esim(config, data):
                   bias_regularizer=l2(config["l2_weight_regularization"]),
                   # FIX(tomwesolowski): Add tanh activation
                   activation='relu' if config['use_elmo'] else 'tanh',
-                  name='dense300_' + config["dataset"])(Final)
+                  name='ff1')(Final)
     Final = Dropout(config["dropout"])(Final)
     Final = Dense(3,
                   # FIX(tomwesolowski): Add initializer
@@ -382,7 +382,7 @@ def esim(config, data):
                   kernel_regularizer=l2(config["l2_weight_regularization"]),
                   bias_regularizer=l2(config["l2_weight_regularization"]),
                   activation='softmax',
-                  name='judge300_' + config["dataset"])(Final)
+                  name='logits')(Final)
 
     model_input = [premise_input, premise_mask_input,
                    hypothesis_input, hypothesis_mask_input]

@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class NLIData(Registrable):
+    """
+    Base class for datasets classes.
+    """
     def __init__(self, name, part_paths, use_lemmatized, sources, lemmatized_sources):
         self._name = name
         self._dataset_cache = {}
@@ -48,15 +51,19 @@ class NLIData(Registrable):
     @classmethod
     def from_config(cls, config):
         # pylint: disable=protected-access
-        return cls.by_name(config['name'])._from_config(config)
+        return cls.by_name(config['name'])._load(config)
 
     @classmethod
-    def _from_config(cls, config):
+    def _load(cls, config):
         return cls(**config)
 
 
 @NLIData.register('snli')
 class SNLIData(NLIData):
+    """
+    Class for Stanford NLI dataset.
+    """
+
     def __init__(self, **kwargs):
         sources = ('sentence1', 'sentence2', 'label',)
         lemmatized_sources = (
@@ -84,6 +91,9 @@ class SNLIData(NLIData):
 
 @NLIData.register('mnli')
 class MNLIData(NLIData):
+    """
+    Class for Multi NLI.
+    """
     def __init__(self, **kwargs):
         sources = ('sentence1', 'sentence2', 'label',)
         lemmatized_sources = (

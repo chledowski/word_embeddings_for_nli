@@ -1,3 +1,11 @@
+#
+# Downloads:
+# a) SNLI/MNLI dataset
+# b) GloVe embeddings
+# c) WordNet pickled features.
+# d) Lexicons
+#
+
 #!/usr/bin/env bash
 
 cd "$(dirname "$0")"

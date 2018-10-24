@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+"""
+The `train` command lets you train a model from config file.
+"""
 
 import logging
 
@@ -13,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 
 def train_from_config(config, serialization_dir):
+    """
+    Trains model from given config.
+
+    :param config: config file
+    :param serialization_dir: serialization directory path
+    """
     rng = prepare_environment(config)
 
     experiment = Experiment.from_config(config, rng=rng)
@@ -21,7 +29,6 @@ def train_from_config(config, serialization_dir):
     trainer = Trainer.from_params(
         config=experiment.config['trainer'],
         model=experiment.model,
-        # TODO(tomwesolowski): Read it from config?
         train_stream=experiment.streams.train,
         dev_stream=experiment.streams.dev,
         serialization_dir=serialization_dir
@@ -31,6 +38,9 @@ def train_from_config(config, serialization_dir):
 
 
 def train_from_parser(parser):
+    """
+    :param parser: ``ArgumentParser`` object
+    """
     parser.add_argument("--config", type=str, required=True)
     parser.add_argument("--savedir", type=str, required=True)
     args = parser.parse_args()
@@ -50,7 +60,7 @@ def train_from_parser(parser):
                           serialization_dir=serialization_dir)
 
         for p in plugins:
-            p.on_after_call(config, args.savedir)
+            p.on_after_call(config, serialization_dir)
 
     run_with_redirection(
         os.path.join(serialization_dir, 'stdout.txt'),

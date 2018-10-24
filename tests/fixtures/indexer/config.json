@@ -1,0 +1,11 @@
+{
+  "indexer": {
+    "name": "indexer",
+    "vocab": "test"
+  },
+  "vocabs": {
+    "test": {
+      "file_or_data": "vocab.txt"
+    }
+  }
+}

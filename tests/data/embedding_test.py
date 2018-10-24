@@ -12,6 +12,7 @@ from tests.common.test_case import NLITestCase
 
 logger = logging.getLogger(__name__)
 
+
 class EmbeddingsTestCase(NLITestCase):
 
     def setUp(self):
@@ -38,9 +39,15 @@ class EmbeddingsTestCase(NLITestCase):
 
     def test_random(self):
         target_matrix_one = self.embedding.load()
-        target_matrix_two = self.embedding.load()
+        target_matrix_two = self.embedding.load(force_reload=True)
         self.assertFalse(np.allclose(target_matrix_one[2],
                                      target_matrix_two[2]))  # word out of vocab
+
+    def test_cache(self):
+        target_matrix_one = self.embedding.load()
+        target_matrix_two = self.embedding.load()
+        self.assertTrue(np.allclose(target_matrix_one[2],
+                                    target_matrix_two[2]))  # word out of vocab
 
     def test_full(self):
         target_matrix = self.embedding.load()

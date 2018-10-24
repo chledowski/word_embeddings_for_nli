@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 class NLITransformer(Registrable):
+    """
+    Base class for all transformers.
+    """
     def __init__(self, **kwargs):
         pass
 
@@ -22,11 +25,19 @@ class NLITransformer(Registrable):
 
     @classmethod
     def from_config(cls, config, **kwargs):
+        # pylint: disable=protected-access
+        return cls.by_name(config['name'])._load(config, **kwargs)
+
+    @classmethod
+    def _load(cls, config, **kwargs):
         return cls(**config, **kwargs)
 
 
 @NLITransformer.register('batcher')
 class NLIBatchTransformer(NLITransformer):
+    """
+    Puts samples into the batch of given size.
+    """
     def __init__(self, batch_size, **kwargs):
         super(NLIBatchTransformer, self).__init__(**kwargs)
         self._batch_size = batch_size
@@ -37,6 +48,10 @@ class NLIBatchTransformer(NLITransformer):
 
 @NLITransformer.register('shuffler')
 class NLIShuffleTransformer(NLITransformer):
+    """
+    Sorts samples by given key (hypothesis, by default) and shuffle batches.
+    Doing so, it minimizes padding within each batch.
+    """
     def __init__(self, rng, batch_size, sort_by='sentence2', **kwargs):
         super(NLIShuffleTransformer, self).__init__(**kwargs)
         # TODO(tomwesolowski): Add to config.
@@ -76,19 +91,39 @@ class NLIShuffleTransformer(NLITransformer):
 
 @NLITransformer.register('indexer')
 class NLIIndexTransformer(NLITransformer):
+    """
+    Convert words into vocabulary indices.
+    Surrounds sentences with <bos> and <eos> tags.
+    """
     def __init__(self, vocab, **kwargs):
         super(NLIIndexTransformer, self).__init__(**kwargs)
         self._vocab = vocab
 
     def transform(self, stream):
-        return SourcewiseMapping(stream, self._digitize, which_sources=('sentence1', 'sentence2'))
+        stream = SourcewiseMapping(stream, self._digitize, which_sources=(
+            'sentence1', 'sentence2'))
+        return SourcewiseMapping(stream, self._surround, which_sources=(
+            'sentence1', 'sentence2',
+            'sentence1_lemmatized', 'sentence2_lemmatized'))
 
     def _digitize(self, source_data):
-        return numpy.array([self._vocab.encode(words) for words in source_data])
+        output = []
+        for sentence in source_data:
+            output.append(self._vocab.encode(sentence))
+        return numpy.array(output)
+
+    def _surround(self, source_data):
+        output = []
+        for sentence in source_data:
+            output.append([self._vocab.bos] + sentence.tolist() + [self._vocab.eos])
+        return numpy.array(output)
 
 
 @NLITransformer.register('padder')
 class NLIPadTransformer(NLITransformer):
+    """
+    Applies padding to the batch.
+    """
     def __init__(self, **kwargs):
         super(NLIPadTransformer, self).__init__(**kwargs)
 
@@ -98,6 +133,9 @@ class NLIPadTransformer(NLITransformer):
 
 @NLITransformer.register('wordnet')
 class WordNetTransformer(NLITransformer):
+    """
+    Reads lexicon data from WordNet.
+    """
     def __init__(self, file, **kwargs):
         super(WordNetTransformer, self).__init__(**kwargs)
         self.pair_features = self._load_pair_features(file)
@@ -112,6 +150,7 @@ class WordNetTransformer(NLITransformer):
         return self._prepare_kb(x1_lemma, x2_lemma)
 
     # TODO(tomwesolowski): Clean this code.
+    # TODO(tomwesolowski): Unit-test it.
     def _prepare_kb(self, x1_lemma, x2_lemma):
         batch_size = x1_lemma.shape[0]
         x1_length = numpy.max([s.shape[0] for s in x1_lemma])

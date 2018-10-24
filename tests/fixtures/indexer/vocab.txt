@@ -1,0 +1,11 @@
+<pad> 0
+<unk> 0
+<eos> 0
+<bod> 0
+<eod> 0
+<bos> 0
+six 10
+seven 9
+eight 8
+nine 7
+ten 6

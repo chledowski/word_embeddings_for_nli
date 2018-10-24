@@ -9,6 +9,9 @@ from utils.algebra import ortho_weight
 
 
 class ResidualLayer(Registrable):
+    """
+    Base class for residual connections.
+    """
     def __init__(self):
         pass
 
@@ -23,6 +26,9 @@ class ResidualLayer(Registrable):
 
 @ResidualLayer.register('add')
 class AddResidualLayer(ResidualLayer):
+    """
+    Simple addition (with rotation, optionally) of contextualized and residual embeddings.
+    """
 
     def __init__(self, rotate, embedding_dim):
         super(ConcatResidualLayer, self).__init__()
@@ -56,6 +62,9 @@ class AddResidualLayer(ResidualLayer):
 
 @ResidualLayer.register('concat')
 class ConcatResidualLayer(ResidualLayer):
+    """
+    Simple concatenation of contextualized and residual embeddings.
+    """
 
     def __init__(self):
         super(ConcatResidualLayer, self).__init__()
@@ -71,6 +80,9 @@ class ConcatResidualLayer(ResidualLayer):
 
 @ResidualLayer.register('mod-drop')
 class ModDropResidualLayer(ResidualLayer):
+    """
+    Joins embeddings with modality dropout.
+    """
 
     def __init__(self, normalize):
         super(ModDropResidualLayer, self).__init__()

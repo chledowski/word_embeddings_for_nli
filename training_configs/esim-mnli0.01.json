@@ -106,7 +106,7 @@
       {
         "name": "ff1",
         "units": 300,
-        "activation": "relu",
+        "activation": "tanh",
         "regularizer": "l2",
         "regularizer_strength": 0.0
       },

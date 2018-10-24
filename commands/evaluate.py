@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+"""
+The `evaluate` command computes metrics of given model on all evaluation_parts of dataset.
+"""
+
 
 import logging
 
@@ -12,6 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 def evaluate(model, stream):
+    """
+    Evaluates the model on all samples from given stream.
+
+    :param model: ``Model`` object
+    :param stream: ``NLIStream`` object to evaluate model on.
+    :return: Computed metrics.
+    """
     return model.evaluate_generator(
         generator=stream,
         steps=len(stream),
@@ -21,6 +31,9 @@ def evaluate(model, stream):
 
 
 def evaluate_from_args(args):
+    """
+    Evaluate model from config given in ``args.config`` attribute.
+    """
     model_path = os.path.join(DATA_DIR, args.model_path)
 
     config = load_config(os.path.join(model_path, 'config.json'))
@@ -39,20 +52,6 @@ def evaluate_from_args(args):
         metrics[name] = evaluate(model, experiment.streams[name])
 
     print(metrics)
-
-    # results_dict = {}
-    # results_dict['accuracies'] = {}
-    # results_dict['losses'] = {}
-    # for stream_name, stream_metrics in metrics.items():
-    #     loss, accuracy = stream_metrics
-    #     print('{} loss / accuracy = {:.4f} / {:4f}'.format(stream_name, loss, accuracy))
-    #     results_dict['accuracies'][stream_name] = accuracy
-    #     results_dict['losses'][stream_name] = loss
-    #
-    # model_name = args.model_name.split('/')[0]
-    #
-    # with open('results/%s/retrofitting_results.json' % model_name, 'w') as f:
-    #     json.dump(results_dict, f)
 
 
 def evaluate_from_parser(parser):

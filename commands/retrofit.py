@@ -1,3 +1,7 @@
+"""
+The `retrofit` command modifies given embeddings with Faruqui method.
+"""
+
 import copy
 import h5py
 import numpy

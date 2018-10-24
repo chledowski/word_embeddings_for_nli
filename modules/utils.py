@@ -1,3 +1,7 @@
+"""
+Bunch of modules utilities.
+"""
+
 import keras.backend as K
 
 from keras.initializers import RandomNormal
@@ -15,13 +19,13 @@ def get_regularizer(regularizer, regularizer_strength):
 
 
 class MaskMultiply(object):
-    def __init__(self):
-        self.model = Lambda(
-            lambda x: x[0] * K.expand_dims(x[1], axis=-1)
-        )
+    model = Lambda(
+        lambda x: x[0] * K.expand_dims(x[1], axis=-1),
+        name='mask_multiply'
+    )
 
     def __call__(self, inputs):
-        return self.model(inputs)
+        return MaskMultiply.model(inputs)
 
 
 class ScaledRandomNormal(RandomNormal):

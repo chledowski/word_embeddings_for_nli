@@ -13,6 +13,9 @@ from modules.utils import get_regularizer, ScaledRandomNormal
 
 
 class EmbeddingLayer(object):
+    """
+    Input embedding layer.
+    """
     def __init__(self, name, trainable, weights):
         self.model = Embedding(
             weights.shape[0],
@@ -36,6 +39,9 @@ class EmbeddingLayer(object):
 
 
 class EncoderLayer(object):
+    """
+    Input encoding / Inference encoder layer - Bidirectional LSTM
+    """
     def __init__(self, name, cudnn, units, initializer, regularizer, regularizer_strength):
         if cudnn:
             self._lstm = CuDNNLSTM
@@ -72,8 +78,10 @@ class EncoderLayer(object):
 
 
 class InferenceLayer(object):
+    """
+    Attention mechanism.
+    """
     def __init__(self, similarity, kim_attention_boost=0.0):
-        # 3, Score each words and calc score matrix Eph.
         self._similarity = similarity
         self._kim_attention_boost = kim_attention_boost
 
@@ -130,6 +138,9 @@ class InferenceLayer(object):
 
 
 class ExternalKnowledgeLayer(Registrable):
+    """
+    Base class for layers enriching knowledge vectors.
+    """
     def __init__(self):
         pass
 
@@ -144,6 +155,9 @@ class ExternalKnowledgeLayer(Registrable):
 
 @ExternalKnowledgeLayer.register('kim')
 class KIMExternalKnowledgeLayer(ExternalKnowledgeLayer):
+    """
+    Expands knowledge vector with external lexicon knowledge.
+    """
     def __init__(self, ilambda):
         super(KIMExternalKnowledgeLayer, self).__init__()
         self._ilambda = ilambda
@@ -176,6 +190,9 @@ class KIMExternalKnowledgeLayer(ExternalKnowledgeLayer):
 
 @ExternalKnowledgeLayer.register('dot-i')
 class DOTIExternalKnowledgeLayer(ExternalKnowledgeLayer):
+    """
+        Expands knowledge vector with dot product of given embeddings.
+    """
     def __init__(self, ilambda):
         super(DOTIExternalKnowledgeLayer, self).__init__()
         self._ilambda = ilambda
@@ -203,6 +220,9 @@ class DOTIExternalKnowledgeLayer(ExternalKnowledgeLayer):
 
 
 class ProjectionLayer(object):
+    """
+    Reduces dimensionality of knowledge vector.
+    """
     def __init__(self, units, activation, regularizer, regularizer_strength):
         self._regularizer = get_regularizer(regularizer, regularizer_strength)
 
@@ -229,6 +249,9 @@ class ProjectionLayer(object):
 
 
 class PoolingLayer(object):
+    """
+    Applies mean/avg pooling operations.
+    """
     def __init__(self, operations):
         self._operations = operations
 
@@ -254,6 +277,9 @@ class PoolingLayer(object):
 
 
 class FeedForwardLayer(object):
+    """
+    Layers used in final MLP.
+    """
     def __init__(self, name, units, activation, regularizer, regularizer_strength):
         self._regularizer = get_regularizer(regularizer, regularizer_strength)
         self.model = Dense(units,

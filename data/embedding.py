@@ -20,8 +20,13 @@ class NLIEmbedding(object):
         self._trainable = trainable
         self._cached = None
 
-    def load(self):
-        if self._cached is not None:
+    def load(self, force_reload=False):
+        """
+        Generate random embeddings or loads embedding from file.
+        :param force_reload: if ``True`` it returns cached embedding when possible.
+        :return: ``np.ndarray`` embedding matrix for all words from vocabulary.
+        """
+        if not force_reload and self._cached is not None:
             return self._cached
 
         target_matrix = norm_weight(self._rng, self._vocab.size(), self.dim)

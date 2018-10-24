@@ -1,7 +1,7 @@
 {
   "seed": 9,
   "dataset": {
-    "name": "mnli",
+    "name": "snli",
     "use_lemmatized": false
   },
   "embeddings": {
@@ -14,7 +14,7 @@
   "streams": {
     "train": {
       "batch_size": 32,
-      "fraction": 0.01,
+      "fraction": 1.0,
       "shuffle": true
     },
     "dev": {
@@ -84,11 +84,6 @@
     },
     "inference": {
       "similarity": "dot"
-    },
-    "external_knowledge": {
-      "name": "dot-i",
-      "ilambda": 1.0,
-      "embedding": "main"
     },
     "projection": {
       "activation": "relu",

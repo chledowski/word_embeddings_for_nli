@@ -11,6 +11,9 @@ from data.vocabulary import NLIVocabulary
 from models.esim import ESIM
 
 class Experiment:
+    """
+    Base class for all experiments.
+    """
 
     def __init__(self, config, model, dataset, vocabs, embeddings, batch_transformers, streams):
         self.config = config
@@ -36,6 +39,13 @@ class Experiment:
 
     @classmethod
     def from_config(cls, config, rng):
+        """
+        Builds dataset, vocabs, embbedings, streams and models from config.
+
+        :param config: `dict` containing configuration options.
+        :param rng: random number generator
+        :return: `Experiment` object with all experiment components.
+        """
         # 0. Load dataset
         dataset = NLIData.from_config(config['dataset'])
 
@@ -59,7 +69,7 @@ class Experiment:
             bt_config = copy.deepcopy(bt_config)
             if 'vocab' in bt_config:
                 bt_config['vocab'] = vocabs.get(bt_config['vocab'])
-            transformer = NLITransformer.by_name(bt_config['name']).from_config(bt_config)
+            transformer = NLITransformer.from_config(bt_config)
             batch_transformers.append(transformer)
 
         class StreamRegistry(dict):
@@ -79,6 +89,7 @@ class Experiment:
         # 5. Build model
         model = ESIM.from_config(config=config['model'],
                                  embeddings=embeddings)
+        logger.info(model.summary())
 
         return cls(
             config=config,

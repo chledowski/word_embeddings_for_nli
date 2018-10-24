@@ -10,9 +10,10 @@ else:
 logging.basicConfig(level=LEVEL,
                     format="%(asctime)s: %(name)s: %(levelname)s: %(message)s")
 
+from commands.dump import dump_from_parser
 from commands.evaluate import evaluate_from_parser
-from commands.train import train_from_parser
 from commands.retrofit import retrofit_from_parser
+from commands.train import train_from_parser
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -25,6 +26,8 @@ if __name__ == "__main__":
         run_fn = train_from_parser
     elif args.command == 'retrofit':
         run_fn = retrofit_from_parser
+    elif args.command == 'dump':
+        run_fn = dump_from_parser
     else:
         raise ValueError("Unknown command: %s" % args.command)
 

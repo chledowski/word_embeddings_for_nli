@@ -51,13 +51,14 @@ class SourcewiseMapping(AgnosticSourcewiseTransformer):
 
 
 class TextFile(Dataset):
-    def __init__(self, files, sources):
+    def __init__(self, files, sources, delimiter=b','):
         self.files = files
         self.provides_sources = sources
+        self.delimiter = delimiter
         super(TextFile, self).__init__(sources=sources)
 
     def open(self):
-        handlers = [open(f) for f in self.files]
+        handlers = [open(f, "rb") for f in self.files]
         return chain(*[iter_(h) for h in handlers]), handlers
 
     def close(self, state):
@@ -70,4 +71,4 @@ class TextFile(Dataset):
             raise ValueError
         data, handlers = state
         line = next(data)
-        return tuple(line.split())
+        return tuple([sentence.split() for sentence in line.split(self.delimiter)])

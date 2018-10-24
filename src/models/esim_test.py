@@ -15,6 +15,7 @@ import os
 import re
 
 from keras.layers import Concatenate, Dense, Input, Dropout, TimeDistributed, Bidirectional, Lambda
+from keras.layers import InputLayer
 from keras.models import Model
 from numpy.random import seed
 from numpy.random import RandomState
@@ -31,6 +32,52 @@ from src.scripts.train_eval.utils import build_data_and_streams, compute_metrics
 
 matplotlib.use('Agg')
 logger = logging.getLogger(__name__)
+
+
+def get_all_layer_outputs(model, stream):
+    outputs = {}
+    for layer in model.layers:
+        if not type(layer) is InputLayer:
+            for i in range(len(layer._inbound_nodes)):
+                outputs['%s_%d' % (layer.name, i)] = layer.get_output_at(i)
+
+    model = Model(inputs=model.inputs, outputs=list(outputs.values()))
+
+    return (list(outputs.keys()),
+            model.predict_generator(
+                generator=stream,
+                steps=1,
+                use_multiprocessing=False,
+                verbose=True
+            )
+    )
+
+
+def save_outputs(dirpath, names, outputs):
+    dirpath = os.path.join(DATA_DIR, dirpath)
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath, exist_ok=True)
+
+    for name, output in zip(names, outputs):
+        path = os.path.join(dirpath, '%s.npy' % name)
+        np.save(path, output)
+        print("Saved %s to: %s" % (name, path))
+
+
+def save_all():
+    config = prepare_config('esim')
+
+    seed(config["seed"])
+    set_random_seed(config["seed"])
+    rng = RandomState(config["seed"])
+
+    datasets, streams = build_data_and_streams(config, rng, datasets_to_load=[config["dataset"]])
+    esim_model = build_model(config, datasets[config["dataset"]])
+
+    names, outputs = get_all_layer_outputs(model=esim_model,
+                                           stream=streams["snli"]['train'])
+
+    save_outputs('dumps/old_esim', names, outputs)
 
 
 def save_model_attention():
@@ -144,7 +191,8 @@ def prepare_config(name):
 
 
 def test_esim():
-    save_knowledge_matrix()
+    save_all()
+    # save_knowledge_matrix()
     # save_model_attention()
 
 
