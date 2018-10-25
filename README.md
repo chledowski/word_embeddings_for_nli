@@ -16,11 +16,11 @@ If you'd like to quickly reproduce our results:
 
 3. Run training, e.g.
 
-`python3 run.py --command=train --config=training_configs/esim-doti-mnli0.01.json --savedir=results/esim-doti-mnli`
+`python3 run.py --command=train --config=training_configs/esim-snli0.01.json --savedir=results/esim-snli0.01`
 
 4. Evaluate model
 
-`python3 run.py --command=evaluate --model-path=results/esim-doti-mnli`
+`python3 run.py --command=evaluate --model-path=results/esim-snli0.01`
 
 ### Embedding retrofitting
 

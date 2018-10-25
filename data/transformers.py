@@ -102,9 +102,11 @@ class NLIIndexTransformer(NLITransformer):
     def transform(self, stream):
         stream = SourcewiseMapping(stream, self._digitize, which_sources=(
             'sentence1', 'sentence2'))
-        return SourcewiseMapping(stream, self._surround, which_sources=(
-            'sentence1', 'sentence2',
+        stream = SourcewiseMapping(stream, self._surround, which_sources=(
+            'sentence1', 'sentence2'))
+        stream = SourcewiseMapping(stream, self._surround_lemma, which_sources=(
             'sentence1_lemmatized', 'sentence2_lemmatized'))
+        return stream
 
     def _digitize(self, source_data):
         output = []
@@ -116,6 +118,12 @@ class NLIIndexTransformer(NLITransformer):
         output = []
         for sentence in source_data:
             output.append([self._vocab.bos] + sentence.tolist() + [self._vocab.eos])
+        return numpy.array(output)
+
+    def _surround_lemma(self, source_data):
+        output = []
+        for sentence in source_data:
+            output.append([self._vocab.BOS] + sentence.tolist() + [self._vocab.EOS])
         return numpy.array(output)
 
 
@@ -153,8 +161,8 @@ class WordNetTransformer(NLITransformer):
     # TODO(tomwesolowski): Unit-test it.
     def _prepare_kb(self, x1_lemma, x2_lemma):
         batch_size = x1_lemma.shape[0]
-        x1_length = numpy.max([s.shape[0] for s in x1_lemma])
-        x2_length = numpy.max([s.shape[0] for s in x2_lemma])
+        x1_length = numpy.max([len(s) for s in x1_lemma])
+        x2_length = numpy.max([len(s) for s in x2_lemma])
         kb_x = numpy.zeros((batch_size, x1_length, x2_length, 5)).astype('float32')
         kb_y = numpy.zeros((batch_size, x2_length, x1_length, 5)).astype('float32')
 

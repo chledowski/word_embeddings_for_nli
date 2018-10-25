@@ -1,7 +1,7 @@
 {
   "seed": 9,
   "dataset": {
-    "name": "mnli",
+    "name": "snli",
     "use_lemmatized": true
   },
   "embeddings": {
@@ -14,7 +14,7 @@
   "streams": {
     "train": {
       "batch_size": 32,
-      "fraction": 0.01,
+      "fraction": 1.0,
       "shuffle": true
     },
     "dev": {
@@ -75,7 +75,7 @@
     "embeddings": {
       "main": {
         "name": "main",
-        "trainable": false
+        "trainable": true
       }
     },
     "encoder": {
@@ -88,11 +88,12 @@
     },
     "inference": {
       "similarity": "dot",
-      "kim_attention_boost": 20.0
+      "kim_attention_boost": 0.2
     },
     "external_knowledge": {
       "name": "kim",
-      "ilambda": 1.0
+      "ilambda": 1.0,
+      "embedding": "main"
     },
     "projection": {
       "activation": "relu",
@@ -115,7 +116,7 @@
       {
         "name": "ff1",
         "units": 300,
-        "activation": "relu",
+        "activation": "tanh",
         "regularizer": "l2",
         "regularizer_strength": 0.0
       },
