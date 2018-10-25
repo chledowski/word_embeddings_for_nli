@@ -84,7 +84,7 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.001
+      "regularizer_strength": 0.0001
     },
     "inference": {
       "similarity": "dot",
@@ -98,7 +98,7 @@
     "projection": {
       "activation": "relu",
       "regularizer": "l2",
-      "regularizer_strength": 0.001,
+      "regularizer_strength": 0.0001,
       "units": 300
     },
     "inference_encoder": {
@@ -107,7 +107,7 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.001
+      "regularizer_strength": 0.0001
     },
     "pooling": {
       "operations": ["avg", "max"]
@@ -118,14 +118,14 @@
         "units": 300,
         "activation": "tanh",
         "regularizer": "l2",
-        "regularizer_strength": 0.001
+        "regularizer_strength": 0.0001
       },
       {
         "name": "logits",
         "units": 3,
         "activation": "softmax",
         "regularizer": "l2",
-        "regularizer_strength": 0.001
+        "regularizer_strength": 0.0001
       }
     ]
   }
