@@ -39,6 +39,10 @@
       "vocab": "default"
     },
     {
+      "name": "wordnet",
+      "file": "wordnet_features.pkl"
+    },
+    {
       "name": "padder"
     }
   ],
