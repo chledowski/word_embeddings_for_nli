@@ -2,12 +2,13 @@
 import logging
 
 import keras.backend as K
-from keras.layers import Dropout, Input, Lambda, Concatenate
+from keras.layers import Activation, Dropout, Input, Lambda, Dot, Concatenate
 from keras.models import Model
 
 from modules.esim import EmbeddingLayer, EncoderLayer, ExternalKnowledgeLayer, \
     FeedForwardLayer, InferenceLayer, PoolingLayer, ProjectionLayer
 from modules.residual import ResidualLayer
+from modules.restorer import Restorer
 from modules.utils import MaskMultiply
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,16 @@ class ESIM(object):
         premise_knowledge = Lambda(lambda x: x)(premise_knowledge_input)
         hypothesis_knowledge_input = Input(shape=(None, None, 5), dtype='float32', name='KBhp')
         hypothesis_knowledge = Lambda(lambda x: x)(hypothesis_knowledge_input)
+
+        # Set up model input & output
+        model_inputs = [premise_input, premise_mask_input,
+                       hypothesis_input, hypothesis_mask_input]
+
+        # TODO(tomwesolowski): Get rid of this flag.
+        if config['read_knowledge']:
+            model_inputs += [premise_knowledge_input, hypothesis_knowledge_input]
+
+        model_outputs = []
 
         # Create embeddings layers.
         embedded = dict()
@@ -84,6 +95,23 @@ class ESIM(object):
                 contextualized=hypothesis,
                 residual=embedded[residual_embedding]['hypothesis']
             )
+
+        # Restore contextualized embeddings
+        if config.get('restorer') is not None:
+            restorer = Restorer.from_config(config['restorer'])
+            dot_restored = restorer.restore(
+                premise_contextualized=embedded['contextual']['premise'],
+                hypothesis_contextualized=embedded['contextual']['hypothesis']
+            )
+            dot_restored_target = Dot(axes=(2, 2), name='dot_restored_target')([
+                embedded['main']['premise'],
+                embedded['main']['hypothesis']
+            ])
+            # Without this lambda dot_restored_target is pruned from graph.
+            dot_restored = Lambda(lambda x: x[0], name='dot_restored')(
+                [dot_restored, dot_restored_target]
+            )
+            model_outputs.append(dot_restored)
 
         # Mask padding.
         premise = MaskMultiply()([premise, premise_mask])
@@ -167,16 +195,7 @@ class ESIM(object):
             if i+1 < num_layers:
                 inference_final_vector = Dropout(config["dropout"])(inference_final_vector)
 
-        # Set up model input & output
-        model_input = [premise_input, premise_mask_input,
-                       hypothesis_input, hypothesis_mask_input]
+        prediction = Activation('linear', name='prediction')(inference_final_vector)
+        model_outputs.insert(0, prediction)
 
-        # TODO(tomwesolowski): Get rid of this flag.
-        if config['read_knowledge']:
-            model_input += [premise_knowledge_input, hypothesis_knowledge_input]
-
-        prediction = inference_final_vector
-
-        model = Model(inputs=model_input, outputs=prediction)
-
-        return model
+        return Model(inputs=model_inputs, outputs=model_outputs)

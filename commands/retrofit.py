@@ -9,11 +9,11 @@ import re
 
 from scipy.stats import ortho_group
 from tqdm import trange
-from web.analogy import *
 
 from common.paths import *
 
 # TODO(kchledowski): Refactor this code.
+
 
 def load_embedding(name):
     path = os.path.join(EMBEDDINGS_DIR, name + ".h5")
@@ -72,7 +72,7 @@ def export_dict_to_h5(wv, path):
         retro_vocab.append(key)
         retro_matrix.append(wv[key])
 
-    export_embedding_h5(retro_vocab, np.array(retro_matrix), output=path)
+    export_embedding_h5(retro_vocab, numpy.array(retro_matrix), output=path)
 
 
 def faruqui(wv_original, lexicon, args):

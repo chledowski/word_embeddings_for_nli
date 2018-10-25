@@ -2,7 +2,7 @@
   "seed": 9,
   "dataset": {
     "name": "snli",
-    "use_lemmatized": true
+    "use_lemmatized": false
   },
   "embeddings": {
     "main": {
@@ -14,7 +14,7 @@
   "streams": {
     "train": {
       "batch_size": 32,
-      "fraction": 1.0,
+      "fraction": 0.01,
       "shuffle": true
     },
     "dev": {
@@ -37,10 +37,6 @@
     {
       "name": "indexer",
       "vocab": "default"
-    },
-    {
-      "name": "wordnet",
-      "file": "wordnet_features.pkl"
     },
     {
       "name": "padder"
@@ -71,11 +67,11 @@
   },
   "model": {
     "dropout": 0.5,
-    "read_knowledge": true,
+    "read_knowledge": false,
     "embeddings": {
       "main": {
         "name": "main",
-        "trainable": true
+        "trainable": false
       }
     },
     "encoder": {
@@ -84,21 +80,15 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001
+      "regularizer_strength": 0.0
     },
     "inference": {
-      "similarity": "dot",
-      "kim_attention_boost": 0.2
-    },
-    "external_knowledge": {
-      "name": "kim",
-      "ilambda": 1.0,
-      "embedding": "main"
+      "similarity": "dot"
     },
     "projection": {
       "activation": "relu",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001,
+      "regularizer_strength": 0.0,
       "units": 300
     },
     "inference_encoder": {
@@ -107,7 +97,7 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001
+      "regularizer_strength": 0.0
     },
     "pooling": {
       "operations": ["avg", "max"]
@@ -118,14 +108,14 @@
         "units": 300,
         "activation": "tanh",
         "regularizer": "l2",
-        "regularizer_strength": 0.0001
+        "regularizer_strength": 0.0
       },
       {
         "name": "logits",
         "units": 3,
         "activation": "softmax",
         "regularizer": "l2",
-        "regularizer_strength": 0.0001
+        "regularizer_strength": 0.0
       }
     ]
   }

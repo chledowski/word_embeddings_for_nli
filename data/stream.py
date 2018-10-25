@@ -75,7 +75,7 @@ class NLIStream(object):
         batch = self._next_batch()
         y = batch['label']
         del batch['label']
-        return batch, to_categorical(y, 3)
+        return batch, {'prediction': to_categorical(y, 3)}
 
     def reset(self):
         self._epoch_iterator = self._stream.get_epoch_iterator(as_dict=True)

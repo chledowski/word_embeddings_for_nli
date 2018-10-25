@@ -2,7 +2,7 @@
   "seed": 9,
   "dataset": {
     "name": "snli",
-    "use_lemmatized": true
+    "use_lemmatized": false
   },
   "embeddings": {
     "main": {
@@ -39,10 +39,6 @@
       "vocab": "default"
     },
     {
-      "name": "wordnet",
-      "file": "wordnet_features.pkl"
-    },
-    {
       "name": "padder"
     }
   ],
@@ -54,28 +50,36 @@
   },
   "trainer": {
     "clip_norm": 10.0,
+    "early_stopping": {
+      "monitor": "val_prediction_acc",
+      "patience": 7
+    },
     "learning_rate": 0.0004,
     "learning_rate_scheduler": {
         "type": "reduce_on_plateau",
+        "monitor": "val_prediction_acc",
         "factor": 0.5,
         "mode": "max",
         "patience": 1
     },
-    "loss": "categorical_crossentropy",
+    "loss": ["categorical_crossentropy", "mean_squared_error_matrix"],
+    "loss_weights": [1.0, 0.001],
+    "loss_target_names": [
+      "dot_restored"
+    ],
     "metrics": ["accuracy"],
     "num_epochs": 50,
     "optimizer": "adam",
-    "patience": 7,
     "save_best": true,
     "save_every_epoch": false
   },
   "model": {
     "dropout": 0.5,
-    "read_knowledge": true,
+    "read_knowledge": false,
     "embeddings": {
       "main": {
         "name": "main",
-        "trainable": true
+        "trainable": false
       }
     },
     "encoder": {
@@ -84,21 +88,18 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001
+      "regularizer_strength": 0.0
+    },
+    "restorer": {
+
     },
     "inference": {
-      "similarity": "dot",
-      "kim_attention_boost": 0.2
-    },
-    "external_knowledge": {
-      "name": "kim",
-      "ilambda": 1.0,
-      "embedding": "main"
+      "similarity": "dot"
     },
     "projection": {
       "activation": "relu",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001,
+      "regularizer_strength": 0.0,
       "units": 300
     },
     "inference_encoder": {
@@ -107,7 +108,7 @@
       "units": 300,
       "initializer": "orthogonal",
       "regularizer": "l2",
-      "regularizer_strength": 0.0001
+      "regularizer_strength": 0.0
     },
     "pooling": {
       "operations": ["avg", "max"]
@@ -118,14 +119,14 @@
         "units": 300,
         "activation": "tanh",
         "regularizer": "l2",
-        "regularizer_strength": 0.0001
+        "regularizer_strength": 0.0
       },
       {
         "name": "logits",
         "units": 3,
         "activation": "softmax",
         "regularizer": "l2",
-        "regularizer_strength": 0.0001
+        "regularizer_strength": 0.0
       }
     ]
   }

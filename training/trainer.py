@@ -35,10 +35,18 @@ class Trainer:
         else:
             raise ValueError("Unknown optimizer")
 
+        # Convert names to tensors.
+        target_names = config.get('loss_target_names', [])
+        target_tensors = dict()
+        for name in target_names:
+            target_tensors[name] = model.get_layer('%s_target' % name).output
+
         model.compile(optimizer=optimizer_fn(lr=config['learning_rate'],
                                              clipnorm=config['clip_norm']),
                       loss=config['loss'],
-                      metrics=config['metrics'])
+                      loss_weights=config['loss_weights'],
+                      metrics=config['metrics'],
+                      target_tensors=target_tensors)
 
         return model
 
@@ -75,7 +83,7 @@ class Trainer:
 
         scheduler_config = config.get('learning_rate_scheduler', None)
         if scheduler_config is not None:
-            scheduler = ReduceLROnPlateau(monitor='val_acc',
+            scheduler = ReduceLROnPlateau(monitor=scheduler_config['monitor'],
                                           patience=scheduler_config['patience'],
                                           factor=scheduler_config['factor'],
                                           mode=scheduler_config['mode'],
@@ -85,14 +93,15 @@ class Trainer:
         setattr(time_callback, "t", time.time())
         callbacks.append(LambdaCallback(on_epoch_end=time_callback))
         callbacks.append(LambdaCallback(on_epoch_end=print_callback))
-        callbacks.append(EarlyStopping(monitor='val_acc',
-                                       patience=config['patience']))
+        es_config = config['early_stopping']
+        callbacks.append(EarlyStopping(monitor=es_config['monitor'],
+                                       patience=es_config['patience']))
         callbacks.append(LambdaCallback(on_epoch_end=history_callback))
 
         if config['save_best']:
             best_model_path = os.path.join(serialization_dir, "best_model.h5")
             callbacks.append(ModelCheckpoint(filepath=best_model_path,
-                                             monitor='val_acc',
+                                             monitor=es_config['monitor'],
                                              save_best_only=True,
                                              save_weights_only=False))
 
