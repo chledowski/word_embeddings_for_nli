@@ -4,6 +4,7 @@ The `evaluate` command computes metrics of given model on all evaluation_parts o
 
 
 import logging
+import yaml
 
 from common.experiment import Experiment
 from common.paths import *
@@ -49,10 +50,11 @@ def evaluate_from_args(args):
 
     metrics = {}
     for name in experiment.dataset.evaluation_parts:
-        metrics[name] = evaluate(model, experiment.streams[name])
+        metrics[name] = float(evaluate(model, experiment.streams[name])[1])
 
     print(metrics)
-
+    with open(os.path.join(model_path, 'evaluation.yaml'), 'w') as outfile:
+        yaml.dump(metrics, outfile, default_flow_style=False)
 
 def evaluate_from_parser(parser):
     parser.add_argument("--model-path", type=str)
