@@ -219,6 +219,32 @@ class DOTIExternalKnowledgeLayer(ExternalKnowledgeLayer):
         )
 
 
+@ExternalKnowledgeLayer.register('add-i')
+class ADDIExternalKnowledgeLayer(ExternalKnowledgeLayer):
+    """
+        Expands knowledge vector with values of given embeddings.
+    """
+    def __init__(self, ilambda):
+        super(ADDIExternalKnowledgeLayer, self).__init__()
+        self._ilambda = ilambda
+
+    def __call__(self, inputs, knowledge, soft_attention):
+        premise_vector, hypothesis_vector = inputs
+
+        ilambda = self._ilambda
+        ilambda_multiply = Lambda(lambda x: ilambda * x)
+
+        premise_vector = ilambda_multiply(premise_vector)  # [-1, Psize, 300]
+        hypothesis_vector = ilambda_multiply(hypothesis_vector)  # [-1, Hsize, 300]
+        return premise_vector, hypothesis_vector
+
+    @classmethod
+    def _load(cls, config):
+        return cls(
+            ilambda=config['ilambda']
+        )
+
+
 class ProjectionLayer(object):
     """
     Reduces dimensionality of knowledge vector.
